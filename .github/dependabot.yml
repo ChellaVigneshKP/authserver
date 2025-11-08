@@ -7,11 +7,8 @@ updates:
     registries:
       - maven-central
       - jfrog
-    # optionally restrict updates if needed
     allow:
-      - dependency-type: "direct"   # or "all" / "production"
-      # or specify specific groupIds if needed
-      # - dependency-name: "com.chellavignesh:lib-crypto"
+      - dependency-type: "direct"
 
 registries:
   maven-central:
