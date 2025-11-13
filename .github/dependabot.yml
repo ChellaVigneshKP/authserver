@@ -9,7 +9,6 @@ updates:
       - jfrog
     allow:
       - dependency-type: "direct"
-      - dependency-name: "com.chellavignesh:*"
     open-pull-requests-limit: 10
 
 registries:
