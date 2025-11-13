@@ -9,11 +9,14 @@ updates:
       - jfrog
     allow:
       - dependency-type: "direct"
+    open-pull-requests-limit: 10
+    insecure-external-code-execution: allow
 
 registries:
   maven-central:
     type: maven-repository
     url: "https://repo.maven.apache.org/maven2"
+
   jfrog:
     type: maven-repository
     url: "https://jfrog.chellavignesh.com/artifactory/devops-jfrog-libs-release"
