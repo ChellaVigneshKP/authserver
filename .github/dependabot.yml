@@ -10,7 +10,6 @@ updates:
     allow:
       - dependency-type: "direct"
     open-pull-requests-limit: 10
-    insecure-external-code-execution: allow
 
 registries:
   maven-central:
