@@ -4,6 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# React Admin UI
+client-admin-ui/node_modules/
+client-admin-ui/build/
+
 ### STS ###
 .apt_generated
 .classpath
