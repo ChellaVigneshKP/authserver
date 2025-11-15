@@ -91,8 +91,8 @@ function ClientList() {
                     <td>
                       <code>{client.clientId}</code>
                     </td>
-                    <td>{client.applicationType?.name || 'N/A'}</td>
-                    <td>{client.authMethod?.name || 'N/A'}</td>
+                    <td>{client.applicationType || 'N/A'}</td>
+                    <td>{client.authMethod || 'N/A'}</td>
                     <td>
                       {client.active ? (
                         <span className="badge badge-success">Active</span>

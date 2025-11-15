@@ -116,12 +116,12 @@ function ClientDetail() {
 
         <div className="detail-row">
           <div className="detail-label">Application Type:</div>
-          <div className="detail-value">{client.applicationType?.name || 'N/A'}</div>
+          <div className="detail-value">{client.applicationType || 'N/A'}</div>
         </div>
 
         <div className="detail-row">
           <div className="detail-label">Auth Method:</div>
-          <div className="detail-value">{client.authMethod?.name || 'N/A'}</div>
+          <div className="detail-value">{client.authMethod || 'N/A'}</div>
         </div>
 
         <div className="detail-row">

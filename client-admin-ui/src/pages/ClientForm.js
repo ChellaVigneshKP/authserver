@@ -11,7 +11,7 @@ function ClientForm() {
     name: '',
     description: '',
     applicationType: 'WEB',
-    authMethod: 'CLIENT_SECRET_BASIC',
+    authMethod: 'CLIENT_SECRET_JWT',
     jwkSetUrl: '',
     redirectUris: [],
     postLogoutRedirectUris: [],
@@ -43,8 +43,8 @@ function ClientForm() {
       setFormData({
         name: client.name || '',
         description: client.description || '',
-        applicationType: client.applicationType?.name || 'WEB',
-        authMethod: client.authMethod?.name || 'CLIENT_SECRET_BASIC',
+        applicationType: client.applicationType || 'WEB',
+        authMethod: client.authMethod || 'CLIENT_SECRET_JWT',
         jwkSetUrl: client.jwkSetUrl || '',
         redirectUris: client.redirectUris || [],
         postLogoutRedirectUris: client.postLogoutRedirectUris || [],
@@ -214,8 +214,7 @@ function ClientForm() {
           >
             <option value="WEB">Web Application</option>
             <option value="MOBILE">Mobile Application</option>
-            <option value="NATIVE">Native Application</option>
-            <option value="SPA">Single Page Application</option>
+            <option value="SERVER">Server Application</option>
           </select>
           {errors.applicationType && <div className="form-error">{errors.applicationType}</div>}
         </div>
@@ -229,8 +228,6 @@ function ClientForm() {
             onChange={handleChange}
             required
           >
-            <option value="CLIENT_SECRET_BASIC">Client Secret Basic</option>
-            <option value="CLIENT_SECRET_POST">Client Secret Post</option>
             <option value="CLIENT_SECRET_JWT">Client Secret JWT</option>
             <option value="PRIVATE_KEY_JWT">Private Key JWT</option>
             <option value="PKCE">PKCE (Public Client)</option>
