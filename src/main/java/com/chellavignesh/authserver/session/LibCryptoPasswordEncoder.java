@@ -6,7 +6,6 @@ import com.chellavignesh.libcrypto.service.CryptoWebClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.util.Arrays;
@@ -16,7 +15,6 @@ import java.util.List;
 
 @Slf4j
 public class LibCryptoPasswordEncoder implements PasswordEncoder {
-    // TODO: Change this to properly handle from libcrypto
 
     public static final Integer ENCODER_ID = 0;
     private final CryptoWebClient cryptWebClient;
@@ -27,103 +25,133 @@ public class LibCryptoPasswordEncoder implements PasswordEncoder {
         this.useLocalFallback = (cryptWebClient == null);
     }
 
+    //----------------------------------------------------------------------
+    // ENCODE
+    //----------------------------------------------------------------------
     @Override
     public String encode(CharSequence rawPassword) {
-        if (rawPassword == null) {
-            return null;
-        }
+        if (rawPassword == null) return null;
 
-        String decodedPassword;
-        try {
-            decodedPassword = new String(Base64.getDecoder().decode(rawPassword.toString()));
-        } catch (IllegalArgumentException e) {
-            // not base64-encoded, so use raw
-            decodedPassword = rawPassword.toString();
-        }
+        String decodedPassword = decodePassword(rawPassword);
 
         if (useLocalFallback) {
-            // simple fallback hashing (e.g., SHA-256)
-            try {
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(decodedPassword.getBytes());
-                return "{" + ENCODER_ID + "}" + Base64.getEncoder().encodeToString(hash);
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to hash password", e);
-            }
+            return encodeLocal(decodedPassword);
         }
 
-        // future real implementation using crypto service
-        return "{" + ENCODER_ID + "}" + decodedPassword;
+        try {
+            // build crypto request
+            Data data = new Data();
+            data.setObjectName("$.user");
+            data.setPlainText(decodedPassword);
+            data.setReversible(false);
+
+            CryptoRequestResponse req = new CryptoRequestResponse();
+            req.setEncryptData(List.of(data));
+
+            // call remote crypto service
+            Data resp = cryptWebClient.postCryptoRequestResponse(req)
+                    .orElseThrow(() -> new RuntimeException("Empty crypto response"))
+                    .getEncryptData()
+                    .get(0);
+
+            // build final stored format
+            byte[] cipherIndexBytes = ByteBuffer.allocate(4).putInt(resp.getCipherIndex()).array();
+            byte[] encryptedBytes = HexFormat.of().parseHex(resp.getEncryptedCipher());
+
+            byte[] combined = new byte[cipherIndexBytes.length + encryptedBytes.length];
+            System.arraycopy(cipherIndexBytes, 0, combined, 0, cipherIndexBytes.length);
+            System.arraycopy(encryptedBytes, 0, combined, cipherIndexBytes.length, encryptedBytes.length);
+
+            return "{" + ENCODER_ID + "}0x" + HexFormat.of().formatHex(combined);
+        } catch (Exception e) {
+            log.error("Crypto encode failed. Falling back to local hashing.", e);
+            return encodeLocal(decodedPassword);
+        }
     }
 
+    //----------------------------------------------------------------------
+    // MATCHES
+    //----------------------------------------------------------------------
     @Override
     public boolean matches(CharSequence rawPassword, String encodedPassword) {
-        if (encodedPassword == null || rawPassword == null) {
-            return false;
-        }
+        if (rawPassword == null || encodedPassword == null) return false;
 
-        String decodedPassword;
-        try {
-            decodedPassword = new String(Base64.getDecoder().decode(rawPassword.toString()));
-        } catch (IllegalArgumentException e) {
-            decodedPassword = rawPassword.toString();
-        }
+        String decodedPassword = decodePassword(rawPassword);
 
         if (useLocalFallback) {
-            // local SHA-256 compare
-            try {
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(decodedPassword.getBytes());
-                String localEncoded = "{" + ENCODER_ID + "}" + Base64.getEncoder().encodeToString(hash);
-                return encodedPassword.equals(localEncoded);
-            } catch (Exception e) {
-                log.error("Failed to verify password locally", e);
-                return false;
-            }
+            return matchesLocal(decodedPassword, encodedPassword);
         }
 
-        // future secure path — call crypto service
         try {
-            var parsed = LibCryptoEncodedPassword.from(encodedPassword);
-            Data decryptData = new Data();
-            decryptData.setObjectName("$.user");
-            decryptData.setPlainText(decodedPassword);
-            decryptData.setCipherIndex(parsed.cipherIndex());
-            decryptData.setReversible(false);
+            LibCryptoEncodedPassword parsed = LibCryptoEncodedPassword.from(encodedPassword);
+
+            // build request
+            Data data = new Data();
+            data.setObjectName("$.user");
+            data.setPlainText(decodedPassword);
+            data.setCipherIndex(parsed.cipherIndex());
+            data.setReversible(false);
+
             CryptoRequestResponse req = new CryptoRequestResponse();
-            req.setEncryptData(List.of(decryptData));
+            req.setEncryptData(List.of(data));
 
             Data resp = cryptWebClient.postCryptoRequestResponse(req)
                     .orElseThrow()
                     .getEncryptData()
                     .get(0);
 
-            var secureAuthEncoded = new LibCryptoEncodedPassword(
-                    resp.getCipherIndex(),
-                    HexFormat.of().parseHex(resp.getEncryptedCipher())
-            );
-            return Arrays.equals(parsed.encodedPassword(), secureAuthEncoded.encodedPassword());
-        } catch (URISyntaxException e) {
-            log.error("Failed to call crypto service", e);
-            return false;
+            // recreate expected encrypted cipher
+            LibCryptoEncodedPassword recreated =
+                    new LibCryptoEncodedPassword(resp.getCipherIndex(),
+                            HexFormat.of().parseHex(resp.getEncryptedCipher()));
+
+            return Arrays.equals(parsed.encodedPassword(), recreated.encodedPassword());
         } catch (Exception e) {
-            log.error("Error matching password", e);
+            log.error("Crypto password match failed", e);
             return false;
         }
     }
 
+    //----------------------------------------------------------------------
+    // HELPERS
+    //----------------------------------------------------------------------
+    private String decodePassword(CharSequence raw) {
+        try {
+            return new String(Base64.getDecoder().decode(raw.toString()));
+        } catch (Exception _) {
+            return raw.toString();
+        }
+    }
+
+    private String encodeLocal(String decodedPassword) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(decodedPassword.getBytes());
+            return "{" + ENCODER_ID + "}" + Base64.getEncoder().encodeToString(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed local password hashing", e);
+        }
+    }
+
+    private boolean matchesLocal(String decoded, String encodedPassword) {
+        return encodeLocal(decoded).equals(encodedPassword);
+    }
+
+    //----------------------------------------------------------------------
+    // INTERNAL REPRESENTATION
+    //----------------------------------------------------------------------
     public record LibCryptoEncodedPassword(int cipherIndex, byte[] encodedPassword) {
-        public static LibCryptoEncodedPassword from(String encodedPasswordString) {
+        public static LibCryptoEncodedPassword from(String encoded) {
             try {
-                var encodedByteArray = HexFormat.of().parseHex(encodedPasswordString.replace("0x", ""));
-                var cipherIndex = new byte[4];
-                var encodedPassword = new byte[encodedByteArray.length - 4];
-                System.arraycopy(encodedByteArray, 0, cipherIndex, 0, 4);
-                System.arraycopy(encodedByteArray, 4, encodedPassword, 0, encodedPassword.length);
-                return new LibCryptoEncodedPassword(ByteBuffer.wrap(cipherIndex).getInt(), encodedPassword);
+                String hex = encoded.substring(encoded.indexOf("}") + 1).replace("0x", "");
+                byte[] all = HexFormat.of().parseHex(hex);
+
+                byte[] idx = Arrays.copyOfRange(all, 0, 4);
+                byte[] pwd = Arrays.copyOfRange(all, 4, all.length);
+
+                return new LibCryptoEncodedPassword(ByteBuffer.wrap(idx).getInt(), pwd);
             } catch (Exception e) {
-                // fallback: treat encoded string as plain
-                return new LibCryptoEncodedPassword(0, encodedPasswordString.getBytes());
+                return new LibCryptoEncodedPassword(0, encoded.getBytes());
             }
         }
     }

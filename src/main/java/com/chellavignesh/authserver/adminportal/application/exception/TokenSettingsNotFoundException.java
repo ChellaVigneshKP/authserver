@@ -1,7 +1,7 @@
 package com.chellavignesh.authserver.adminportal.application.exception;
 
 public class TokenSettingsNotFoundException extends RuntimeException {
-    private TokenSettingsNotFoundException() {
+    public TokenSettingsNotFoundException() {
         super("Token Settings not found");
     }
 

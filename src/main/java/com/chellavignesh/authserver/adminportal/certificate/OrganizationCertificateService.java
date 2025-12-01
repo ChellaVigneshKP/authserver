@@ -5,7 +5,6 @@ import com.chellavignesh.authserver.adminportal.certificate.exception.FailedToCr
 import com.chellavignesh.authserver.adminportal.certificate.exception.FailedToStoreCertificateException;
 import com.chellavignesh.authserver.adminportal.certificate.exception.InvalidFileException;
 import com.chellavignesh.authserver.enums.entity.CertificateType;
-import com.chellavignesh.authserver.jose.KeyCryptoService;
 import com.chellavignesh.authserver.keystore.KeyStorePair;
 import com.chellavignesh.authserver.keystore.exception.FailedToCreateKeyStorePairException;
 import com.chellavignesh.authserver.keystore.parser.PemKeyStorePairParser;
@@ -65,7 +64,7 @@ public class OrganizationCertificateService {
         return certificateRepository.get(orgId, certId);
     }
 
-    private List<CertificateEntity> getAllByClientIdAndCertTypeId(String clientId, Integer certTypeId) {
+    public List<CertificateEntity> getAllByClientIdAndCertTypeId(String clientId, Integer certTypeId) {
         return certificateRepository.getALlByClientIdAndType(clientId, certTypeId);
     }
 
@@ -73,7 +72,7 @@ public class OrganizationCertificateService {
         return certificateRepository.getById(orgId, certId);
     }
 
-    private String generateFingerprint(Optional<X509Certificate> certificate) throws NoSuchAlgorithmException, CertificateEncodingException {
+    public String generateFingerprint(Optional<X509Certificate> certificate) throws NoSuchAlgorithmException, CertificateEncodingException {
         MessageDigest md = SHA256_DIGEST_POOL.get();
         md.reset();
         byte[] certificateHash;
@@ -82,8 +81,14 @@ public class OrganizationCertificateService {
         return this.bytesToHex(certificateHash).toLowerCase();
     }
 
-    private String bytesToHex(byte[] hash) {
-        return KeyCryptoService.bytesToHex(hash);
+    public String bytesToHex(byte[] hash) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
     }
 
     public byte[] getCertificateInFile(CertificateEntity certificate) {
