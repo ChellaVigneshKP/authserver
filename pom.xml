@@ -187,7 +187,7 @@
 			<plugin>
 				<groupId>org.flywaydb</groupId>
 				<artifactId>flyway-maven-plugin</artifactId>
-				<version>11.17.0</version>
+				<version>11.19.0</version>
 				<configuration>
 					<url>jdbc:sqlserver://localhost:1433;databaseName=AGSAuth;encrypt=true;trustServerCertificate=true</url>
 					<user>sa</user>
