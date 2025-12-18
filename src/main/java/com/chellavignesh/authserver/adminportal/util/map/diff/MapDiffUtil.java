@@ -9,7 +9,7 @@ import java.util.*;
 @UtilityClass
 public class MapDiffUtil {
 
-    public static <T, S> Map<String, Object> createDiffOf(
+    public static <T, S> Map<String, Object> createDiffFor(
             @NotNull final T left,
             @NotNull final S right,
             @NotNull final List<PropertyExtractor<T, S>> propertyExtractors) {

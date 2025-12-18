@@ -113,11 +113,11 @@ public class PasswordValidatorService {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("password", password);
 
-        boolean validation = namedParameterJdbcTemplate.queryForObject(
+        boolean validation = Boolean.TRUE.equals(namedParameterJdbcTemplate.queryForObject(
                 "{call Person.validatePasswordBlacklisted(:password)}",
                 parameters,
                 Boolean.class
-        );
+        ));
 
         if (!validation) {
             throw new PasswordBlackListedException(OutputMessagesConstants.PASSWORD_BLACKLISTED);
