@@ -56,6 +56,9 @@ public class ClientSecretJWTAuthenticationProvider implements AuthenticationProv
         try {
             registeredClient = applicationService.getRegisteredClientByClientId(clientId, 1);
         } catch (AppNotFoundException _) {
+            /*
+            This is expected if there are no secrets for the client.
+             */
 
         }
         if (registeredClient == null) {
@@ -79,10 +82,13 @@ public class ClientSecretJWTAuthenticationProvider implements AuthenticationProv
                 jwtAssertion = jwtDecoder.decode(clientAuthentication.getCredentials().toString());
                 break;
             } catch (JwtException ex) {
-                if (i < Integer.valueOf(maxActiveSecrets)) {
+                if (i < Integer.parseInt(maxActiveSecrets)) {
                     try {
                         registeredClient = applicationService.getRegisteredClientByClientId(clientId, i + 1);
                     } catch (AppNotFoundException _) {
+                        /*
+                        This is expected if there are no more secrets for the client.
+                         */
                     }
                 } else {
                     logger.warn("No active secrets found for client ID: {}", clientId);
@@ -90,7 +96,7 @@ public class ClientSecretJWTAuthenticationProvider implements AuthenticationProv
                 }
             }
             i++;
-        } while (i <= Integer.valueOf(maxActiveSecrets));
+        } while (i <= Integer.parseInt(maxActiveSecrets));
         if (logger.isTraceEnabled()) {
             logger.trace("Successfully validated JWT assertion for client ID: {}", clientId);
         }
