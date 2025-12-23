@@ -21,8 +21,10 @@ import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+@Service
 public class ClientSecretJWTAuthenticationProvider implements AuthenticationProvider {
     private static final String ERROR_URI = "https://chellavignesh.com/auth-server-error";
     private static final ClientAuthenticationMethod JWT_CLIENT_ASSERTION_AUTHENTICATION_METHOD = new ClientAuthenticationMethod("urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
