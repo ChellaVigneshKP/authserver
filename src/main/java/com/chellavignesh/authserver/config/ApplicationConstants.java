@@ -1,6 +1,9 @@
 package com.chellavignesh.authserver.config;
 
 public class ApplicationConstants {
+    private  ApplicationConstants() {
+        // prevent instantiation
+    }
     public static final String AUTH_SESSION_ID = "AUTH_SESSION_ID";
     public static final String CLIENT_FINGERPRINT = "client_fingerprint";
     public static final String AUTHORIZATION_HEADER = "Authorization";

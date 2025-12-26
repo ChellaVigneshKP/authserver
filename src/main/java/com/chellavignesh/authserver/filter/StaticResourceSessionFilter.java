@@ -6,10 +6,14 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Set;
 
+@Component
+@Order(1)
 public class StaticResourceSessionFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(StaticResourceSessionFilter.class);
 
