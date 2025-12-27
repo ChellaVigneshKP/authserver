@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${metaTitle} ?: 'Identify Yourself'">Identify Yourself</title>
+    <link rel="icon" type="image/x-icon" th:href="${planFaviconPath}" th:if="${planFaviconPath != null and !planFaviconPath.isEmpty()}">
+
+    <!-- Google Tag Manager -->
+    <script th:replace="~{fragments/scripts.html :: gtmHead}"></script>
+
+    <style>
+        :root {
+            --primary-color: [[${planPrimaryColor}]] ?: #1d3557;
+            --secondary-color: [[${planSecondaryColor}]] ?: #457b9d;
+            --tertiary-color: [[${planTertiaryColor}]] ?: #a8dadc;
+            --primary-text-color: [[${planPrimaryTextColor}]] ?: #000000;
+            --secondary-text-color: [[${planSecondaryTextColor}]] ?: #666666;
+            --tertiary-text-color: [[${planTertiaryTextColor}]] ?: #999999;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: var(--primary-text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo img {
+            max-height: 60px;
+            max-width: 200px;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            max-width: 1200px;
+            width: 100%;
+            margin: 2rem auto;
+            gap: 2rem;
+            padding: 0 2rem;
+        }
+
+        .sidebar {
+            flex: 0 0 250px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .progress-steps {
+            list-style: none;
+        }
+
+        .progress-steps li {
+            padding: 0.75rem 0;
+            border-left: 3px solid #e0e0e0;
+            padding-left: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--secondary-text-color);
+        }
+
+        .progress-steps li:first-child {
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .main-content {
+            flex: 1;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 2.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1.75rem;
+        }
+
+        .subtitle {
+            color: var(--secondary-text-color);
+            margin-bottom: 1rem;
+        }
+
+        .description {
+            color: var(--secondary-text-color);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #f5c6cb;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--primary-text-color);
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(29, 53, 87, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        button, .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .contact-info {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            color: var(--secondary-text-color);
+        }
+
+        footer {
+            background-color: #ffffff;
+            padding: 2rem;
+            margin-top: auto;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .footer-links {
+            margin-bottom: 1rem;
+        }
+
+        .footer-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin: 0 1rem;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                flex: 1;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<!-- Google Tag Manager (noscript) -->
+<div th:replace="~{fragments/scripts.html :: gtmBody}"></div>
+
+<header class="header">
+    <div class="logo">
+        <img th:if="${logo != null and !logo.isEmpty()}" th:src="${logo}" th:alt="${planName} ?: 'Logo'">
+        <span th:if="${logo == null or logo.isEmpty()}" th:text="${planName} ?: 'Auth Server'">Auth Server</span>
+    </div>
+</header>
+
+<div class="container">
+    <aside class="sidebar" th:if="${progressSidebarSteps != null}">
+        <h3>Progress</h3>
+        <ul class="progress-steps">
+            <li th:each="step : ${progressSidebarSteps}" th:utext="${step}">Step</li>
+        </ul>
+        <div th:if="${progressSidebarLinks != null}" class="sidebar-links">
+            <div th:each="link : ${progressSidebarLinks}" th:utext="${link}"></div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <h1 th:text="${title}">Identify Yourself</h1>
+        <p class="subtitle" th:if="${subtitle != null}" th:utext="${subtitle}">Please enter your information</p>
+        <p class="description" th:if="${description != null}" th:utext="${description}">Enter your username or email to continue</p>
+
+        <div class="error-message" th:if="${error != null}" th:text="${error}">Error message</div>
+
+        <form method="post" th:action="@{${flow != null ? '/' + flow : ''} + '/identify-yourself'}">
+            <div class="form-group" th:if="${usernameType == null or usernameType == 'username' or usernameType == 'both'}">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required th:if="${usernameType != 'email'}">
+            </div>
+
+            <div class="form-group" th:if="${usernameType == 'email' or usernameType == 'both'}">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" th:required="${usernameType == 'email'}">
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary">Continue</button>
+                <a th:href="${cancelUrl}" class="btn btn-secondary" th:unless="${disableBack != null}">
+                    <span th:text="${cancelText} ?: 'Back'">Back</span>
+                </a>
+            </div>
+        </form>
+
+        <div class="contact-info" th:if="${contact != null}" th:utext="${contact}">
+            Need help? Contact support
+        </div>
+    </main>
+</div>
+
+<footer>
+    <div class="footer-links" th:if="${footerLinks != null}" th:utext="${footerLinks}">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+    </div>
+    <div th:if="${footerHTML != null}" th:utext="${footerHTML}">
+        <p>&copy; 2024 All rights reserved.</p>
+    </div>
+</footer>
+</body>
+</html>
