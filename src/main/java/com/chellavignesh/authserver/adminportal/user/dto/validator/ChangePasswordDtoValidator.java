@@ -14,7 +14,7 @@ public class ChangePasswordDtoValidator implements Validator {
     private static final String INCORRECT_PASSWORD = "Password must be a minimun of 8 characters long and include 3 of the following: lower characters, upper characters, special characters or numbers.";
     private static final String REQUIRED_PASSWORD = "Password is required.";
     private static final String INVALID_CONFIRM_PASSWORD = "Entered password values do not match.";
-    private static final String INVALID_CURRENT_PASSWORD = "Current password is invalid.";
+    public static final String INVALID_CURRENT_PASSWORD = "Current password is invalid.";
 
     private final PasswordValidatorService passwordValidatorService;
 

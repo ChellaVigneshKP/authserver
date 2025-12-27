@@ -134,8 +134,6 @@ public class AuthServerConfig {
     @Order(2)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
 
-        log.debug("Configuring OAuth2 Authorization Server Security Filter Chain (@Order(2))");
-
         http.cors(Customizer.withDefaults());
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 
@@ -150,47 +148,56 @@ public class AuthServerConfig {
                         userInfo.userInfoRequestConverter(new OidcAuthenticationConverter(signatureService))
                                 .userInfoMapper(userInfoMapper)
                                 .authenticationProvider(authenticationProvider)
-                                .userInfoResponseHandler(new UserInfoSuccessHandler())))
+                                .userInfoResponseHandler(new UserInfoSuccessHandler())
+                ))
                 .clientAuthentication(clientAuth -> clientAuth.authenticationProviders(providers -> {
                     providers.add(authenticationProvider);
                     providers.add(privateJWTAuthenticationProvider);
                     providers.add(clientSecretJWTAuthenticationProvider);
-                })).tokenIntrospectionEndpoint(introspection -> {
-                    introspection.introspectionRequestConverter(new IntrospectionAuthenticationConverter(signatureService));
+                }))
+                .tokenIntrospectionEndpoint(introspection -> {
+                    introspection.introspectionRequestConverter(
+                            new IntrospectionAuthenticationConverter(signatureService)
+                    );
                     introspection.authenticationProviders(providers -> {
                         providers.clear();
                         providers.add(introspectionAuthenticationProvider);
                     });
-                    introspection.introspectionResponseHandler(new IntrospectionSuccessHandler(applicationService, tokenService, authSessionService, isFingerprintingEnabled));
-                }).authorizationEndpoint(endpoint -> {
-                    endpoint.authorizationRequestConverter(authorizationCodeRequestAuthenticationConverter);
+                    introspection.introspectionResponseHandler(
+                            new IntrospectionSuccessHandler(
+                                    applicationService,
+                                    tokenService,
+                                    authSessionService,
+                                    isFingerprintingEnabled
+                            )
+                    );
+                })
+                .authorizationEndpoint(endpoint -> {
+                    endpoint.authorizationRequestConverter(
+                            authorizationCodeRequestAuthenticationConverter
+                    );
                     endpoint.errorResponseHandler(oauth2AuthorizationErrorResponseHandler);
-                    log.debug("Authorization endpoint configured with custom converter and error handler");
-                }).tokenEndpoint(tokenEndpoint ->
-                                tokenEndpoint.accessTokenResponseHandler(new CustomTokenResponseSuccessHandler(tokenService))
-//                                .errorResponseHandler(new CustomTokenErrorResponseHandler())
+                })
+                .tokenEndpoint(tokenEndpoint ->
+                        tokenEndpoint.accessTokenResponseHandler(
+                                new CustomTokenResponseSuccessHandler(tokenService)
+                        )
                 );
-
-        http.oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(token -> token.introspector(new TokenIntrospector(tokenService))));
 
         http.exceptionHandling(exceptions -> {
             exceptions.authenticationEntryPoint(multiRouteAuthenticationEntryPoint);
-            exceptions.accessDeniedHandler((request, response, ex) -> {
-                log.error("Access denied in OAuth2 authorization: {}", ex.getMessage(), ex);
-                response.setStatus(403);
-                response.getWriter().write("Access Denied: " + ex.getMessage());
-            });
         });
 
-        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+        http.sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+        );
 
-        log.info("Session management configured: IF_REQUIRED");
+        http.addFilterBefore(
+                new OidcWellKnownOverwriteFilter(),
+                AbstractPreAuthenticatedProcessingFilter.class
+        );
 
-        http.addFilterBefore(new OidcWellKnownOverwriteFilter(), AbstractPreAuthenticatedProcessingFilter.class);
-
-        SecurityFilterChain filterChain = http.build();
-        log.debug("OAuth2 Authorization Server Security Filter Chain built successfully (@Order(2))");
-        return filterChain;
+        return http.build();
     }
 
     // ------------------------------------------------------
