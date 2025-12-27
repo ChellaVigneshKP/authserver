@@ -9,15 +9,15 @@ import java.util.UUID;
 
 @Getter
 @AllArgsConstructor
-public class ApplicationUriResponseDto {
+public class ApplicationUrlResponseDto {
     private UUID appGuid;
     private UUID orgGuid;
     private String applicationUrl;
     private String[] redirectUrls;
     private String[] logoutRedirectUrls;
 
-    public static ApplicationUriResponseDto from(UUID orgGuid, UUID appGuid, Application a, Set<String> redirectUrls, Set<String> logoutRedirectUrls) {
-        return new ApplicationUriResponseDto(
+    public static ApplicationUrlResponseDto from(UUID orgGuid, UUID appGuid, Application a, Set<String> redirectUrls, Set<String> logoutRedirectUrls) {
+        return new ApplicationUrlResponseDto(
                 appGuid,
                 orgGuid,
                 a.getUri(),

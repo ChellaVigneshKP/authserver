@@ -514,7 +514,7 @@ public class UserService {
         return this.userRepository.updateAccessFailedCountWithExternalSourceCode(userName, sourceCode, loginSuccess, accessFailedLimit);
     }
 
-    public void unLockAccount(String userName, String sourceCode) {
+    public void unlockAccount(String userName, String sourceCode) {
         this.userRepository.unlockAccount(userName, sourceCode);
     }
 
