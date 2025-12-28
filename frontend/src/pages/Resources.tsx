@@ -17,10 +17,10 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import { resourceService } from '../../services/resourceService';
-import type { ResourceLibrary } from '../../types/index';
-import { Loading } from '../common/Loading';
-import { ErrorDisplay } from '../common/ErrorDisplay';
+import { resourceService } from '../../services/resourceService.ts';
+import type { ResourceLibrary } from '../../types/index.ts';
+import { Loading } from '../common/Loading.tsx';
+import { ErrorDisplay } from '../common/ErrorDisplay.tsx';
 
 export const Resources = () => {
   const [resources, setResources] = useState<ResourceLibrary[]>([]);

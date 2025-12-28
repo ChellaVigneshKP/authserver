@@ -20,11 +20,11 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import { userService } from '../../services/userService';
-import { organizationService } from '../../services/organizationService';
-import type { User, Organization } from '../../types/index';
-import { Loading } from '../common/Loading';
-import { ErrorDisplay } from '../common/ErrorDisplay';
+import { userService } from '../../services/userService.ts';
+import { organizationService } from '../../services/organizationService.ts';
+import type { User, Organization } from '../../types/index.ts';
+import { Loading } from '../common/Loading.tsx';
+import { ErrorDisplay } from '../common/ErrorDisplay.tsx';
 
 export const Users = () => {
   const [users, setUsers] = useState<User[]>([]);

@@ -13,10 +13,10 @@ import {
   People as PeopleIcon,
   VpnKey as VpnKeyIcon,
 } from '@mui/icons-material';
-import { organizationService } from '../../services/organizationService';
-import { userService } from '../../services/userService';
-import { Loading } from '../common/Loading';
-import { ErrorDisplay } from '../common/ErrorDisplay';
+import { organizationService } from '../../services/organizationService.ts';
+import { userService } from '../../services/userService.ts';
+import { Loading } from '../common/Loading.tsx';
+import { ErrorDisplay } from '../common/ErrorDisplay.tsx';
 
 interface StatsCard {
   title: string;

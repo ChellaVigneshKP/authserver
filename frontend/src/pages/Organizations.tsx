@@ -18,10 +18,10 @@ import {
   Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import { organizationService } from '../../services/organizationService';
-import type { Organization } from '../../types/index';
-import { Loading } from '../common/Loading';
-import { ErrorDisplay } from '../common/ErrorDisplay';
+import { organizationService } from '../../services/organizationService.ts';
+import type { Organization } from '../../types/index.ts';
+import { Loading } from '../common/Loading.tsx';
+import { ErrorDisplay } from '../common/ErrorDisplay.tsx';
 
 export const Organizations = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);

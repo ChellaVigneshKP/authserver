@@ -21,8 +21,8 @@ import {
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { DataGrid, type GridColDef, type GridRenderCellParams } from '@mui/x-data-grid';
-import { applicationService } from '../../services/applicationService';
-import { organizationService } from '../../services/organizationService';
+import { applicationService } from '../../services/applicationService.ts';
+import { organizationService } from '../../services/organizationService.ts';
 import type { Application, Organization } from '../../types/index';
 import { Loading } from '../common/Loading';
 import { ErrorDisplay } from '../common/ErrorDisplay';

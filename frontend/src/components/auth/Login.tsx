@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { LockOutlined as LockOutlinedIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../../services/authService';
+import { authService } from '../../services/authService.ts';
 
 export const Login = () => {
   const [username, setUsername] = useState('');

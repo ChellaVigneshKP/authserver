@@ -10,7 +10,7 @@ import { Users } from './pages/Users';
 import { Resources } from './pages/Resources';
 import { Certificates } from './pages/Certificates';
 import { Credentials } from './pages/Credentials';
-import { authService } from './services/authService';
+import { authService } from './services/authService.ts';
 
 const theme = createTheme({
   palette: {
