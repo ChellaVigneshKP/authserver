@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -12,9 +12,10 @@ import {
   Typography,
   Alert,
   Container,
+  CircularProgress,
 } from "@mui/material";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
@@ -113,5 +114,19 @@ export default function SignInPage() {
         </Card>
       </Box>
     </Container>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <Container maxWidth="sm">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <CircularProgress />
+        </Box>
+      </Container>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

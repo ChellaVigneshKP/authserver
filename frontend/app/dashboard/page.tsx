@@ -84,7 +84,7 @@ export default function DashboardPage() {
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {cards.map((card, index) => (
-          <Grid item xs={12} sm={6} md={4} key={index}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
