@@ -1,0 +1,65 @@
+{
+  "planName": "Auth Server",
+  "planFaviconPath": "/favicon.ico",
+  "planPrimaryColor": "#0066cc",
+  
+  "loginTitleA": "Welcome Back",
+  "loginContentA": "Sign in to your account to continue",
+  "loginContent1": "Secure authentication",
+  "loginContent2": "Multi-factor authentication support",
+  "loginContent3": "Enterprise-grade security",
+  "loginContent4": "Single sign-on enabled",
+  "loginLogoPath": "/images/logo.png",
+  "introTitle": "Sign In",
+  "loginBelowFormHTML": "",
+  "loginBannerHTML": "",
+  
+  "loginBannerTitle": "",
+  "loginBannerContent": "",
+  "loginBannerCTA": "",
+  "loginBannerCTALink": "",
+  "loginBannerIconPath": "",
+  
+  "helpContentHTML": "Need help? Contact support",
+  "footerLinks": "",
+  "footerHTML": "<p>&copy; 2024 Auth Server. All rights reserved.</p>",
+  
+  "invalidLoginError": "Invalid username or password. Please try again.",
+  "lockedOutError": "Your account has been locked due to multiple failed login attempts. Please contact support.",
+  "highRiskLoginError": "Login attempt from an unusual location or device. Please verify your identity.",
+  
+  "forgotPasswordTitle": "Forgot Password",
+  "forgotPasswordContent": "Enter your username or email to reset your password",
+  "forgotPasswordNavLink1": "Identify Yourself",
+  "forgotPasswordNavLink2": "Verify Identity",
+  "forgotPasswordNavLink3": "Reset Password",
+  "forgotPasswordNavLink4": "Complete",
+  
+  "forgotUsernameTitle": "Forgot Username",
+  "forgotUsernameContent": "Enter your email to recover your username",
+  
+  "activateAccountTitle": "Activate Account",
+  "activateAccountNavLink1": "Identify Yourself",
+  "activateAccountNavLink2": "Verify Identity",
+  "activateAccountNavLink3": "Set Password",
+  "activateAccountNavLink4": "Complete",
+  
+  "navLink1": "Step 1",
+  "navLink2": "Step 2",
+  "navLink3": "Step 3",
+  
+  "progressBarLinkHTML1": "",
+  "progressBarLinkHTML2": "",
+  "progressBarLinkHTML3": "",
+  "progressBarLinkHTML4": "",
+  "progressBarLinkHTML5": "",
+  "progressBarLinkHTML6": "",
+  
+  "mfaTitle": "Multi-Factor Authentication",
+  "mfaContent": "Enter the verification code sent to your device",
+  "mfaInvalidCodeError": "Invalid verification code. Please try again.",
+  
+  "biometricAuthError": "Biometric authentication failed. Please try again or use an alternative method.",
+  "biometricGenericError": "An error occurred during biometric authentication.",
+  "biometricInvalidCredentials": "Invalid biometric credentials."
+}
