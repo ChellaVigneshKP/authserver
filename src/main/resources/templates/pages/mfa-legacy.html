@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header.html :: head('Multi-Factor Authentication')}"></head>
+<body>
+    <div class="container">
+        <div class="card" style="max-width: 500px; margin: 50px auto;">
+            <div class="logo-container">
+                <h1>Enter Your Security Code</h1>
+            </div>
+            
+            <!-- Error Messages -->
+            <div class="alert alert-error" th:if="${loginError}">
+                <span>Invalid security code. Please try again.</span>
+            </div>
+            
+            <div class="alert alert-error" th:if="${lockedAccountError}">
+                <span>Your account has been locked. Please contact support.</span>
+            </div>
+            
+            <p class="subtitle">Enter the 6-digit code that was sent to your device</p>
+            
+            <!-- MFA Form -->
+            <form th:action="@{/mfa}" method="post">
+                <div class="pin-input-container">
+                    <input type="text" name="mfa-number-1" class="pin-digit" maxlength="1" pattern="[0-9]" required autofocus>
+                    <input type="text" name="mfa-number-2" class="pin-digit" maxlength="1" pattern="[0-9]" required>
+                    <input type="text" name="mfa-number-3" class="pin-digit" maxlength="1" pattern="[0-9]" required>
+                    <input type="text" name="mfa-number-4" class="pin-digit" maxlength="1" pattern="[0-9]" required>
+                    <input type="text" name="mfa-number-5" class="pin-digit" maxlength="1" pattern="[0-9]" required>
+                    <input type="text" name="mfa-number-6" class="pin-digit" maxlength="1" pattern="[0-9]" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block mt-3">Verify</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer.html :: footer}"></div>
+    
+    <style>
+        .pin-input-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 30px 0;
+        }
+        
+        .pin-digit {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+        }
+        
+        .pin-digit:focus {
+            outline: none;
+            border-color: #2d65b4;
+        }
+    </style>
+    
+    <script>
+        // Auto-advance to next input
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('.pin-digit');
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', function() {
+                    if (this.value.length === 1 && index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && this.value === '' && index > 0) {
+                        inputs[index - 1].focus();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

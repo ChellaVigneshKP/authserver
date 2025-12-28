@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">Auth Server</title>
+    <link rel="icon" type="image/png" th:href="${planFaviconPath}" th:if="${planFaviconPath != null and !planFaviconPath.isEmpty()}">
+    
+    <!-- Google Tag Manager -->
+    <div th:replace="~{fragments/scripts.html :: gtmHead}"></div>
+    
+    <style>
+        :root {
+            --primary-color: #2d65b4;
+            --secondary-color: #1d3557;
+            --tertiary-color: #457b9d;
+            --primary-text: #333333;
+            --secondary-text: #666666;
+            --tertiary-text: #999999;
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --border-color: #dee2e6;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--primary-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+        }
+        
+        .card {
+            background: var(--card-background);
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo-container img {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        h1, h2, h3 {
+            color: var(--primary-text);
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+        
+        .subtitle {
+            color: var(--secondary-text);
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        
+        .description {
+            color: var(--secondary-text);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--primary-text);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .btn-secondary {
+            background-color: var(--tertiary-color);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            opacity: 0.9;
+        }
+        
+        .btn-link {
+            background: none;
+            color: var(--primary-color);
+            text-decoration: underline;
+            padding: 5px 10px;
+        }
+        
+        .btn-link:hover {
+            color: var(--secondary-color);
+        }
+        
+        .btn-block {
+            width: 100%;
+            display: block;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-2 { margin-top: 10px; }
+        .mt-3 { margin-top: 20px; }
+        .mb-2 { margin-bottom: 10px; }
+        .mb-3 { margin-bottom: 20px; }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+</html>
