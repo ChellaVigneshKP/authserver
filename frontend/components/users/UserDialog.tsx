@@ -65,9 +65,12 @@ export default function UserDialog({ open, onClose, onSuccess }: UserDialogProps
 
     try {
       const client = createClientApiClient();
+      // Base64 encode the password as per backend requirement
+      const encodedPassword = btoa(password);
+      
       await client.post("/api/v1/users", {
         loginId,
-        password,
+        password: encodedPassword,
         firstName,
         lastName,
         email,
