@@ -60,25 +60,19 @@ public class BrandingRequestBodyFilter extends OncePerRequestFilter {
 
                 filterChain.doFilter(new BrandingAwareRequestWrapper(request, brandIdFromRequest.get()), response);
                 return;
+            } else {
+                // Brand in session but not in database - this is an error
+                log.error("Brand {} exists in session but not in database", brandIdFromRequest.get());
+                response.setStatus(HttpStatus.BAD_REQUEST.value());
+                response.getWriter().println("Bad branding in session: " + ApplicationConstants.BRANDING_INFO);
+                return;
             }
         }
 
-        // error state, only reaching here when brand is not in request or not in database
-        // log for all scenarios (brand enabled or not, fail only when branding enabled)
-        String errorMessage;
-
-        if (StringUtils.isNotBlank(brandIdFromRequest.orElse(null))) {
-            // in session but not in database
-            log.error("Brand {} not exists in database", brandIdFromRequest);
-            errorMessage = "Bad branding in session " + ApplicationConstants.BRANDING_INFO;
-        } else {
-            // not in session
-            log.error("Missing {} in session", ApplicationConstants.BRANDING_INFO);
-            errorMessage = "Missing branding in session: " + ApplicationConstants.BRANDING_INFO;
-        }
-
-        response.setStatus(HttpStatus.BAD_REQUEST.value());
-        response.getWriter().println(errorMessage);
+        // No branding in session - allow request to proceed without branding wrapper
+        // This handles cases where users access login directly without OAuth2 flow
+        log.debug("No branding in session, proceeding without branding wrapper");
+        filterChain.doFilter(request, response);
     }
 }
 

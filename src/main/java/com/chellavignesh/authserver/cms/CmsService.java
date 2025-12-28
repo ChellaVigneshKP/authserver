@@ -101,7 +101,10 @@ public class CmsService {
         var brandingSessionInfo = request.getSession().getAttribute(ApplicationConstants.BRANDING_INFO);
 
         if (brandingSessionInfo == null) {
-            throw new CmsBadRequestException("Session missing branding information");
+            log.warn("Session missing branding information, using default branding");
+            // Use a default branding value instead of throwing exception
+            // This allows the application to work even when branding is not set
+            brandingSessionInfo = "default";
         }
 
         Optional<String> clientId = Optional.ofNullable((String) request.getSession().getAttribute(ApplicationConstants.CLIENT_ID));

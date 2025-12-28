@@ -51,11 +51,17 @@ public class AuthSessionService {
 
     public AuthSession createSession(Optional<Application> application, OAuth2Authorization authorization) {
 
+        if (application.isEmpty()) {
+            log.error("Application not found for client ID: {}", authorization.getRegisteredClientId());
+            throw new RuntimeException("Application not found for client ID: " + authorization.getRegisteredClientId());
+        }
+
+        Application app = application.get();
         CreateAuthSessionDto sessionDto = new CreateAuthSessionDto();
-        sessionDto.setApplicationId(application.get().getId());
+        sessionDto.setApplicationId(app.getId());
         sessionDto.setSubjectId(authorization.getPrincipalName());
         sessionDto.setScope(String.join(" ", authorization.getAuthorizedScopes()));
-        sessionDto.setAuthFlow(application.get().getAuthFlow());
+        sessionDto.setAuthFlow(app.getAuthFlow());
         sessionDto.setClientFingerprint(getClientFingerprint(authorization));
         sessionDto.setClientId(authorization.getRegisteredClientId());
 
