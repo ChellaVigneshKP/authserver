@@ -13,6 +13,7 @@ public class ApplicationConstants {
     public static final String REQUEST_ID_HEADER = "x-request-id";
     public static final String HEX_EXTERNAL_ID = "hex-external-id";
     public static final String BRANDING_INFO = "branding";
+    public static final String DEFAULT_BRANDING = "default";
     public static final String CLIENT_ID = "CLIENT_ID";
     public static final String SSO_COOKIE_NAME = "ags-idp-session";
     public static final String USERNAME_LOOKUP_PRIORITY = "username-lookup-priority";
@@ -33,4 +34,5 @@ public class ApplicationConstants {
     public static final String EXTERNAL_ID_SHORT_PARAMETER = "eid";
     public static final String ERROR_CODE_PARAMETER = "error_code";
     public static final String EXTERNAL_AUTH_ERROR_CODE = "externalAuthErrorCode";
+    public static final String OAUTH2_AUTHORIZATION_REQUEST_ATTRIBUTE = "org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest";
 }
