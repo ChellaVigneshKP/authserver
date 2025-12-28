@@ -44,6 +44,20 @@ public class CertificateResponseDto {
         );
     }
 
+    public static CertificateResponseDto fromCertificateEntityExtended(CertificateEntity a) {
+        return new CertificateResponseDto(
+                a.getId(),
+                a.getName(),
+                a.getType(),
+                a.getStatus(),
+                StringUtils.defaultIfBlank(a.getValidTo(), ""),
+                StringUtils.defaultIfBlank(a.getFingerprint(), ""),
+                StringUtils.defaultIfBlank(a.getThumbprint(), ""),
+                StringUtils.defaultIfBlank(a.getCertificate(), ""),
+                isExpired(a)
+        );
+    }
+
     private static boolean isExpired(CertificateEntity a) {
         if (a.getStatus() == CertificateStatus.EXPIRED) {
             return true;

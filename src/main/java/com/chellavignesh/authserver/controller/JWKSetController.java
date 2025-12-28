@@ -33,7 +33,7 @@ public class JWKSetController {
         try {
             return ResponseEntity.ok(new JWKSet(jwkService.getByOrgGuid(orgId)).toJSONObject());
         } catch (OrgNotFoundException e) {
-            log.error("Org %s not found {}", orgId);
+            log.error("Org {} not found", orgId);
             throw e;
         }
     }
