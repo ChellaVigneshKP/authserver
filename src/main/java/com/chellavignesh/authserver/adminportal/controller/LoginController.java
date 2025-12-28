@@ -222,7 +222,7 @@ public class LoginController {
         model.addAttribute("loginBannerHTML", cmsData.getOrDefault("loginBannerHTML", ""));
 
         // Intro content
-        if (branding != null && !branding.contains("able") || (application.getCmsContext() != null && application.getCmsContext().equals("entity"))) {
+        if ((branding != null && !branding.contains("able")) || (application.getCmsContext() != null && application.getCmsContext().equals("entity"))) {
 
             model.addAttribute("intro", Map.of("items", List.of(cmsData.getOrDefault("loginContent1", ""), cmsData.getOrDefault("loginContent2", ""), cmsData.getOrDefault("loginContent3", "")), "logo", cmsData.getOrDefault("loginLogoPath", ""), "summary", cmsData.getOrDefault("loginContentA", ""), "title", cmsData.getOrDefault("loginTitleA", "")));
         } else {
