@@ -162,7 +162,7 @@ public class CustomOAuth2AuthorizationCodeRequestAuthenticationConverter impleme
             String existingBranding = (String) request.getSession().getAttribute(ApplicationConstants.BRANDING_INFO);
             if (existingBranding == null) {
                 log.debug("No branding parameter provided, setting default branding");
-                request.getSession().setAttribute(ApplicationConstants.BRANDING_INFO, "default");
+                request.getSession().setAttribute(ApplicationConstants.BRANDING_INFO, ApplicationConstants.DEFAULT_BRANDING);
             }
         }
 

@@ -2,6 +2,7 @@ package com.chellavignesh.authserver.session;
 
 import com.chellavignesh.authserver.adminportal.application.entity.Application;
 import com.chellavignesh.authserver.authcode.AuthCodeService;
+import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.session.dto.CreateAuthSessionDto;
 import com.chellavignesh.authserver.session.entity.AuthSession;
 import com.chellavignesh.authserver.session.exception.AuthSessionCreationFailedException;
@@ -64,6 +65,7 @@ public class AuthSessionService {
         sessionDto.setAuthFlow(app.getAuthFlow());
         sessionDto.setClientFingerprint(getClientFingerprint(authorization));
         sessionDto.setClientId(authorization.getRegisteredClientId());
+        sessionDto.setBranding(getBranding(authorization));
 
         return this.createSession(sessionDto);
     }
@@ -95,6 +97,29 @@ public class AuthSessionService {
         }
 
         return clientFingerprint;
+    }
+
+    private static @Nullable String getBranding(OAuth2Authorization authorization) {
+        // The branding should have been added to the authorization
+        // by CustomOAuth2AuthorizationCodeRequestConverter or set in session
+        String branding = null;
+
+        if (authorization.getAuthorizationGrantType() == AuthorizationGrantType.AUTHORIZATION_CODE) {
+
+            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute("org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest");
+
+            if (authorizationRequest != null) {
+                branding = (String) authorizationRequest.getAdditionalParameters().get(ApplicationConstants.BRANDING_INFO);
+            }
+
+            // If branding is not in the authorization request, use default
+            if (branding == null) {
+                log.debug("Branding not found in authorization request, using default");
+                branding = ApplicationConstants.DEFAULT_BRANDING;
+            }
+        }
+
+        return branding;
     }
 
     public Optional<AuthSession> findSessionByAuthorization(OAuth2Authorization authorization) {

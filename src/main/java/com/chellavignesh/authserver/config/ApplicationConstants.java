@@ -13,6 +13,7 @@ public class ApplicationConstants {
     public static final String REQUEST_ID_HEADER = "x-request-id";
     public static final String HEX_EXTERNAL_ID = "hex-external-id";
     public static final String BRANDING_INFO = "branding";
+    public static final String DEFAULT_BRANDING = "default";
     public static final String CLIENT_ID = "CLIENT_ID";
     public static final String SSO_COOKIE_NAME = "ags-idp-session";
     public static final String USERNAME_LOOKUP_PRIORITY = "username-lookup-priority";
