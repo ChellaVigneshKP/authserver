@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <aside th:fragment="sidebar" class="progress-sidebar">
+        <div class="progress-steps">
+            <div th:each="step, iterStat : ${progressSidebarSteps}" 
+                 th:class="${'step-item' + (iterStat.index == 0 ? ' active' : '')}">
+                <span class="step-number" th:text="${iterStat.index + 1}">1</span>
+                <span class="step-text" th:text="${step}">Step</span>
+            </div>
+        </div>
+        
+        <div class="progress-links" th:if="${progressSidebarLinks != null}">
+            <div th:each="link : ${progressSidebarLinks}" 
+                 th:if="${link != null and !link.isEmpty()}">
+                <div th:utext="${link}"></div>
+            </div>
+        </div>
+        
+        <style>
+            .progress-sidebar {
+                background: white;
+                padding: 25px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                min-height: 300px;
+            }
+            
+            .progress-steps {
+                margin-bottom: 30px;
+            }
+            
+            .step-item {
+                display: flex;
+                align-items: center;
+                margin-bottom: 20px;
+                padding: 10px;
+                border-radius: 4px;
+                transition: all 0.3s ease;
+            }
+            
+            .step-item.active {
+                background-color: #e7f3ff;
+            }
+            
+            .step-number {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 30px;
+                height: 30px;
+                background-color: #dee2e6;
+                color: #666;
+                border-radius: 50%;
+                margin-right: 12px;
+                font-weight: 600;
+                font-size: 0.9rem;
+            }
+            
+            .step-item.active .step-number {
+                background-color: #2d65b4;
+                color: white;
+            }
+            
+            .step-text {
+                color: #333;
+                font-size: 0.95rem;
+                font-weight: 500;
+            }
+            
+            .progress-links {
+                border-top: 1px solid #dee2e6;
+                padding-top: 20px;
+                margin-top: 20px;
+            }
+            
+            .progress-links a {
+                color: #2d65b4;
+                text-decoration: none;
+                font-size: 0.9rem;
+                display: block;
+                margin: 8px 0;
+            }
+            
+            .progress-links a:hover {
+                text-decoration: underline;
+            }
+            
+            @media (max-width: 992px) {
+                .progress-sidebar {
+                    margin-bottom: 20px;
+                }
+                
+                .step-item {
+                    margin-bottom: 15px;
+                }
+            }
+        </style>
+    </aside>
+</body>
+</html>

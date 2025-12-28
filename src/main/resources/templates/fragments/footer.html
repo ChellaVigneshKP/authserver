@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <footer th:fragment="footer" class="footer">
+        <div class="footer-content">
+            <div class="footer-links" th:if="${footerLinks != null and !footerLinks.isEmpty()}">
+                <div th:utext="${footerLinks}"></div>
+            </div>
+            <div class="footer-html" th:if="${footerHTML != null and !footerHTML.isEmpty()}">
+                <div th:utext="${footerHTML}"></div>
+            </div>
+            <div class="contact-info" th:if="${contact != null and !contact.isEmpty()}">
+                <div th:utext="${contact}"></div>
+            </div>
+        </div>
+        
+        <!-- Google Tag Manager (noscript) -->
+        <div th:replace="~{fragments/scripts.html :: gtmBody}"></div>
+        
+        <style>
+            .footer {
+                background-color: #f8f9fa;
+                padding: 30px 20px;
+                margin-top: 50px;
+                border-top: 1px solid #dee2e6;
+            }
+            
+            .footer-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                text-align: center;
+            }
+            
+            .footer-links,
+            .footer-html,
+            .contact-info {
+                margin-bottom: 15px;
+                color: #666;
+                font-size: 0.9rem;
+            }
+            
+            .footer a {
+                color: #2d65b4;
+                text-decoration: none;
+                margin: 0 10px;
+            }
+            
+            .footer a:hover {
+                text-decoration: underline;
+            }
+            
+            @media (max-width: 768px) {
+                .footer {
+                    padding: 20px 10px;
+                }
+                
+                .footer a {
+                    display: block;
+                    margin: 5px 0;
+                }
+            }
+        </style>
+    </footer>
+</body>
+</html>
