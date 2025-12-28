@@ -64,7 +64,7 @@ public class BrandingRequestBodyFilter extends OncePerRequestFilter {
                 // Brand in session but not in database - this is an error
                 log.error("Brand {} exists in session but not in database", brandIdFromRequest.get());
                 response.setStatus(HttpStatus.BAD_REQUEST.value());
-                response.getWriter().println("Bad branding in session: " + ApplicationConstants.BRANDING_INFO);
+                response.getWriter().println("Invalid branding '" + brandIdFromRequest.get() + "' not found in database");
                 return;
             }
         }

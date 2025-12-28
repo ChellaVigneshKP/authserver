@@ -86,7 +86,7 @@ public class AuthSessionService {
 
         if (authorization.getAuthorizationGrantType() == AuthorizationGrantType.AUTHORIZATION_CODE) {
 
-            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute("org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest");
+            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute(ApplicationConstants.OAUTH2_AUTHORIZATION_REQUEST_ATTRIBUTE);
 
             if (authorizationRequest == null) {
                 log.error("Failed to retrieve client fingerprint from authorization request");
@@ -106,7 +106,7 @@ public class AuthSessionService {
 
         if (authorization.getAuthorizationGrantType() == AuthorizationGrantType.AUTHORIZATION_CODE) {
 
-            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute("org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest");
+            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute(ApplicationConstants.OAUTH2_AUTHORIZATION_REQUEST_ATTRIBUTE);
 
             if (authorizationRequest != null) {
                 branding = (String) authorizationRequest.getAdditionalParameters().get(ApplicationConstants.BRANDING_INFO);
