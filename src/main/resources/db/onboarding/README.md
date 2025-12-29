@@ -190,20 +190,24 @@ VALUES
 
 2. If the password hash doesn't work, generate a new one:
    ```java
-   // Use LibCryptoPasswordEncoder with local fallback (SHA-256)
+   // Generate SHA-256 hash (LibCryptoPasswordEncoder local fallback)
    import java.security.MessageDigest;
    import java.util.Base64;
    
    MessageDigest digest = MessageDigest.getInstance("SHA-256");
    byte[] hash = digest.digest("Admin@123456".getBytes());
    String encoded = Base64.getEncoder().encodeToString(hash);
-   System.out.println("Hash: " + encoded);
+   System.out.println("Hash (without prefix): " + encoded);
+   System.out.println("Full format (for reference): {0}" + encoded);
+   // Note: Store WITHOUT the {0} prefix in the database
+   // The PasswordEncoderFactory adds it back during verification
    ```
 
 3. Update the password (version should be 0 for LibCryptoPasswordEncoder):
    ```sql
+   -- Store the hash WITHOUT the {0} prefix
    UPDATE [Person].[Credential] 
-   SET [Password] = CONVERT(VARBINARY(4000), '<hash_from_step_2>'),
+   SET [Password] = CONVERT(VARBINARY(4000), '<hash_from_step_2_without_prefix>'),
        [Version] = 0
    WHERE UserName = 'admin';
    ```
@@ -241,7 +245,11 @@ The scripts use LibCryptoPasswordEncoder (version 0) with local SHA-256 fallback
 - **Version**: 0 (LibCryptoPasswordEncoder)
 - **Algorithm**: SHA-256
 - **Format**: Base64-encoded hash
-- This is the fallback method used when the crypto service is unavailable
+- **Storage**: The database stores the hash WITHOUT the `{0}` prefix
+- **Verification**: PasswordEncoderFactory adds the prefix back during verification
+- **Example**: 
+  - Stored: `rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=`
+  - During verification: `{0}rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=`
 
 ### Post-Setup Security Tasks
 1. **Change admin password immediately**

@@ -212,9 +212,14 @@ BEGIN
     -- Uses LibCryptoPasswordEncoder (version 0) with local fallback (SHA-256)
     -- Password encoder version 0 is LibCryptoPasswordEncoder
     DECLARE @DefaultPassword VARBINARY(4000);
-    -- SHA-256 hash for "Admin@123456" in Base64 format
+    -- SHA-256 hash for "Admin@123456" in Base64 format WITHOUT the {0} prefix
     -- IMPORTANT: This is a default password for initial setup only
     -- The user MUST change this password immediately after first login
+    -- 
+    -- The PasswordEncoderFactory.encode() removes the {0} prefix before storing
+    -- The PasswordEncoderFactory.matches() adds the {0} prefix back when verifying
+    -- So we store: rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=
+    -- And it becomes: {0}rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0= during verification
     SET @DefaultPassword = CONVERT(VARBINARY(4000), 'rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=');
     
     INSERT INTO [Person].[Credential]

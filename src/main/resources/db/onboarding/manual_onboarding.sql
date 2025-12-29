@@ -207,7 +207,11 @@ BEGIN
     -- SECURITY WARNING: This is a default password for initial setup ONLY
     -- The admin user MUST change this password immediately after first login
     -- Consider this password compromised as it's visible in source control
-    -- Format: Base64-encoded SHA-256 hash
+    -- 
+    -- Format: Base64-encoded SHA-256 hash WITHOUT the {0} prefix
+    -- The PasswordEncoderFactory.matches() method adds the {0} prefix when verifying
+    -- So the stored value is: rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=
+    -- And during verification it becomes: {0}rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=
     SET @DefaultPassword = CONVERT(VARBINARY(4000), 'rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=');
     
     INSERT INTO [Person].[Credential]
