@@ -209,13 +209,13 @@ BEGIN
     PRINT 'Admin profile created with ID: ' + CAST(@AdminProfileId AS NVARCHAR(10));
     
     -- Create admin credentials with default password: Admin@123456 (12 characters)
-    -- This is a BCrypt hash of "Admin@123456" with strength 10
-    -- Password encoder version 2 is typically BCrypt
+    -- Uses LibCryptoPasswordEncoder (version 0) with local fallback (SHA-256)
+    -- Password encoder version 0 is LibCryptoPasswordEncoder
     DECLARE @DefaultPassword VARBINARY(4000);
-    -- BCrypt hash for "Admin@123456" 
+    -- SHA-256 hash for "Admin@123456" in Base64 format
     -- IMPORTANT: This is a default password for initial setup only
     -- The user MUST change this password immediately after first login
-    SET @DefaultPassword = CONVERT(VARBINARY(4000), '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cyhVHYIDf/8Fh.k7.H3w8LqXQX3Ki');
+    SET @DefaultPassword = CONVERT(VARBINARY(4000), 'rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=');
     
     INSERT INTO [Person].[Credential]
         ([ProfileId], [UserName], [Password], [LockoutEnd], [CredentialLocked], 
@@ -223,7 +223,7 @@ BEGIN
          [ExternalId], [DisallowedRecentPasswordCount])
     VALUES
         (@AdminProfileId, 'admin', @DefaultPassword, NULL, 0,
-         0, @DataOriginId, 0, 1, 2,
+         0, @DataOriginId, 0, 1, 0,
          NEWID(), 3);
     
     PRINT 'Admin credentials created';

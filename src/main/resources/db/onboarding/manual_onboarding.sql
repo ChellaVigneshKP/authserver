@@ -202,11 +202,13 @@ BEGIN
     SET @AdminProfileId = SCOPE_IDENTITY();
     
     DECLARE @DefaultPassword VARBINARY(4000);
-    -- BCrypt hash for "Admin@123456" (12 characters, meets password complexity requirements)
+    -- SHA-256 hash for "Admin@123456" (12 characters, meets password complexity requirements)
+    -- Uses LibCryptoPasswordEncoder (version 0) with local fallback (SHA-256)
     -- SECURITY WARNING: This is a default password for initial setup ONLY
     -- The admin user MUST change this password immediately after first login
     -- Consider this password compromised as it's visible in source control
-    SET @DefaultPassword = CONVERT(VARBINARY(4000), '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cyhVHYIDf/8Fh.k7.H3w8LqXQX3Ki');
+    -- Format: Base64-encoded SHA-256 hash
+    SET @DefaultPassword = CONVERT(VARBINARY(4000), 'rYm2TWbKqOMOXVzkqXY/TswgWBTEEhdfPixQAnRxQm0=');
     
     INSERT INTO [Person].[Credential]
         ([ProfileId], [UserName], [Password], [LockoutEnd], [CredentialLocked], 
@@ -214,7 +216,7 @@ BEGIN
          [ExternalId], [DisallowedRecentPasswordCount])
     VALUES
         (@AdminProfileId, 'admin', @DefaultPassword, NULL, 0,
-         0, @DataOriginId, 0, 1, 2, NEWID(), 3);
+         0, @DataOriginId, 0, 1, 0, NEWID(), 3);
     
     INSERT INTO [Person].[ProfileOrganization]
         ([ProfileId], [OrganizationId], [Status])

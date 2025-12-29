@@ -118,7 +118,7 @@ The onboarding script creates:
 
 ### 5. Admin User
 - **Username:** `admin`
-- **Password:** `Admin@123456` (BCrypt encrypted)
+- **Password:** `Admin@123456` (SHA-256 hashed, version 0)
 - **Name:** System Administrator
 - **Email:** `admin@localhost.local`
 - **Assigned to:** Ascensus Admin group
@@ -190,16 +190,21 @@ VALUES
 
 2. If the password hash doesn't work, generate a new one:
    ```java
-   // Use your application's password encoder
-   BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-   String hash = encoder.encode("Admin@123456");
-   System.out.println(hash);
+   // Use LibCryptoPasswordEncoder with local fallback (SHA-256)
+   import java.security.MessageDigest;
+   import java.util.Base64;
+   
+   MessageDigest digest = MessageDigest.getInstance("SHA-256");
+   byte[] hash = digest.digest("Admin@123456".getBytes());
+   String encoded = Base64.getEncoder().encodeToString(hash);
+   System.out.println("Hash: " + encoded);
    ```
 
-3. Update the password:
+3. Update the password (version should be 0 for LibCryptoPasswordEncoder):
    ```sql
    UPDATE [Person].[Credential] 
-   SET [Password] = CONVERT(VARBINARY(4000), '<new_hash_from_step_2>')
+   SET [Password] = CONVERT(VARBINARY(4000), '<hash_from_step_2>'),
+       [Version] = 0
    WHERE UserName = 'admin';
    ```
 
@@ -230,6 +235,13 @@ The default password `Admin@123456` meets these criteria:
 - Contains lowercase letters (dmin)
 - Contains numbers (123456)
 - Contains special characters (@)
+
+### Password Encoding
+The scripts use LibCryptoPasswordEncoder (version 0) with local SHA-256 fallback:
+- **Version**: 0 (LibCryptoPasswordEncoder)
+- **Algorithm**: SHA-256
+- **Format**: Base64-encoded hash
+- This is the fallback method used when the crypto service is unavailable
 
 ### Post-Setup Security Tasks
 1. **Change admin password immediately**
