@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header.html :: head(${metaTitle != null ? metaTitle : 'Forgot Username'})}"></head>
+<body>
+    <style th:if="${planPrimaryColor != null and !planPrimaryColor.isEmpty()}">
+        :root {
+            --plan-primary-color: [[${planPrimaryColor}]];
+            --plan-secondary-color: [[${planSecondaryColor != null ? planSecondaryColor : '#1d3557'}]];
+            --plan-tertiary-color: [[${planTertiaryColor != null ? planTertiaryColor : '#457b9d'}]];
+        }
+        
+        .btn-primary {
+            background-color: var(--plan-primary-color) !important;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--plan-secondary-color) !important;
+        }
+    </style>
+    
+    <div class="page-container">
+        <div class="layout-grid">
+            <!-- Sidebar -->
+            <div class="sidebar-container" th:if="${progressSidebarSteps != null}">
+                <div th:replace="~{fragments/sidebar.html :: sidebar}"></div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="logo-container" th:if="${logo != null and !logo.isEmpty()}">
+                    <img th:src="${logo}" alt="Logo">
+                </div>
+                
+                <div class="card">
+                    <div class="step-indicator" th:if="${usernameVerificationStep1 != null}" 
+                         th:text="${usernameVerificationStep1}">ACCOUNT VERIFICATION</div>
+                    
+                    <h1 th:text="${title != null ? title : 'Forgot Username'}">Forgot Username</h1>
+                    <p class="subtitle" th:text="${subtitle}" th:if="${subtitle != null}">Please verify your account information</p>
+                    <p class="description" th:text="${description}" th:if="${description != null}">Additional description</p>
+                    
+                    <!-- Error Messages -->
+                    <div class="alert alert-error" th:if="${error != null}">
+                        <span th:text="${error}">Error message</span>
+                    </div>
+                    
+                    <!-- Success Messages -->
+                    <div class="alert alert-success" th:if="${success != null}">
+                        <span th:text="${success}">Success message</span>
+                    </div>
+                    
+                    <!-- Username Lookup Form -->
+                    <form th:action="@{/forgot-username/identify-yourself}" method="post">
+                        <div th:if="${usernameLookupFields != null and !usernameLookupFields.isEmpty()}">
+                            <div class="form-group" th:each="field : ${usernameLookupFields}">
+                                <label th:for="${field.name}" th:text="${field.description}">Field</label>
+                                <input type="text" 
+                                       th:id="${field.name}" 
+                                       th:name="${field.name}" 
+                                       required 
+                                       th:placeholder="'Enter ' + ${field.description}">
+                            </div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <a th:href="${backUrlPath != null ? backUrlPath : '@{/login}'}" 
+                               class="btn btn-secondary">Back</a>
+                            <button type="submit" class="btn btn-primary btn-block">Submit</button>
+                        </div>
+                    </form>
+                    
+                    <div class="cancel-section mt-3" th:if="${cancelUrl != null}">
+                        <a th:href="${cancelUrl}" class="btn-link">Cancel</a>
+                    </div>
+                </div>
+                
+                <!-- Contact Info -->
+                <div class="contact-info" th:if="${contact != null and !contact.isEmpty()}">
+                    <div th:utext="${contact}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer.html :: footer}"></div>
+    
+    <style>
+        .page-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .main-content {
+            max-width: 600px;
+        }
+        
+        .step-indicator {
+            background-color: #e7f3ff;
+            color: #2d65b4;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .button-group .btn {
+            flex: 1;
+        }
+        
+        .button-group .btn-block {
+            flex: 2;
+        }
+        
+        .cancel-section {
+            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .contact-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        @media (max-width: 992px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .button-group .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</body>
+</html>

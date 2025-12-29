@@ -1,195 +1,352 @@
 [![Dependabot Updates](https://github.com/ChellaVigneshKP/authserver/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/ChellaVigneshKP/authserver/actions/workflows/dependabot/dependabot-updates)
 [![CodeQL](https://github.com/ChellaVigneshKP/authserver/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/ChellaVigneshKP/authserver/actions/workflows/github-code-scanning/codeql)
 
-# AuthServer
+# Auth Server
 
-A comprehensive OAuth 2.0 Authorization Server built with Spring Boot, featuring a modern Next.js admin portal for managing clients, users, and organizations.
+A Spring Boot-based OAuth2 Authorization Server with support for multi-factor authentication (MFA), branding customization, biometric authentication, and session management.
+
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Key Features](#key-features)
+- [API Endpoints](#api-endpoints)
+- [Authentication Flows](#authentication-flows)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
 
 ## Features
 
-### Backend (Spring Boot)
-- **OAuth 2.0 Authorization Server** with full OpenID Connect support
-- **Multi-factor Authentication (MFA)** with multiple factor options
-- **Biometric Authentication** support
-- **Session Management** with Redis
-- **Token Introspection** and validation
-- **Client Management** with JWT and secret-based authentication
-- **User Management** with profile, metadata, and credential sync
-- **Organization Management** with groups and permissions
-- **Security Features**: Request signing, datetime validation, fingerprinting
-- **Comprehensive Audit Logging**
+- **OAuth2 Authorization Server** - Full OAuth2/OIDC implementation
+- **Multi-Factor Authentication (MFA)** - Support for OTP-based MFA
+- **Branding Support** - Multi-tenant branding capabilities
+- **Session Management** - Redis-based session storage with SSO support
+- **Biometric Authentication** - Support for biometric login
+- **Forgot Password/Username** - Self-service credential recovery
+- **Database Migrations** - Flyway-based schema management
+- **Security Features** - Client fingerprinting, PKCE support
 
-### Frontend (Next.js Admin Portal) - NEW! 🎉
-- **Modern, Secure Admin Interface** built with Next.js 14 and Material-UI
-- **Dashboard** with key metrics and statistics
-- **Application Management**: Full CRUD for OAuth2 clients with redirect URIs, token settings, and resource assignment
-- **User Management**: Server-side paginated table with search, profile management, and status control
-- **Organization Management**: Full CRUD with DataGrid, contact management, and permissions viewer
-- **Secure Authentication**: NextAuth v5 with JWT strategy, httpOnly cookies, no localStorage
-- **Resource Library**: API resource management (planned)
-- **Certificate Management**: Credential and certificate interfaces (planned)
+## Prerequisites
 
-## Quick Start
+- Java 25 or higher
+- Maven 3.6+
+- SQL Server database
+- Redis server (for session management)
 
-### Backend Setup
+## Getting Started
 
-1. **Configure Database** (SQL Server):
-   ```properties
-   spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=AGSAuth
-   spring.datasource.username=your-username
-   spring.datasource.password=your-password
-   ```
+### 1. Clone the Repository
 
-2. **Start Redis**:
-   ```bash
-   redis-server
-   ```
-
-3. **Run the Application**:
-   ```bash
-   ./mvnw spring-boot:run
-   ```
-
-   Backend will be available at: `http://localhost:9080/services`
-
-### Frontend Setup
-
-1. **Navigate to frontend**:
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment**:
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your settings
-   ```
-
-4. **Start development server**:
-   ```bash
-   npm run dev
-   ```
-
-   Frontend will be available at: `http://localhost:3000`
-
-For detailed setup instructions, see [Frontend Setup Guide](./frontend/SETUP.md).
-
-## Documentation
-
-- **Frontend Setup**: [frontend/SETUP.md](./frontend/SETUP.md) - Comprehensive guide for the admin portal
-- **Frontend README**: [frontend/README.md](./frontend/README.md) - Feature documentation and architecture
-- **Backend API**: Available at `/actuator` endpoints
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Next.js Admin Frontend (Port 3000)                         │
-│  - NextAuth v5 (Secure Sessions)                            │
-│  - Material-UI Components                                   │
-│  - React Query for Data Fetching                            │
-└─────────────────────────────────────────────────────────────┘
-                           ▼ HTTPS + Cookies
-┌─────────────────────────────────────────────────────────────┐
-│  Spring Boot OAuth2 Server (Port 9080)                      │
-│  - OAuth 2.0 / OpenID Connect                               │
-│  - Session Management (Redis)                               │
-│  - REST APIs (/api/v1/*)                                    │
-└─────────────────────────────────────────────────────────────┘
-                           ▼
-        ┌──────────────────┴──────────────────┐
-        ▼                                      ▼
-   SQL Server                               Redis
-   (User/Client Data)                   (Sessions)
+```bash
+git clone https://github.com/ChellaVigneshKP/authserver.git
+cd authserver
 ```
 
-## Technology Stack
+### 2. Configure Database
 
-### Backend
-- **Java 25**
-- **Spring Boot 3.5.7**
-- **Spring Security OAuth2 Authorization Server**
-- **SQL Server** (Database)
-- **Redis** (Session Storage)
-- **Flyway** (Database Migrations)
+Update `src/main/resources/application.properties` with your database connection details:
 
-### Frontend
-- **Next.js 14** (App Router)
-- **TypeScript**
-- **NextAuth v5** (Authentication)
-- **Material-UI (MUI)** (UI Components)
-- **TanStack React Query** (Data Fetching)
-- **Axios** (HTTP Client)
+```properties
+spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=AGSAuth;encrypt=true;trustServerCertificate=true
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+```
 
-## Security
+### 3. Configure Redis
 
-### Frontend Security Features
-- ✅ Secure session management with JWT and httpOnly cookies
-- ✅ No localStorage usage for sensitive data
-- ✅ CSRF protection built-in
-- ✅ Request datetime headers for backend validation
-- ✅ Password base64 encoding per backend requirements
-- ✅ Automatic session refresh
-- ✅ Secure cookie configuration (httpOnly, secure, sameSite)
+Ensure Redis is running and update the connection details if needed:
 
-### Backend Security Features
-- ✅ Request body signature validation
-- ✅ Response body signing
-- ✅ Request datetime validation
-- ✅ Client fingerprinting
-- ✅ MFA support
-- ✅ Biometric authentication
-- ✅ Password validation with complexity rules
-- ✅ Session management with Redis
-- ✅ Token introspection
-- ✅ CORS configuration
+```properties
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+```
 
-## Default Credentials
+### 4. Build the Application
 
-**Admin User** (configured in `application.properties`):
-- Username: `admin`
-- Password: `admin123`
+```bash
+./mvnw clean package -DskipTests
+```
 
-⚠️ **Important**: Change these credentials in production!
+### 5. Run Database Migrations
+
+```bash
+./mvnw flyway:migrate
+```
+
+### 6. Start the Application
+
+```bash
+./mvnw spring-boot:run
+```
+
+The server will start on `http://localhost:9080`
+
+## Configuration
+
+### Key Configuration Properties
+
+#### Server Configuration
+```properties
+server.port=9080
+server.base-path=http://localhost:9080/services
+```
+
+#### Session Configuration
+```properties
+spring.session.store-type=redis
+spring.session.timeout=1800
+spring.session.redis.namespace=agsup-auth:spring:session
+```
+
+#### Security Features
+```properties
+# Enable/disable fingerprinting
+toggles.fingerprinting.enabled=true
+
+# Enable/disable biometric authentication
+toggles.biometric.enabled=true
+
+# Password validation regex
+validation.password.regex=^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{12,}$
+```
+
+#### CMS Configuration
+```properties
+cms.file.location=classpath:cms/
+```
+
+## Key Features
+
+### Branding Support
+
+The auth server supports multi-tenant branding through:
+
+1. **Branding Parameter**: Pass `branding` parameter in OAuth2 authorize requests
+2. **Default Branding**: If no branding is specified, the system uses "default" branding
+3. **External Source**: Branding must be registered in the external sources table
+
+Example authorization URL:
+```
+GET /oauth2/authorize?client_id=your_client_id&response_type=code&redirect_uri=your_redirect&scope=openid&branding=your_brand
+```
+
+### Session Management
+
+- Sessions are stored in Redis for scalability
+- Session timeout is configurable (default: 30 minutes)
+- Single Sign-On (SSO) support via secure cookies
+- Session includes:
+  - Application ID
+  - Subject ID (user)
+  - Scope
+  - Auth flow type
+  - Client fingerprint (if enabled)
+  - Branding information
+
+### Multi-Factor Authentication
+
+MFA is supported through:
+- OTP delivery via SMS or Email
+- Configurable MFA realms
+- Secure authentication with SecureAuth integration
+- PIN expiry time configuration
+
+### Client Fingerprinting
+
+When enabled, the server creates a fingerprint of the client based on:
+- User Agent
+- Accept headers
+- Referer (optional)
+- Other HTTP headers
+
+This helps detect session hijacking attempts.
 
 ## API Endpoints
 
 ### OAuth2 Endpoints
-- `POST /login` - User authentication
-- `GET /oauth2/authorize` - Authorization endpoint
-- `POST /oauth2/token` - Token endpoint
-- `POST /oauth2/introspect` - Token introspection
-- `POST /oauth2/revoke` - Token revocation
-- `GET /oauth2/connect/logout` - Logout endpoint
-- `GET /.well-known/openid-configuration` - OpenID configuration
 
-### Admin API Endpoints
-- `GET /api/v1/organizations` - List organizations
-- `GET /api/v1/organizations/{orgGuid}/applications` - List applications
-- `GET /api/v1/users` - List users (paginated)
-- And many more... (see Frontend SETUP.md for complete API list)
+- **Authorization Endpoint**: `GET /oauth2/authorize`
+- **Token Endpoint**: `POST /oauth2/token`
+- **Introspection Endpoint**: `POST /oauth2/introspect`
+- **Revoke Endpoint**: `POST /oauth2/revoke`
+- **JWKS Endpoint**: `GET /oauth2/jwks`
+- **OIDC Configuration**: `GET /.well-known/openid-configuration`
 
-## Contributing
+### Authentication Endpoints
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- **Login**: `GET /login`
+- **Login (POST)**: `POST /login`
+- **Logout**: `POST /logout`
 
-## License
+### MFA Endpoints
 
-[Add your license here]
+- **MFA Challenge**: `GET /mfa/{flow}/request-pin`
+- **Verify MFA**: `POST /mfa/{flow}/verify-pin`
+
+### Account Recovery Endpoints
+
+- **Forgot Password**: `GET /account-access/forgot-password`
+- **Forgot Username**: `GET /forgot-username`
+
+### Admin Portal Endpoints
+
+- **User Management**: `/api/user/**`
+- **Application Management**: `/api/application/**`
+- **Organization Management**: `/api/organization/**`
+
+## Authentication Flows
+
+### 1. Standard OAuth2 Authorization Code Flow
+
+```
+1. Client redirects to: /oauth2/authorize?client_id=...&response_type=code&branding=...
+2. User is redirected to login page with session initialized
+3. User submits credentials
+4. Server validates credentials
+5. If MFA required, redirect to MFA page
+6. Upon successful authentication, redirect back with authorization code
+7. Client exchanges code for tokens at /oauth2/token
+```
+
+### 2. Direct Login (without OAuth2 flow)
+
+```
+1. User navigates to /login directly
+2. System sets default branding if not present
+3. User can login with credentials
+4. Session is created with default branding
+```
+
+### 3. Biometric Authentication
+
+```
+1. Client initiates OAuth2 flow with biometric_type parameter
+2. User is presented with biometric authentication option
+3. User authenticates with biometric token
+4. System validates token and creates session
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. "Missing branding in session" error
+
+**Fixed**: The system now automatically uses "default" branding when none is specified.
+
+**Solution**: 
+- Ensure you include `branding` parameter in authorization URL, OR
+- The system will automatically use "default" branding
+
+#### 2. "Application not found" error during session creation
+
+**Fixed**: Added proper null checks to prevent NoSuchElementException.
+
+**Solution**: Verify that:
+- Client ID is registered in the database
+- Application is active
+- Correct client_id is being used
+
+#### 3. Session creation fails
+
+**Symptoms**: RuntimeException during authentication
+
+**Solutions**:
+- Check database connectivity
+- Verify application configuration in database
+- Check auth flow configuration
+- Review application logs for specific errors
+
+#### 4. Redis connection issues
+
+**Symptoms**: Session not persisting, unable to login
+
+**Solutions**:
+- Verify Redis is running: `redis-cli ping`
+- Check Redis connection details in application.properties
+- Ensure Redis port is accessible
+- Check Redis memory and eviction policies
+
+#### 5. Database migration issues
+
+**Solutions**:
+```bash
+# Check migration status
+./mvnw flyway:info
+
+# Repair failed migrations
+./mvnw flyway:repair
+
+# Re-run migrations
+./mvnw flyway:migrate
+```
+
+## Development
+
+### Running Tests
+
+```bash
+./mvnw test
+```
+
+### Code Style
+
+The project uses:
+- Lombok for reducing boilerplate
+- SLF4J for logging
+- MapStruct for DTO mapping
+
+### Database Schema
+
+The schema is managed by Flyway migrations located in `src/main/resources/db/migration/`.
+
+### Building for Production
+
+```bash
+./mvnw clean package -DskipTests
+java -jar target/authserver-0.0.1-SNAPSHOT.jar
+```
+
+### Environment-Specific Configuration
+
+Create environment-specific property files:
+- `application-dev.properties`
+- `application-prod.properties`
+
+Run with specific profile:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
+```
+
+## Security Considerations
+
+1. **Always use HTTPS in production**
+2. **Change default passwords** in application.properties
+3. **Secure Redis instance** with password and firewall rules
+4. **Regular security updates** via Dependabot
+5. **Use strong password policies** via validation.password.regex
+6. **Enable client fingerprinting** for enhanced security
+7. **Review and monitor logs** for suspicious activity
+
+## Recent Fixes
+
+### Version Latest
+
+- **Fixed**: Session creation logic now properly handles empty Optional to prevent NoSuchElementException
+- **Fixed**: Branding filter no longer requires branding in session, uses default fallback
+- **Fixed**: NullPointerException in LoginController when branding is null
+- **Fixed**: CmsService now uses default branding instead of throwing exception
+- **Improved**: Added default branding initialization in OAuth2 flow
 
 ## Support
 
-For issues or questions:
-1. Check the [Frontend Setup Guide](./frontend/SETUP.md)
-2. Review application logs
-3. Check browser console and network tab
-4. Open an issue on GitHub
+For issues and questions:
+- Create an issue on GitHub
+- Check existing issues for solutions
+- Review application logs for detailed error messages
+
+## License
+
+[Add your license information here]

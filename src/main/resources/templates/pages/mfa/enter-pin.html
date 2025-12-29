@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header.html :: head(${metaTitle != null ? metaTitle : 'Enter PIN'})}"></head>
+<body>
+    <style th:if="${planPrimaryColor != null and !planPrimaryColor.isEmpty()}">
+        :root {
+            --plan-primary-color: [[${planPrimaryColor}]];
+            --plan-secondary-color: [[${planSecondaryColor != null ? planSecondaryColor : '#1d3557'}]];
+            --plan-tertiary-color: [[${planTertiaryColor != null ? planTertiaryColor : '#457b9d'}]];
+        }
+        
+        .btn-primary {
+            background-color: var(--plan-primary-color) !important;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--plan-secondary-color) !important;
+        }
+    </style>
+    
+    <div class="page-container">
+        <div class="layout-grid">
+            <!-- Sidebar -->
+            <div class="sidebar-container" th:if="${progressSidebarSteps != null}">
+                <div th:replace="~{fragments/sidebar.html :: sidebar}"></div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="logo-container" th:if="${logo != null and !logo.isEmpty()}">
+                    <img th:src="${logo}" alt="Logo">
+                </div>
+                
+                <div class="card">
+                    <div class="step-indicator" th:if="${loginPinAuthStep3 != null}" 
+                         th:text="${loginPinAuthStep3}">PIN AUTHENTICATION (STEP 3 OF 3)</div>
+                    
+                    <h1 th:text="${title != null ? title : 'Enter your PIN'}">Enter your PIN</h1>
+                    <p class="subtitle" th:text="${subtitle}" th:if="${subtitle != null}">Enter the 6-digit PIN sent to you</p>
+                    <p class="description" th:text="${description}" th:if="${description != null}">Additional description</p>
+                    
+                    <!-- Error Messages -->
+                    <div class="alert alert-error" th:if="${error != null}">
+                        <span th:text="${error}">Error message</span>
+                    </div>
+                    
+                    <!-- PIN Entry Form -->
+                    <form th:action="@{/mfa/{flow}/verify-pin(flow=${flow})}" method="post" id="pinForm">
+                        <div class="pin-input-container">
+                            <input type="text" 
+                                   class="pin-digit" 
+                                   maxlength="1" 
+                                   pattern="[0-9]" 
+                                   inputmode="numeric"
+                                   required
+                                   autofocus>
+                            <input type="text" 
+                                   class="pin-digit" 
+                                   maxlength="1" 
+                                   pattern="[0-9]" 
+                                   inputmode="numeric"
+                                   required>
+                            <input type="text" 
+                                   class="pin-digit" 
+                                   maxlength="1" 
+                                   pattern="[0-9]" 
+                                   inputmode="numeric"
+                                   required>
+                            <input type="text" 
+                                   class="pin-digit" 
+                                   maxlength="1" 
+                                   pattern="[0-9]" 
+                                   inputmode="numeric"
+                                   required>
+                            <input type="text" 
+                                   class="pin-digit" 
+                                   maxlength="1" 
+                                   pattern="[0-9]" 
+                                   inputmode="numeric"
+                                   required>
+                            <input type="text" 
+                                   class="pin-digit" 
+                                   maxlength="1" 
+                                   pattern="[0-9]" 
+                                   inputmode="numeric"
+                                   required>
+                        </div>
+                        <input type="hidden" id="pin" name="pin" value="">
+                        
+                        <div class="button-group">
+                            <button type="submit" class="btn btn-primary btn-block" th:text="${confirmText != null ? confirmText : 'Verify'}">Verify</button>
+                        </div>
+                    </form>
+                    
+                    <div class="request-new-pin mt-3" th:if="${requestAnotherPin != null}">
+                        <a th:href="@{/mfa/{flow}/request-pin(flow=${flow})}" th:text="${requestAnotherPin}">Request another PIN</a>
+                    </div>
+                    
+                    <div class="cancel-section mt-3" th:if="${cancelUrl != null and disableCancel == null}">
+                        <a th:href="${cancelUrl}" class="btn-link">Cancel</a>
+                    </div>
+                </div>
+                
+                <!-- Contact Info -->
+                <div class="contact-info" th:if="${contact != null and !contact.isEmpty()}">
+                    <div th:utext="${contact}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MFA Expiry Modal -->
+    <div class="modal" id="mfaExpiryModal" th:if="${mfaExpiryPinTime != null}" style="display: none;">
+        <div class="modal-content">
+            <h3 th:text="${mfaPinExpiryModalHeader}">PIN Expired</h3>
+            <p th:text="${mfaPinExpiryModalBody}">Your PIN has expired.</p>
+            <a th:href="${mfaExpiryModalLink}" 
+               class="btn btn-primary" 
+               th:text="${mfaPinExpiryModalLinkText}">Request New PIN</a>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer.html :: footer}"></div>
+    
+    <style>
+        .page-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .main-content {
+            max-width: 600px;
+        }
+        
+        .step-indicator {
+            background-color: #e7f3ff;
+            color: #2d65b4;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        
+        .pin-input-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 30px 0;
+        }
+        
+        .pin-digit {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .pin-digit:focus {
+            outline: none;
+            border-color: var(--plan-primary-color, #2d65b4);
+            box-shadow: 0 0 0 3px rgba(45, 101, 180, 0.1);
+        }
+        
+        .button-group {
+            margin-top: 25px;
+        }
+        
+        .request-new-pin {
+            text-align: center;
+            padding-top: 15px;
+        }
+        
+        .request-new-pin a {
+            color: var(--plan-primary-color, #2d65b4);
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+        
+        .request-new-pin a:hover {
+            text-decoration: underline;
+        }
+        
+        .cancel-section {
+            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .contact-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        .modal-content h3 {
+            margin-bottom: 15px;
+        }
+        
+        .modal-content p {
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 992px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .pin-digit {
+                width: 40px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+    
+    <script>
+        // PIN input auto-focus and submission
+        document.addEventListener('DOMContentLoaded', function() {
+            const pinInputs = document.querySelectorAll('.pin-digit');
+            const pinField = document.getElementById('pin');
+            const form = document.getElementById('pinForm');
+            
+            pinInputs.forEach((input, index) => {
+                input.addEventListener('input', function(e) {
+                    if (this.value.length === 1 && index < pinInputs.length - 1) {
+                        pinInputs[index + 1].focus();
+                    }
+                    
+                    // Collect all PIN digits
+                    let pin = '';
+                    pinInputs.forEach(inp => pin += inp.value);
+                    pinField.value = pin;
+                    
+                    // Auto-submit when all digits are entered
+                    if (pin.length === 6) {
+                        form.submit();
+                    }
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && this.value === '' && index > 0) {
+                        pinInputs[index - 1].focus();
+                    }
+                });
+            });
+            
+            // MFA Expiry Timer
+            const mfaExpiryTime = parseInt('[[${mfaExpiryPinTime}]]' || '0');
+            if (mfaExpiryTime > 0) {
+                setTimeout(function() {
+                    document.getElementById('mfaExpiryModal').style.display = 'flex';
+                }, mfaExpiryTime * 1000);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header.html :: head(${planName != null ? planName + ' - Login' : 'Login'})}"></head>
+<body>
+    <style>
+        :root {
+            --plan-primary-color: #2d65b4;
+            --plan-secondary-color: #1d3557;
+            --plan-tertiary-color: #457b9d;
+            --plan-primary-text: #333333;
+            --plan-secondary-text: #666666;
+            --plan-tertiary-text: #999999;
+        }
+    </style>
+    
+    <style th:if="${planPrimaryColor != null and !planPrimaryColor.isEmpty()}">
+        :root {
+            --plan-primary-color: [[${planPrimaryColor}]];
+            --plan-secondary-color: [[${planSecondaryColor != null ? planSecondaryColor : '#1d3557'}]];
+            --plan-tertiary-color: [[${planTertiaryColor != null ? planTertiaryColor : '#457b9d'}]];
+            --plan-primary-text: [[${planPrimaryTextColor != null ? planPrimaryTextColor : '#333333'}]];
+            --plan-secondary-text: [[${planSecondaryTextColor != null ? planSecondaryTextColor : '#666666'}]];
+            --plan-tertiary-text: [[${planTertiaryTextColor != null ? planTertiaryTextColor : '#999999'}]];
+        }
+        
+        .btn-primary {
+            background-color: var(--plan-primary-color) !important;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--plan-secondary-color) !important;
+        }
+        
+        a {
+            color: var(--plan-primary-color);
+        }
+    </style>
+    
+    <div class="login-container">
+        <div class="login-wrapper">
+            <!-- Left Side: Intro Content -->
+            <div class="intro-section" th:if="${intro != null}">
+                <div class="logo-container" th:if="${intro.logo != null and !intro.logo.isEmpty()}">
+                    <img th:src="${intro.logo}" alt="Logo">
+                </div>
+                
+                <h1 th:text="${intro.title}" th:if="${intro.title != null and !intro.title.isEmpty()}">Welcome</h1>
+                <p class="intro-summary" th:text="${intro.summary}" th:if="${intro.summary != null and !intro.summary.isEmpty()}">Summary</p>
+                
+                <ul class="intro-items" th:if="${intro.items != null}">
+                    <li th:each="item : ${intro.items}" th:if="${item != null and !item.isEmpty()}" th:text="${item}">Item</li>
+                </ul>
+            </div>
+            
+            <!-- Right Side: Login Form -->
+            <div class="form-section">
+                <div class="card">
+                    <!-- Banner -->
+                    <div class="banner" th:if="${banner != null}">
+                        <div class="banner-content">
+                            <img th:if="${banner.icon != null and !banner.icon.isEmpty()}" 
+                                 th:src="${banner.icon}" alt="Banner Icon" class="banner-icon">
+                            <div class="banner-text">
+                                <h3 th:text="${banner.title}" th:if="${banner.title != null}">Banner Title</h3>
+                                <p th:text="${banner.content}" th:if="${banner.content != null}">Banner Content</p>
+                                <a th:if="${banner.cta != null and banner.cta.url != null}" 
+                                   th:href="${banner.cta.url}" 
+                                   th:text="${banner.cta.text}" 
+                                   class="banner-cta">Learn More</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Banner HTML -->
+                    <div th:if="${loginBannerHTML != null and !loginBannerHTML.isEmpty()}" 
+                         th:utext="${loginBannerHTML}" class="login-banner-html"></div>
+                    
+                    <!-- Form Title -->
+                    <h2 th:text="${formTitle != null ? formTitle : 'Sign In'}" class="form-title">Sign In</h2>
+                    
+                    <!-- Error Messages -->
+                    <div class="alert alert-error" th:if="${error != null}">
+                        <span th:text="${error}">Error message</span>
+                    </div>
+                    
+                    <!-- Success Messages -->
+                    <div class="alert alert-success" th:if="${success != null}">
+                        <span th:text="${success}">Success message</span>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <form th:action="@{/login}" method="post">
+                        <div class="form-group">
+                            <label th:text="${usernameType == 'email' ? 'Email' : 'Username'}" for="username">Username</label>
+                            <input type="text" 
+                                   id="username" 
+                                   name="username" 
+                                   required 
+                                   th:placeholder="${usernameType == 'email' ? 'Enter your email' : 'Enter your username'}" 
+                                   autofocus>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" 
+                                   id="password" 
+                                   name="password" 
+                                   required 
+                                   placeholder="Enter your password">
+                        </div>
+                        
+                        <!-- Biometric Options -->
+                        <div class="biometric-section" th:if="${isBiometricEnabled != null and isBiometricEnabled}">
+                            <p class="biometric-text">or use</p>
+                            <button type="button" 
+                                    class="btn btn-secondary btn-biometric" 
+                                    th:text="${biometricType != null ? biometricType : 'Biometric Authentication'}">
+                                Biometric Authentication
+                            </button>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block mt-3">Sign In</button>
+                    </form>
+                    
+                    <!-- Below Form HTML -->
+                    <div th:if="${loginBelowFormHTML != null and !loginBelowFormHTML.isEmpty()}" 
+                         th:utext="${loginBelowFormHTML}" class="login-below-form"></div>
+                    
+                    <!-- Additional Links -->
+                    <div class="form-links mt-3">
+                        <a th:href="@{/forgot-password}">Forgot Password?</a>
+                        <span class="link-separator" th:if="${allowForgotUsername != null and allowForgotUsername}">|</span>
+                        <a th:if="${allowForgotUsername != null and allowForgotUsername}" 
+                           th:href="@{/forgot-username}">Forgot Username?</a>
+                    </div>
+                    
+                    <!-- Activate Account -->
+                    <div class="activate-account mt-3" th:if="${allowActivateAccount != null and allowActivateAccount}">
+                        <a th:href="@{/activate-account}" 
+                           th:text="${activateAccountTitle != null ? activateAccountTitle : 'Activate Your Account'}">
+                            Activate Your Account
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer.html :: footer}"></div>
+    
+    <style>
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            max-width: 1200px;
+            width: 100%;
+            align-items: center;
+        }
+        
+        .intro-section {
+            padding: 40px;
+        }
+        
+        .intro-section h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--plan-primary-text);
+        }
+        
+        .intro-summary {
+            font-size: 1.1rem;
+            color: var(--plan-secondary-text);
+            margin-bottom: 25px;
+        }
+        
+        .intro-items {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .intro-items li {
+            padding: 12px 0;
+            padding-left: 30px;
+            position: relative;
+            color: var(--plan-secondary-text);
+        }
+        
+        .intro-items li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--plan-primary-color);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .form-section {
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .form-title {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .banner {
+            background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid var(--plan-primary-color);
+        }
+        
+        .banner-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        
+        .banner-icon {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .banner-text h3 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .banner-text p {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: var(--plan-secondary-text);
+        }
+        
+        .banner-cta {
+            display: inline-block;
+            color: var(--plan-primary-color);
+            font-weight: 500;
+            text-decoration: underline;
+        }
+        
+        .login-banner-html,
+        .login-below-form {
+            margin: 20px 0;
+        }
+        
+        .form-links {
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .form-links a {
+            color: var(--plan-primary-color);
+            text-decoration: none;
+            margin: 0 8px;
+        }
+        
+        .form-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .link-separator {
+            color: var(--plan-tertiary-text);
+        }
+        
+        .activate-account {
+            text-align: center;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .activate-account a {
+            color: var(--plan-primary-color);
+            font-weight: 500;
+            text-decoration: none;
+        }
+        
+        .activate-account a:hover {
+            text-decoration: underline;
+        }
+        
+        .biometric-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .biometric-text {
+            color: var(--plan-secondary-text);
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .btn-biometric {
+            width: 100%;
+        }
+        
+        @media (max-width: 992px) {
+            .login-wrapper {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            
+            .intro-section {
+                text-align: center;
+                padding: 20px;
+            }
+            
+            .intro-section h1 {
+                font-size: 2rem;
+            }
+            
+            .form-section {
+                max-width: 100%;
+            }
+        }
+    </style>
+</body>
+</html>

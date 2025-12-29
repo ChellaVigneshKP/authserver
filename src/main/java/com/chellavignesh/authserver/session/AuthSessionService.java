@@ -2,6 +2,7 @@ package com.chellavignesh.authserver.session;
 
 import com.chellavignesh.authserver.adminportal.application.entity.Application;
 import com.chellavignesh.authserver.authcode.AuthCodeService;
+import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.session.dto.CreateAuthSessionDto;
 import com.chellavignesh.authserver.session.entity.AuthSession;
 import com.chellavignesh.authserver.session.exception.AuthSessionCreationFailedException;
@@ -51,13 +52,20 @@ public class AuthSessionService {
 
     public AuthSession createSession(Optional<Application> application, OAuth2Authorization authorization) {
 
+        if (application.isEmpty()) {
+            log.error("Application not found for client ID: {}", authorization.getRegisteredClientId());
+            throw new RuntimeException("Application not found for client ID: " + authorization.getRegisteredClientId());
+        }
+
+        Application app = application.get();
         CreateAuthSessionDto sessionDto = new CreateAuthSessionDto();
-        sessionDto.setApplicationId(application.get().getId());
+        sessionDto.setApplicationId(app.getId());
         sessionDto.setSubjectId(authorization.getPrincipalName());
         sessionDto.setScope(String.join(" ", authorization.getAuthorizedScopes()));
-        sessionDto.setAuthFlow(application.get().getAuthFlow());
+        sessionDto.setAuthFlow(app.getAuthFlow());
         sessionDto.setClientFingerprint(getClientFingerprint(authorization));
         sessionDto.setClientId(authorization.getRegisteredClientId());
+        sessionDto.setBranding(getBranding(authorization));
 
         return this.createSession(sessionDto);
     }
@@ -78,7 +86,7 @@ public class AuthSessionService {
 
         if (authorization.getAuthorizationGrantType() == AuthorizationGrantType.AUTHORIZATION_CODE) {
 
-            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute("org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest");
+            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute(ApplicationConstants.OAUTH2_AUTHORIZATION_REQUEST_ATTRIBUTE);
 
             if (authorizationRequest == null) {
                 log.error("Failed to retrieve client fingerprint from authorization request");
@@ -89,6 +97,29 @@ public class AuthSessionService {
         }
 
         return clientFingerprint;
+    }
+
+    private static @Nullable String getBranding(OAuth2Authorization authorization) {
+        // The branding should have been added to the authorization
+        // by CustomOAuth2AuthorizationCodeRequestConverter or set in session
+        String branding = null;
+
+        if (authorization.getAuthorizationGrantType() == AuthorizationGrantType.AUTHORIZATION_CODE) {
+
+            var authorizationRequest = (OAuth2AuthorizationRequest) authorization.getAttribute(ApplicationConstants.OAUTH2_AUTHORIZATION_REQUEST_ATTRIBUTE);
+
+            if (authorizationRequest != null) {
+                branding = (String) authorizationRequest.getAdditionalParameters().get(ApplicationConstants.BRANDING_INFO);
+            }
+
+            // If branding is not in the authorization request, use default
+            if (branding == null) {
+                log.debug("Branding not found in authorization request, using default");
+                branding = ApplicationConstants.DEFAULT_BRANDING;
+            }
+        }
+
+        return branding;
     }
 
     public Optional<AuthSession> findSessionByAuthorization(OAuth2Authorization authorization) {

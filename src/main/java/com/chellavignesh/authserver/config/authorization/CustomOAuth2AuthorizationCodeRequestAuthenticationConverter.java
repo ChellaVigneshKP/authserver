@@ -5,6 +5,7 @@ import com.chellavignesh.authserver.enums.entity.BiometricTypeEnum;
 import com.chellavignesh.authserver.session.fingerprint.ClientFingerprint;
 import com.chellavignesh.authserver.session.fingerprint.ClientFingerprintParser;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 @Service
+@Slf4j
 public class CustomOAuth2AuthorizationCodeRequestAuthenticationConverter implements AuthenticationConverter {
 
     private static final Logger logger = LoggerFactory.getLogger(CustomOAuth2AuthorizationCodeRequestAuthenticationConverter.class);
@@ -155,7 +157,15 @@ public class CustomOAuth2AuthorizationCodeRequestAuthenticationConverter impleme
 
         if (parameters.containsKey(ApplicationConstants.BRANDING_INFO)) {
             String brandingInfo = parameters.getFirst(ApplicationConstants.BRANDING_INFO);
-            request.getSession().setAttribute("branding", brandingInfo);
+            request.getSession().setAttribute(ApplicationConstants.BRANDING_INFO, brandingInfo);
+        } else {
+            // If branding is not provided in parameters, set a default value
+            // This ensures the session always has a branding attribute
+            String existingBranding = (String) request.getSession().getAttribute(ApplicationConstants.BRANDING_INFO);
+            if (existingBranding == null) {
+                log.debug("No branding parameter provided, setting default branding");
+                request.getSession().setAttribute(ApplicationConstants.BRANDING_INFO, ApplicationConstants.DEFAULT_BRANDING);
+            }
         }
 
         if (parameters.containsKey(OAuth2ParameterNames.CLIENT_ID)) {

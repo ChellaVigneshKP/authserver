@@ -10,22 +10,23 @@ import com.chellavignesh.authserver.session.entity.AuthSession;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class CmsService {
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+    private final ResourceLoader resourceLoader;
 
     @Value("${cms.file.location}")
     private String fileLocation;
@@ -34,34 +35,40 @@ public class CmsService {
 
     private final ApplicationService applicationService;
 
-    public CmsService(ApplicationService applicationService) {
+    public CmsService(ApplicationService applicationService, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
         this.applicationService = applicationService;
+        this.objectMapper = objectMapper;
+        this.resourceLoader = resourceLoader;
     }
 
-    private String createFileName(String branding, Optional<String> optCmsContext) {
-        return optCmsContext.map(cmsContext -> branding + "." + cmsContext + ".json").orElse(branding + ".json");
+    private String createFileName(String branding, Optional<String> cmsContext) {
+        return cmsContext
+                .filter(StringUtils::isNotBlank)
+                .map(ctx -> branding + "." + ctx + ".json")
+                .orElse(branding + ".json");
     }
 
-    private Map<String, String> parse(String fileName) throws CmsFileNotFoundException, IOException {
 
-        File cmsFile = new File(fileLocation + "/" + fileName);
-
-        if (!cmsFile.exists() || !cmsFile.isFile()) {
-            log.error("The file: {}/ {} could not be found", fileLocation, fileName);
-            throw new CmsFileNotFoundException("The file " + fileName + " could not be found");
-        }
-
-        Map<String, String> cmsData;
+    private Map<String, String> parse(String fileName)
+            throws CmsFileNotFoundException, CmsProcessingException {
 
         try {
-            cmsData = objectMapper.readValue(cmsFile, new TypeReference<>() {
-            });
-        } catch (IOException e) {
-            log.error("Error while reading CMS file");
-            throw e;
-        }
+            Resource resource = resourceLoader.getResource(fileLocation + fileName);
 
-        return cmsData;
+            if (!resource.exists()) {
+                log.error("CMS file not found: {}{}", fileLocation, fileName);
+                throw new CmsFileNotFoundException("The file " + fileName + " could not be found");
+            }
+
+            try (InputStream is = resource.getInputStream()) {
+                return objectMapper.readValue(is, new TypeReference<>() {
+                });
+            }
+
+        } catch (IOException e) {
+            log.error("Error while reading CMS file", e);
+            throw new CmsProcessingException("Error while parsing json file");
+        }
     }
 
     private String getCmsContext(String clientId) {
@@ -72,26 +79,16 @@ public class CmsService {
 
         try {
             return parse(createFileName(branding, optCmsContext));
-        } catch (CmsFileNotFoundException | IOException e) {
+        } catch (CmsFileNotFoundException e) {
 
             if (optCmsContext.isPresent()) {
 
-                try {
-                    log.info("File with CMS Context not found. Trying with file {}/{}.json", fileLocation, branding);
+                log.info("File with CMS Context not found. Trying with file {}/{}.json", fileLocation, branding);
 
-                    return parse(createFileName(branding, Optional.empty()));
-
-                } catch (IOException _) {
-                    throw new CmsProcessingException("Error while parsing json file");
-                }
+                return parse(createFileName(branding, Optional.empty()));
 
             } else {
-
-                if (e instanceof CmsFileNotFoundException) {
-                    throw (CmsFileNotFoundException) e;
-                } else {
-                    throw new CmsProcessingException("Error while parsing json file");
-                }
+                throw e;
             }
         }
     }
@@ -101,7 +98,10 @@ public class CmsService {
         var brandingSessionInfo = request.getSession().getAttribute(ApplicationConstants.BRANDING_INFO);
 
         if (brandingSessionInfo == null) {
-            throw new CmsBadRequestException("Session missing branding information");
+            log.warn("Session missing branding information, using default branding");
+            // Use a default branding value instead of throwing exception
+            // This allows the application to work even when branding is not set
+            brandingSessionInfo = ApplicationConstants.DEFAULT_BRANDING;
         }
 
         Optional<String> clientId = Optional.ofNullable((String) request.getSession().getAttribute(ApplicationConstants.CLIENT_ID));

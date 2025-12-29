@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header.html :: head(${metaTitle != null ? metaTitle : 'Update Profile'})}"></head>
+<body>
+    <div class="page-container">
+        <div class="layout-grid">
+            <!-- Sidebar -->
+            <div class="sidebar-container" th:if="${progressSidebarSteps != null}">
+                <div th:replace="~{fragments/sidebar.html :: sidebar}"></div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="logo-container" th:if="${logo != null and !logo.isEmpty()}">
+                    <img th:src="${logo}" alt="Logo">
+                </div>
+                
+                <div class="card">
+                    <h1 th:text="${title != null ? title : 'Update Profile'}">Update Profile</h1>
+                    <p class="subtitle" th:text="${subtitle}" th:if="${subtitle != null}">Update your contact information</p>
+                    
+                    <!-- Error Messages -->
+                    <div class="alert alert-error" th:if="${error != null}">
+                        <span th:text="${error}">Error message</span>
+                    </div>
+                    
+                    <!-- Profile Update Form -->
+                    <form th:action="@{/user/change-profile}" method="post" id="changeProfileForm">
+                        <div class="form-section">
+                            <h3 th:text="${profileContactInformationEditAccountOwnerName}" th:if="${profileContactInformationEditAccountOwnerName != null}">Edit Account Owner Name</h3>
+                            
+                            <div class="form-group">
+                                <label for="firstName">First Name</label>
+                                <input type="text" 
+                                       id="firstName" 
+                                       name="firstName" 
+                                       th:value="${firstName}"
+                                       required 
+                                       placeholder="Enter first name"
+                                       autofocus>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="lastName">Last Name</label>
+                                <input type="text" 
+                                       id="lastName" 
+                                       name="lastName" 
+                                       th:value="${lastName}"
+                                       required 
+                                       placeholder="Enter last name">
+                            </div>
+                        </div>
+                        
+                        <div class="form-section mt-3">
+                            <h3 th:text="${profileContactInformationEditEmail}" th:if="${profileContactInformationEditEmail != null}">Edit Email</h3>
+                            
+                            <div class="form-group">
+                                <label for="email">Email Address</label>
+                                <input type="email" 
+                                       id="email" 
+                                       name="email" 
+                                       th:value="${email}"
+                                       required 
+                                       placeholder="Enter email address">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="confirmEmail">Confirm Email Address</label>
+                                <input type="email" 
+                                       id="confirmEmail" 
+                                       name="confirmEmail" 
+                                       th:value="${confirmEmail}"
+                                       required 
+                                       placeholder="Confirm email address">
+                            </div>
+                        </div>
+                        
+                        <div class="form-section mt-3">
+                            <h3 th:text="${profileContactInformationEditPhoneNumbers}" th:if="${profileContactInformationEditPhoneNumbers != null}">Edit Phone Number(s)</h3>
+                            
+                            <div class="form-group">
+                                <label for="phoneNumber">Primary Phone Number</label>
+                                <input type="tel" 
+                                       id="phoneNumber" 
+                                       name="phoneNumber" 
+                                       th:value="${phoneNumber}"
+                                       required 
+                                       placeholder="(555) 123-4567">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="secondaryPhoneNumber">Secondary Phone Number <span class="optional">(Optional)</span></label>
+                                <input type="tel" 
+                                       id="secondaryPhoneNumber" 
+                                       name="secondaryPhoneNumber" 
+                                       th:value="${secondaryPhoneNumber}"
+                                       placeholder="(555) 123-4567">
+                            </div>
+                        </div>
+                        
+                        <p class="required-text" th:if="${profileContactInformationRequiredText != null}" th:text="${profileContactInformationRequiredText}">All fields are required unless indicated as optional.</p>
+                        
+                        <div class="update-notice" th:if="${profileUpdateText != null and !profileUpdateText.isEmpty()}">
+                            <div th:utext="${profileUpdateText}"></div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <a th:href="${backUrlPath != null ? backUrlPath : '@{/login}'}" 
+                               class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary btn-block">Update Profile</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Contact Info -->
+                <div class="contact-info" th:if="${contact != null and !contact.isEmpty()}">
+                    <div th:utext="${contact}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div th:replace="~{fragments/footer.html :: footer}"></div>
+    
+    <style>
+        .page-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .main-content {
+            max-width: 700px;
+        }
+        
+        .form-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .form-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .optional {
+            color: #999;
+            font-weight: normal;
+            font-size: 0.9rem;
+        }
+        
+        .required-text {
+            color: #666;
+            font-size: 0.9rem;
+            font-style: italic;
+            margin: 15px 0;
+        }
+        
+        .update-notice {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2d65b4;
+            font-size: 0.95rem;
+            color: #333;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .button-group .btn {
+            flex: 1;
+        }
+        
+        .button-group .btn-block {
+            flex: 2;
+        }
+        
+        .contact-info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        @media (max-width: 992px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .button-group .btn {
+                width: 100%;
+            }
+        }
+    </style>
+    
+    <script>
+        // Email validation
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('changeProfileForm');
+            const email = document.getElementById('email');
+            const confirmEmail = document.getElementById('confirmEmail');
+            
+            form.addEventListener('submit', function(e) {
+                if (email.value !== confirmEmail.value) {
+                    e.preventDefault();
+                    alert('Email addresses do not match!');
+                    confirmEmail.focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
