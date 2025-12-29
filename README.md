@@ -33,7 +33,8 @@ A Spring Boot-based OAuth2 Authorization Server with support for multiple authen
 #### Option 1: Quick Start (Recommended)
 ```bash
 # 1. Execute the SQL script to create your first user
-sqlcmd -S localhost -U sa -P "YourPassword" -d AGSAuth -i docs/onboard-first-user.sql
+# Replace with your database credentials
+sqlcmd -S localhost -U acsapp -P "YourSecurePassword" -d AGSAuth -i docs/onboard-first-user.sql
 
 # 2. Start the application
 ./mvnw spring-boot:run
