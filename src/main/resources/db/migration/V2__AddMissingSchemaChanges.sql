@@ -75,8 +75,8 @@ BEGIN
         [CreatedOn] DATETIME2(0) NOT NULL CONSTRAINT [DF_TokenSsoCookie_CreatedOn] DEFAULT (GETUTCDATE()),
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
-        CONSTRAINT [PK_TokenSsoCookie] PRIMARY KEY CLUSTERED ([SsoCookieId] ASC) ON "TOKEN_DATA"
-    ) ON "TOKEN_DATA"
+        CONSTRAINT [PK_TokenSsoCookie] PRIMARY KEY CLUSTERED ([SsoCookieId] ASC)
+    )
 END
 GO
 
@@ -226,8 +226,8 @@ BEGIN
         [CreatedOn] DATETIME2(0) NOT NULL DEFAULT (GETUTCDATE()),
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
-        CONSTRAINT [PK_Range] PRIMARY KEY CLUSTERED ([RangeId] ASC) ON "DATA"
-    ) ON "DATA"
+        CONSTRAINT [PK_Range] PRIMARY KEY CLUSTERED ([RangeId] ASC)
+    )
 END
 GO
 
@@ -244,8 +244,8 @@ BEGIN
         [CreatedOn] DATETIME2(0) NOT NULL DEFAULT (GETUTCDATE()),
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
-        CONSTRAINT [PK_GlobalConfig] PRIMARY KEY CLUSTERED ([GlobalConfigId] ASC) ON "DATA"
-    ) ON "DATA"
+        CONSTRAINT [PK_GlobalConfig] PRIMARY KEY CLUSTERED ([GlobalConfigId] ASC)
+    )
 END
 GO
 
@@ -265,8 +265,8 @@ BEGIN
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
         [RowGuid] UNIQUEIDENTIFIER ROWGUIDCOL NULL DEFAULT (NEWSEQUENTIALID()),
-        CONSTRAINT [PK_ResourceLibrary] PRIMARY KEY CLUSTERED ([ResourceLibraryId] ASC) ON "DATA"
-    ) ON "DATA"
+        CONSTRAINT [PK_ResourceLibrary] PRIMARY KEY CLUSTERED ([ResourceLibraryId] ASC)
+    )
 END
 GO
 
@@ -294,9 +294,9 @@ BEGIN
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
         [RowGuid] UNIQUEIDENTIFIER ROWGUIDCOL NULL DEFAULT (NEWSEQUENTIALID()),
-        CONSTRAINT [PK_PartnerCertificate] PRIMARY KEY CLUSTERED ([CertificateId] ASC) ON "DATA",
+        CONSTRAINT [PK_PartnerCertificate] PRIMARY KEY CLUSTERED ([CertificateId] ASC),
         CONSTRAINT [FK_PartnerCertificate_OrganizationId] FOREIGN KEY ([OrganizationId]) REFERENCES [Partner].[Organization] ([OrganizationId])
-    ) ON "DATA"
+    )
 END
 GO
 
@@ -316,11 +316,11 @@ BEGIN
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
         [RowGuid] UNIQUEIDENTIFIER ROWGUIDCOL NULL DEFAULT (NEWSEQUENTIALID()),
-        CONSTRAINT [PK_Resource] PRIMARY KEY CLUSTERED ([ResourceId] ASC) ON "DATA",
+        CONSTRAINT [PK_Resource] PRIMARY KEY CLUSTERED ([ResourceId] ASC),
         CONSTRAINT [FK_Resource_OrganizationId] FOREIGN KEY ([OrganizationId]) REFERENCES [Partner].[Organization] ([OrganizationId]),
         CONSTRAINT [FK_Resource_ApplicationId] FOREIGN KEY ([ApplicationId]) REFERENCES [Client].[Application] ([ApplicationId]),
         CONSTRAINT [FK_Resource_ResourceLibraryId] FOREIGN KEY ([ResourceLibraryId]) REFERENCES [dbo].[ResourceLibrary] ([ResourceLibraryId])
-    ) ON "DATA"
+    )
 END
 GO
 
@@ -343,11 +343,19 @@ BEGIN
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
         [RowGuid] UNIQUEIDENTIFIER ROWGUIDCOL NULL DEFAULT (NEWSEQUENTIALID()),
-        CONSTRAINT [PK_ClientTokenSetting] PRIMARY KEY CLUSTERED ([TokenSettingId] ASC) ON "CLIENT_DATA",
+        CONSTRAINT [PK_ClientTokenSetting] PRIMARY KEY CLUSTERED ([TokenSettingId] ASC),
         CONSTRAINT [FK_ClientTokenSetting_OrganizationId] FOREIGN KEY ([OrganizationId]) REFERENCES [Partner].[Organization] ([OrganizationId]),
         CONSTRAINT [FK_ClientTokenSetting_ApplicationId] FOREIGN KEY ([ApplicationId]) REFERENCES [Client].[Application] ([ApplicationId])
-    ) ON "CLIENT_DATA"
+    )
 END
+GO
+
+-- Ensure MaxRequestTransitTime exists for older databases
+IF COL_LENGTH('Client.TokenSetting', 'MaxRequestTransitTime') IS NULL
+    BEGIN
+        ALTER TABLE [Client].[TokenSetting]
+            ADD [MaxRequestTransitTime] INT NULL;
+    END
 GO
 
 -- Create Client.MFARealm table if missing
@@ -362,8 +370,8 @@ BEGIN
         [CreatedOn] DATETIME2(0) NOT NULL DEFAULT (GETUTCDATE()),
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
-        CONSTRAINT [PK_ClientMFARealm] PRIMARY KEY CLUSTERED ([MFARealmId] ASC) ON "CLIENT_DATA"
-    ) ON "CLIENT_DATA"
+        CONSTRAINT [PK_ClientMFARealm] PRIMARY KEY CLUSTERED ([MFARealmId] ASC)
+    )
 END
 GO
 
@@ -380,8 +388,8 @@ BEGIN
         [CreatedOn] DATETIME2(0) NOT NULL DEFAULT (GETUTCDATE()),
         [ModifiedOn] DATETIME2(0) NULL,
         [ModifiedBy] NVARCHAR(255) NULL,
-        CONSTRAINT [PK_ExternalSource] PRIMARY KEY CLUSTERED ([ExternalSourceId] ASC) ON "DATA"
-    ) ON "DATA"
+        CONSTRAINT [PK_ExternalSource] PRIMARY KEY CLUSTERED ([ExternalSourceId] ASC)
+    )
 END
 GO
 
@@ -394,9 +402,9 @@ BEGIN
         [ProfileId] INT NOT NULL,
         [Password] VARBINARY(4000) NOT NULL,
         [CreatedOn] DATETIME2(0) NOT NULL DEFAULT (GETUTCDATE()),
-        CONSTRAINT [PK_PersonPasswordHistory] PRIMARY KEY CLUSTERED ([PasswordHistoryId] ASC) ON "USER_DATA",
+        CONSTRAINT [PK_PersonPasswordHistory] PRIMARY KEY CLUSTERED ([PasswordHistoryId] ASC),
         CONSTRAINT [FK_PersonPasswordHistory_ProfileId] FOREIGN KEY ([ProfileId]) REFERENCES [Person].[Profile] ([ProfileId])
-    ) ON "USER_DATA"
+    )
 END
 GO
 
@@ -408,8 +416,8 @@ BEGIN
         [PasswordBlacklistId] INT IDENTITY(1,1) NOT NULL,
         [PasswordHash] VARBINARY(MAX) NOT NULL,
         [CreatedOn] DATETIME2(0) NOT NULL DEFAULT (GETUTCDATE()),
-        CONSTRAINT [PK_PasswordBlacklist] PRIMARY KEY CLUSTERED ([PasswordBlacklistId] ASC) ON "DATA"
-    ) ON "DATA"
+        CONSTRAINT [PK_PasswordBlacklist] PRIMARY KEY CLUSTERED ([PasswordBlacklistId] ASC)
+    )
 END
 GO
 

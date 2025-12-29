@@ -519,10 +519,15 @@ CREATE OR ALTER PROCEDURE [dbo].[TokenSettingExistsForApp]
     @appId INT
 AS
 BEGIN
-    IF EXISTS (SELECT 1 FROM [Client].[TokenSetting] WHERE OrganizationId = @orgId AND ApplicationId = @appId)
-        SELECT 1 AS Exists
+    IF EXISTS (
+        SELECT 1
+        FROM [Client].[TokenSetting]
+        WHERE OrganizationId = @orgId
+          AND ApplicationId = @appId
+    )
+        SELECT 1 AS ExistsFlag;
     ELSE
-        SELECT 0 AS Exists
+        SELECT 0 AS ExistsFlag;
 END
 GO
 

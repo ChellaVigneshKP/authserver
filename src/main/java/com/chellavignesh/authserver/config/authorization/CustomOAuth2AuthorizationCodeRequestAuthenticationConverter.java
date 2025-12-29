@@ -5,6 +5,7 @@ import com.chellavignesh.authserver.enums.entity.BiometricTypeEnum;
 import com.chellavignesh.authserver.session.fingerprint.ClientFingerprint;
 import com.chellavignesh.authserver.session.fingerprint.ClientFingerprintParser;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 @Service
+@Slf4j
 public class CustomOAuth2AuthorizationCodeRequestAuthenticationConverter implements AuthenticationConverter {
 
     private static final Logger logger = LoggerFactory.getLogger(CustomOAuth2AuthorizationCodeRequestAuthenticationConverter.class);
