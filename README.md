@@ -83,6 +83,29 @@ spring.data.redis.port=6379
 
 The server will start on `http://localhost:9080`
 
+### 7. Onboard First Admin User
+
+**IMPORTANT:** Before you can use the admin portal, you need to create your first admin user and client application.
+
+```bash
+# Run the onboarding script
+sqlcmd -S localhost -d AGSAuth -U sa -P your_password -i src/main/resources/db/onboarding/manual_onboarding.sql
+```
+
+This will create:
+- Default branding configuration
+- Admin organization and group  
+- Admin Portal OAuth2 client application
+- First admin user (username: `admin`, password: `Admin@123456`)
+
+**📖 For detailed instructions, see [Admin Onboarding Guide](src/main/resources/db/onboarding/README.md)**
+
+After running the script:
+1. Copy the generated Client ID
+2. Navigate to the authorization URL with your Client ID
+3. Login with admin/Admin@123456
+4. **Change the password immediately!**
+
 ## Configuration
 
 ### Key Configuration Properties
@@ -231,6 +254,22 @@ This helps detect session hijacking attempts.
 ## Troubleshooting
 
 ### Common Issues
+
+#### 0. "Cannot login - No users or applications exist"
+
+**Solution**: You need to onboard your first admin user and application.
+
+See the **[Complete Admin Onboarding Guide](src/main/resources/db/onboarding/README.md)** for:
+- Step-by-step setup instructions
+- SQL scripts to create first admin user
+- How to create the Admin Portal application
+- Troubleshooting branding and authentication issues
+
+Quick start:
+```bash
+sqlcmd -S localhost -d AGSAuth -U sa -P your_password \
+  -i src/main/resources/db/onboarding/manual_onboarding.sql
+```
 
 #### 1. "Missing branding in session" error
 
