@@ -2,17 +2,23 @@
 
 ## TL;DR - Fastest Way to Get Started
 
+> ⚠️ **SECURITY WARNING**: This guide is for **DEVELOPMENT/TESTING ONLY**. 
+> For production, use the application's API for user creation.
+
 ### 1. Run the SQL Script
 
 Execute the provided script in your SQL Server:
 
 ```bash
 # Using sqlcmd (Linux/Mac/Windows)
-sqlcmd -S localhost -U sa -P "YourPassword" -d AGSAuth -i docs/onboard-first-user.sql
+# ⚠️  Replace credentials with your own - do NOT use 'sa' in production
+sqlcmd -S localhost -U your_db_user -P "YourSecurePassword" -d AGSAuth -i docs/onboard-first-user.sql
 
 # Or using SQL Server Management Studio (SSMS)
 # Open docs/onboard-first-user.sql and execute it
 ```
+
+> 🔒 **Security Note**: Use a dedicated service account with minimal permissions, not 'sa'.
 
 ### 2. Start the Application
 
@@ -23,8 +29,10 @@ sqlcmd -S localhost -U sa -P "YourPassword" -d AGSAuth -i docs/onboard-first-use
 ### 3. Login
 
 - URL: http://localhost:9080/login
-- Username: `admin`
-- Password: `TempPassword123!`
+- Username: `admin` (or whatever you set in the script)
+- Password: `TempPassword123!` (or whatever you set in the script)
+
+> ⚠️ **IMPORTANT**: The script uses SHA-256 hashing which is **NOT SECURE** for production. This is only for development/testing to get started quickly.
 
 ### 4. Change Password Immediately!
 
@@ -50,14 +58,19 @@ The `onboard-first-user.sql` script automatically creates:
 
 ## Default Credentials
 
+> ⚠️ **SECURITY REMINDER**: These are DEFAULT values for development only. 
+> Edit the SQL script to change these values before running, or change them immediately after first login.
+
 | Field | Value |
 |-------|-------|
-| **Username** | admin |
-| **Password** | TempPassword123! |
-| **Email** | admin@mycompany.com |
-| **Phone** | +1234567890 |
+| **Username** | admin (⚠️ Change in script) |
+| **Password** | TempPassword123! (⚠️ Change in script) |
+| **Email** | admin@mycompany.com (⚠️ Change in script) |
+| **Phone** | +1234567890 (⚠️ Change in script) |
 | **Organization** | MyCompany |
 | **Group** | MyCompany Admin |
+
+**Hashing Method**: SHA-256 without salt (⚠️ INSECURE - for testing only!)
 
 ---
 
@@ -200,13 +213,29 @@ validation.password.regex=^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z
 
 After first login:
 
-- [ ] Change the default password immediately
+- [ ] ⚠️ **CRITICAL**: Change the default password immediately
+- [ ] Update email address to a real address
+- [ ] Update phone number to a real number
+- [ ] Change username if using default 'admin'
 - [ ] Verify email address
 - [ ] Consider enabling two-factor authentication
 - [ ] Review and update user permissions
 - [ ] Set up additional users as needed
 - [ ] Configure HTTPS for production environments
 - [ ] Review audit logs regularly
+- [ ] Never use this SQL script method in production
+- [ ] For production, use the application's API for user creation
+
+## Production User Creation
+
+❌ **DO NOT** use the SQL script for production users!
+
+✅ **DO** use one of these methods instead:
+1. Application's Admin Portal (if available)
+2. User Registration API endpoint
+3. Ensure crypto service is running for proper password hashing
+
+The SQL script uses SHA-256 without salt, which is vulnerable to rainbow table attacks and is NOT suitable for production use.
 
 ---
 
@@ -251,8 +280,8 @@ If you encounter issues:
 # Start application
 ./mvnw spring-boot:run
 
-# Run SQL script
-sqlcmd -S localhost -U sa -P "YourPassword" -d AGSAuth -i docs/onboard-first-user.sql
+# Run SQL script (⚠️ Use your own credentials, not 'sa')
+sqlcmd -S localhost -U your_db_user -P "YourSecurePassword" -d AGSAuth -i docs/onboard-first-user.sql
 
 # Check Redis
 redis-cli ping

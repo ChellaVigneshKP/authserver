@@ -1,5 +1,8 @@
 # User Onboarding Guide - First User Setup
 
+> ⚠️ **IMPORTANT SECURITY NOTICE**: This guide is intended for **DEVELOPMENT AND TESTING ONLY**.  
+> For production environments, use the application's API for user creation to ensure proper password hashing.
+
 This guide provides all the required SQL queries and data to onboard your first user into the AGSAuth database and enable successful authentication.
 
 ## Table of Contents
@@ -20,11 +23,17 @@ Before creating a user, ensure the following:
 3. **Configuration**: The application is configured to connect to the database (see `application.properties`)
 
 ### Required Database Connection Details
+
+> 🔒 **Security Note**: These are EXAMPLE values. Replace with your actual secure credentials.
+
 ```properties
+# Example connection details - DO NOT use these exact values in production
 spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=AGSAuth;encrypt=true;trustServerCertificate=true
-spring.datasource.username=acsapp
-spring.datasource.password=Ac$App@123
+spring.datasource.username=acsapp  # Use a dedicated service account
+spring.datasource.password=Ac$App@123  # Use a strong, unique password
 ```
+
+> 💡 **Best Practice**: Use environment variables or secure configuration management for credentials.
 
 ## Database Structure Overview
 
@@ -272,9 +281,21 @@ WHERE pg.[ProfileId] = @ProfileId;
 
 ## Password Hashing
 
+> ⚠️ **CRITICAL SECURITY WARNING**: The methods described here for manual password hashing are **NOT SECURE** for production use!
+
 The authentication server uses a custom password encoder (`LibCryptoPasswordEncoder`) that integrates with an external crypto service. For manual user creation, you have several options:
 
-### Option 1: Use the Crypto Service (Recommended)
+### Option 1: Use the Application's API (Recommended for Production)
+
+**This is the ONLY secure method for production user creation.**
+
+The application API handles:
+- Proper password hashing with the crypto service
+- Input validation
+- Security best practices
+- Audit logging
+
+### Option 2: Use the Crypto Service (Development with Crypto Service)
 
 The application uses a crypto service at `http://localhost:9001` (configurable via `crypto.web.base.url`). The service:
 - Takes a plain text password
@@ -283,37 +304,49 @@ The application uses a crypto service at `http://localhost:9001` (configurable v
 
 **Note**: You need the crypto service running to generate proper hashes.
 
-### Option 2: Local Fallback Hash (For Testing)
+### Option 3: Local Fallback Hash (Testing Only - INSECURE)
 
-If the crypto service is unavailable, the system uses SHA-256:
+> ⚠️ **WARNING**: This method is **VULNERABLE** to attacks and should NEVER be used in production!
+
+If the crypto service is unavailable, the system uses SHA-256 **WITHOUT SALT**:
+
+**Security Issues:**
+- ❌ No salt - identical passwords produce identical hashes
+- ❌ Vulnerable to rainbow table attacks
+- ❌ Fast hashing allows brute force attacks
+- ❌ Not suitable for any production or security-sensitive use
 
 ```java
 // Format: {0}[base64-encoded-sha256-hash]
-// Example in Java:
+// Example in Java (INSECURE - for testing only):
 MessageDigest digest = MessageDigest.getInstance("SHA-256");
 byte[] hash = digest.digest("MyPassword123!".getBytes());
 String encoded = "{0}" + Base64.getEncoder().encodeToString(hash);
 ```
 
-**SQL Server Example for SHA-256 Hash:**
+**SQL Server Example for SHA-256 Hash (INSECURE - Testing Only):**
 ```sql
+-- ⚠️  WARNING: This is INSECURE - for development/testing only!
 -- Generate SHA-256 hash in SQL Server
 DECLARE @Password NVARCHAR(255) = 'MyPassword123!';
 DECLARE @PasswordBytes VARBINARY(MAX) = CAST(@Password AS VARBINARY(MAX));
 DECLARE @HashBytes VARBINARY(32) = HASHBYTES('SHA2_256', @PasswordBytes);
 
--- Convert to the format expected by the application
--- Format: {0}[base64-encoded-hash]
 -- For manual insertion, you can use the raw hash bytes:
 SELECT @HashBytes AS PasswordHash;
 
--- To create the full formatted string (conceptual - would need CLR or external tool):
--- The application expects: "{0}" + Base64Encode(@HashBytes)
+-- Note: The application expects: "{0}" + Base64Encode(@HashBytes)
+-- But SQL Server stores the raw VARBINARY
 ```
 
-### Option 3: Generate Through Application API
+### Production Password Hashing Requirements
 
-The recommended approach is to use the application's API to create users, which will handle password hashing automatically.
+For production, you MUST use:
+- ✅ bcrypt (recommended)
+- ✅ PBKDF2 with high iteration count
+- ✅ Argon2
+- ✅ The crypto service with proper configuration
+- ✅ Application API (handles everything correctly)
 
 ### Important Password Requirements
 
@@ -336,7 +369,19 @@ This requires:
 
 ## Complete Example
 
-Here's a complete script to create your first user:
+> ⚠️ **CRITICAL SECURITY WARNING**:  
+> This script is for **DEVELOPMENT/TESTING ONLY**.  
+> **DO NOT** use this for production user creation!
+>
+> **Security Issues:**
+> - Uses SHA-256 without salt (vulnerable to rainbow tables)
+> - Exposes default credentials in plaintext
+> - No proper password strength enforcement
+> - Lacks proper audit trail
+>
+> **For Production**: Use the application's API for user creation!
+
+Here's a complete script to create your first user for development/testing:
 
 ```sql
 -- ============================================================================

@@ -9,9 +9,16 @@
 -- 2. All Flyway migrations have been applied
 -- 3. Execute this script as a user with INSERT permissions
 --
+-- SECURITY WARNINGS:
+-- ⚠️  This script is intended for DEVELOPMENT/TESTING ONLY
+-- ⚠️  The password hashing method (SHA-256) is NOT secure for production
+-- ⚠️  For production, use the application's API or ensure crypto service is running
+-- ⚠️  Change the default username, email, and password before running
+-- ⚠️  Immediately change the password through the application after first login
+--
 -- After running this script:
--- - Username: admin
--- - Temporary Password: TempPassword123!
+-- - Username: admin (CHANGE THIS FOR PRODUCTION)
+-- - Temporary Password: TempPassword123! (CHANGE THIS FOR PRODUCTION)
 -- - IMPORTANT: Change the password through the application immediately!
 -- ============================================================================
 
@@ -138,31 +145,45 @@ BEGIN TRY
     -- ========================================================================
     PRINT 'Step 6: Creating User Profile...';
     
+    -- ⚠️  SECURITY: Replace these default values with actual user information
+    DECLARE @UserEmail NVARCHAR(255) = 'admin@mycompany.com';  -- TODO: Change this
+    DECLARE @UserPhone NVARCHAR(128) = '+1234567890';          -- TODO: Change this
+    DECLARE @UserFirstName NVARCHAR(255) = 'Admin';            -- TODO: Change this
+    DECLARE @UserLastName NVARCHAR(255) = 'User';              -- TODO: Change this
+    
     INSERT INTO [Person].[Profile] 
         ([LoginProviderId], [Email], [EmailConfirmed], [PhoneNumber], 
          [PhoneNumberConfirmed], [TwoFactorEnabled], [FirstName], 
          [LastName], [Suffix], [DataOriginId], [SyncFlag], [Status])
     VALUES 
-        (@LoginProviderId, 'admin@mycompany.com', 1, '+1234567890', 
-         1, 0, 'Admin', 
-         'User', 0, @DataOriginId, 0, 1);
+        (@LoginProviderId, @UserEmail, 1, @UserPhone, 
+         1, 0, @UserFirstName, 
+         @UserLastName, 0, @DataOriginId, 0, 1);
     
     SET @ProfileId = SCOPE_IDENTITY();
-    PRINT '  - Created User Profile: Admin User';
+    PRINT '  - Created User Profile: ' + @UserFirstName + ' ' + @UserLastName;
     PRINT '  - ProfileId: ' + CAST(@ProfileId AS NVARCHAR(10));
-    PRINT '  - Email: admin@mycompany.com';
+    PRINT '  - Email: ' + @UserEmail;
     PRINT '';
 
     -- ========================================================================
     -- Step 7: Create User Credentials
     -- ========================================================================
     PRINT 'Step 7: Creating User Credentials...';
-    PRINT '  - Username: admin';
-    PRINT '  - Password: TempPassword123! (TEMPORARY - Change immediately!)';
     
-    DECLARE @Username NVARCHAR(255) = 'admin';
-    DECLARE @PlaceholderPassword NVARCHAR(255) = 'TempPassword123!';
+    -- ⚠️  SECURITY WARNING: Change these default values!
+    -- ⚠️  This password hashing method (SHA-256) is NOT SECURE for production
+    -- ⚠️  For production use:
+    --     1. Use the application's user creation API (recommended)
+    --     2. Ensure crypto service is running for proper password hashing
+    --     3. Or use bcrypt/PBKDF2/Argon2 with proper salt
+    
+    DECLARE @Username NVARCHAR(255) = 'admin';                  -- TODO: Change this
+    DECLARE @PlaceholderPassword NVARCHAR(255) = 'TempPassword123!';  -- TODO: Change this
     DECLARE @PasswordHash VARBINARY(4000) = HASHBYTES('SHA2_256', CAST(@PlaceholderPassword AS VARBINARY(MAX)));
+
+    PRINT '  - Username: ' + @Username + ' (⚠️  Change this for production)';
+    PRINT '  - Password: [Hidden] (⚠️  TEMPORARY - Change immediately!)';
 
     INSERT INTO [Person].[Credential] 
         ([ProfileId], [UserName], [Password], [LockoutEnd], 
@@ -174,8 +195,9 @@ BEGIN TRY
          0, 1);
 
     PRINT '  - Credential created successfully';
-    PRINT '  - WARNING: Using SHA-256 hash (fallback method)';
-    PRINT '  - For production, ensure crypto service is running for proper password hashing';
+    PRINT '  - ⚠️  WARNING: Using SHA-256 hash (INSECURE for production!)';
+    PRINT '  - ⚠️  For production: Use application API or crypto service';
+    PRINT '  - ⚠️  Lacks salt, vulnerable to rainbow table attacks';
     PRINT '';
 
     -- ========================================================================
@@ -247,22 +269,27 @@ BEGIN TRY
     PRINT '';
     PRINT 'Login Credentials:';
     PRINT '-----------------';
-    PRINT 'Username: admin';
-    PRINT 'Password: TempPassword123!';
+    PRINT 'Username: ' + @Username;
+    PRINT 'Password: [Hidden - See script variables]';
     PRINT '';
     PRINT 'Next Steps:';
     PRINT '----------';
     PRINT '1. Start the authserver application';
     PRINT '2. Navigate to: http://localhost:9080/login';
-    PRINT '3. Login with the credentials above';
-    PRINT '4. IMMEDIATELY change the password through the application';
+    PRINT '3. Login with the credentials defined in this script';
+    PRINT '4. ⚠️  IMMEDIATELY change the password through the application';
     PRINT '5. Consider enabling two-factor authentication';
+    PRINT '6. Update email and phone number to real values';
     PRINT '';
-    PRINT 'IMPORTANT SECURITY NOTES:';
-    PRINT '------------------------';
-    PRINT '- The password hash used is SHA-256 (local fallback)';
-    PRINT '- For production use, ensure the crypto service is running';
-    PRINT '- Change the temporary password immediately after first login';
+    PRINT '⚠️  CRITICAL SECURITY WARNINGS:';
+    PRINT '------------------------------';
+    PRINT '- This script is for DEVELOPMENT/TESTING ONLY';
+    PRINT '- Password hashing: SHA-256 without salt (INSECURE!)';
+    PRINT '- Vulnerable to rainbow table attacks';
+    PRINT '- For production: Use application API or crypto service';
+    PRINT '- Change ALL default values (username, email, phone)';
+    PRINT '- Immediately change the password after first login';
+    PRINT '- Do NOT use this method for production user creation';
     PRINT '- Review and update user permissions as needed';
     PRINT '';
     PRINT '============================================================================';
