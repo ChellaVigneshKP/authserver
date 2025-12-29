@@ -64,7 +64,7 @@ Use this method if you're setting up for the first time or need more control.
 
 5. **Login with Default Credentials:**
    - Username: `admin`
-   - Password: `Admin@123`
+   - Password: `Admin@123456`
 
 6. **⚠️ IMPORTANT: Change Password Immediately!**
    After first login, navigate to user settings and change the password.
@@ -118,7 +118,7 @@ The onboarding script creates:
 
 ### 5. Admin User
 - **Username:** `admin`
-- **Password:** `Admin@123` (BCrypt encrypted)
+- **Password:** `Admin@123456` (BCrypt encrypted)
 - **Name:** System Administrator
 - **Email:** `admin@localhost.local`
 - **Assigned to:** Ascensus Admin group
@@ -192,7 +192,7 @@ VALUES
    ```java
    // Use your application's password encoder
    BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-   String hash = encoder.encode("Admin@123");
+   String hash = encoder.encode("Admin@123456");
    System.out.println(hash);
    ```
 
@@ -224,12 +224,12 @@ VALUES
 ## Security Considerations
 
 ### Password Requirements
-The default password `Admin@123` meets these criteria:
-- At least 12 characters
-- Contains uppercase letters
-- Contains lowercase letters
-- Contains numbers
-- Contains special characters
+The default password `Admin@123456` meets these criteria:
+- At least 12 characters (exactly 12)
+- Contains uppercase letters (A)
+- Contains lowercase letters (dmin)
+- Contains numbers (123456)
+- Contains special characters (@)
 
 ### Post-Setup Security Tasks
 1. **Change admin password immediately**

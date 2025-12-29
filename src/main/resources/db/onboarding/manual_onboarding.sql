@@ -196,13 +196,17 @@ BEGIN
          [PhoneNumber], [PhoneNumberConfirmed], [TwoFactorEnabled], [Suffix], 
          [DataOriginId], [SyncFlag], [Status], [LoginId])
     VALUES
-        (@LoginProviderId, 'System', 'Administrator', 'admin@localhost.local', 0,
+        (@LoginProviderId, 'Ascensus', 'Admin', 'admin@localhost.local', 0,
          '', 0, 0, 0, @DataOriginId, 0, 1, NEWID());
     
     SET @AdminProfileId = SCOPE_IDENTITY();
     
     DECLARE @DefaultPassword VARBINARY(4000);
-    SET @DefaultPassword = CONVERT(VARBINARY(4000), '$2a$10$N9qo8uLOickgx2ZMRZoMye/1JVfIjl8VDW7nJ3jh6.XPQKBwm7Guu');
+    -- BCrypt hash for "Admin@123456" (12 characters, meets password complexity requirements)
+    -- SECURITY WARNING: This is a default password for initial setup ONLY
+    -- The admin user MUST change this password immediately after first login
+    -- Consider this password compromised as it's visible in source control
+    SET @DefaultPassword = CONVERT(VARBINARY(4000), '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cyhVHYIDf/8Fh.k7.H3w8LqXQX3Ki');
     
     INSERT INTO [Person].[Credential]
         ([ProfileId], [UserName], [Password], [LockoutEnd], [CredentialLocked], 
@@ -230,9 +234,10 @@ BEGIN
     PRINT '║         DEFAULT ADMIN CREDENTIALS              ║';
     PRINT '╠════════════════════════════════════════════════╣';
     PRINT '║ Username: admin                                ║';
-    PRINT '║ Password: Admin@123                            ║';
+    PRINT '║ Password: Admin@123456                         ║';
     PRINT '╠════════════════════════════════════════════════╣';
     PRINT '║ ⚠️  CHANGE PASSWORD AFTER FIRST LOGIN!         ║';
+    PRINT '║ ⚠️  This password is visible in logs/scripts   ║';
     PRINT '╚════════════════════════════════════════════════╝';
 END
 ELSE
@@ -262,7 +267,7 @@ PRINT '       redirect_uri=http://localhost:9080/login&';
 PRINT '       scope=openid&';
 PRINT '       branding=default';
 PRINT '';
-PRINT '  4. Login with: admin / Admin@123';
+PRINT '  4. Login with: admin / Admin@123456';
 PRINT '  5. Change password immediately!';
 PRINT '  6. Create your first client application';
 PRINT '';

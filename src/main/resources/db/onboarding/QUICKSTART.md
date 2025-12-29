@@ -41,7 +41,7 @@ https://your-domain.com/oauth2/authorize?client_id=YOUR_CLIENT_ID_HERE&response_
 
 Use these credentials:
 - **Username:** `admin`
-- **Password:** `Admin@123`
+- **Password:** `Admin@123456`
 
 ## Step 5: Change Password Immediately!
 
@@ -59,7 +59,7 @@ This is a default password. You MUST change it after first login for security.
 
 ### "Invalid username or password"
 - Verify admin user exists: `SELECT * FROM [Person].[Credential] WHERE UserName = 'admin'`
-- The default password is case-sensitive: `Admin@123`
+- The default password is case-sensitive: `Admin@123456`
 
 ### Cannot see login page
 - Check server is running on port 9080

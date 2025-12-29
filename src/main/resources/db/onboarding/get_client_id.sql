@@ -39,7 +39,7 @@ BEGIN
     PRINT '';
     PRINT 'Login credentials:';
     PRINT '  Username: admin';
-    PRINT '  Password: Admin@123';
+    PRINT '  Password: Admin@123456';
     PRINT '';
 END
 ELSE

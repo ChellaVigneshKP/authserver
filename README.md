@@ -96,14 +96,14 @@ This will create:
 - Default branding configuration
 - Admin organization and group  
 - Admin Portal OAuth2 client application
-- First admin user (username: `admin`, password: `Admin@123`)
+- First admin user (username: `admin`, password: `Admin@123456`)
 
 **📖 For detailed instructions, see [Admin Onboarding Guide](src/main/resources/db/onboarding/README.md)**
 
 After running the script:
 1. Copy the generated Client ID
 2. Navigate to the authorization URL with your Client ID
-3. Login with admin/Admin@123
+3. Login with admin/Admin@123456
 4. **Change the password immediately!**
 
 ## Configuration

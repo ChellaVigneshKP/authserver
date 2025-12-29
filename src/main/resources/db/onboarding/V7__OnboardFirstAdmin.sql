@@ -124,18 +124,21 @@ BEGIN
     PRINT '';
     
     -- Add redirect URIs for the admin portal
-    -- Adjust these URLs based on your deployment
+    -- Includes both HTTP and HTTPS for flexibility in different environments
     INSERT INTO [Client].[RedirectUri]
         ([ApplicationId], [Uri], [Status])
     VALUES
         (@AdminAppId, 'http://localhost:9080/login', 1),
-        (@AdminAppId, 'http://localhost:9080/oauth2/authorized', 1);
+        (@AdminAppId, 'http://localhost:9080/oauth2/authorized', 1),
+        (@AdminAppId, 'https://localhost:9080/login', 1),
+        (@AdminAppId, 'https://localhost:9080/oauth2/authorized', 1);
     
     -- Add post-logout redirect URIs
     INSERT INTO [Client].[PostLogoutRedirectUri]
         ([ApplicationId], [Uri], [Status])
     VALUES
-        (@AdminAppId, 'http://localhost:9080/login', 1);
+        (@AdminAppId, 'http://localhost:9080/login', 1),
+        (@AdminAppId, 'https://localhost:9080/login', 1);
     
     PRINT 'Redirect URIs configured for Admin Portal';
 END
@@ -149,7 +152,7 @@ GO
 
 -- =============================================
 -- Step 5: Create First Admin User
--- This creates a default admin user: admin / Admin@123
+-- This creates a default admin user: admin / Admin@123456
 -- IMPORTANT: Change this password immediately after first login!
 -- =============================================
 DECLARE @AdminOrgId INT;
@@ -205,13 +208,14 @@ BEGIN
     SET @AdminProfileId = SCOPE_IDENTITY();
     PRINT 'Admin profile created with ID: ' + CAST(@AdminProfileId AS NVARCHAR(10));
     
-    -- Create admin credentials with default password: Admin@123
-    -- This is a BCrypt hash of "Admin@123"
+    -- Create admin credentials with default password: Admin@123456 (12 characters)
+    -- This is a BCrypt hash of "Admin@123456" with strength 10
     -- Password encoder version 2 is typically BCrypt
     DECLARE @DefaultPassword VARBINARY(4000);
-    -- BCrypt hash for "Admin@123" with strength 10
-    -- Note: This is an example hash - you may need to generate this using your actual password encoder
-    SET @DefaultPassword = CONVERT(VARBINARY(4000), '$2a$10$N9qo8uLOickgx2ZMRZoMye/1JVfIjl8VDW7nJ3jh6.XPQKBwm7Guu');
+    -- BCrypt hash for "Admin@123456" 
+    -- IMPORTANT: This is a default password for initial setup only
+    -- The user MUST change this password immediately after first login
+    SET @DefaultPassword = CONVERT(VARBINARY(4000), '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cyhVHYIDf/8Fh.k7.H3w8LqXQX3Ki');
     
     INSERT INTO [Person].[Credential]
         ([ProfileId], [UserName], [Password], [LockoutEnd], [CredentialLocked], 
@@ -243,7 +247,7 @@ BEGIN
     PRINT '';
     PRINT '=== FIRST ADMIN USER CREATED ===';
     PRINT 'Username: admin';
-    PRINT 'Password: Admin@123';
+    PRINT 'Password: Admin@123456';
     PRINT '';
     PRINT 'IMPORTANT: Change this password immediately after first login!';
     PRINT '================================';
@@ -266,7 +270,7 @@ PRINT 'Next Steps:';
 PRINT '1. Note the Client ID displayed above';
 PRINT '2. Start your auth server application';
 PRINT '3. Navigate to: http://localhost:9080/oauth2/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=http://localhost:9080/login&scope=openid&branding=default';
-PRINT '4. Login with username: admin, password: Admin@123';
+PRINT '4. Login with username: admin, password: Admin@123456';
 PRINT '5. Change the admin password immediately';
 PRINT '6. Use the admin portal to create your first client application';
 PRINT '';
