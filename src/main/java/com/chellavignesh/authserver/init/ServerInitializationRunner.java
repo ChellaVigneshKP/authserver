@@ -44,12 +44,25 @@ public class ServerInitializationRunner implements CommandLineRunner {
     private static final String DEFAULT_ADMIN_PHONE = "+11234567890";
     private static final String DEFAULT_BRANDING = "default";
     private static final int DEFAULT_EXTERNAL_TYPE_ID = 1;
+    private static final int DEFAULT_GROUP_ID = 0; // Group ID 0 is used for initial user creation
 
     @Value("${server.initialize:false}")
     private boolean initializeServer;
 
-    @Value("${server.initialize.admin.password:Admin@123456}")
-    private String defaultAdminPassword;
+    @Value("${server.initialize.admin.password:#{null}}")
+    private String defaultAdminPasswordProperty;
+
+    private String getDefaultAdminPassword() {
+        // Check environment variable first, then property, then use default
+        String envPassword = System.getenv("SERVER_INITIALIZE_ADMIN_PASSWORD");
+        if (envPassword != null && !envPassword.isEmpty()) {
+            return envPassword;
+        }
+        if (defaultAdminPasswordProperty != null && !defaultAdminPasswordProperty.isEmpty()) {
+            return defaultAdminPasswordProperty;
+        }
+        return "Admin@123456"; // Default fallback
+    }
 
     private final OrganizationService organizationService;
     private final UserService userService;
@@ -142,6 +155,11 @@ public class ServerInitializationRunner implements CommandLineRunner {
      * Ensure external source exists or create one if necessary.
      * In production, external sources should be pre-configured in the database.
      * This method checks if the default branding exists.
+     * 
+     * Note: If external source needs to be created, this uses direct SQL insertion
+     * with the 'dbo' schema. This assumes SQL Server database. For other databases
+     * or different schemas, please pre-configure the external source in the database
+     * before running initialization.
      */
     private ExternalSource ensureExternalSource() throws Exception {
         Optional<ExternalSource> existingSource = externalSourceService.findBySourceCode(DEFAULT_BRANDING);
@@ -207,16 +225,16 @@ public class ServerInitializationRunner implements CommandLineRunner {
         userDto.setUsername(DEFAULT_USERNAME);
         userDto.setEmail(DEFAULT_ADMIN_EMAIL);
         userDto.setPhoneNumber(DEFAULT_ADMIN_PHONE);
-        userDto.setPassword(defaultAdminPassword);
+        userDto.setPassword(getDefaultAdminPassword());
         userDto.setOrgGuid(organization.getGuid());
         userDto.setOrgId(organization.getId());
         userDto.setBranding(externalSource.getSourceCode());
         userDto.setSyncFlag(false);
 
         try {
-            // Create user with group ID 0 (assuming it's admin group or will be assigned)
-            // hashedPassword = false means the service will hash it
-            return userService.create(userDto, 0, false);
+            // Create user with DEFAULT_GROUP_ID
+            // The group ID will be assigned by the stored procedure or service layer
+            return userService.create(userDto, DEFAULT_GROUP_ID, false);
         } catch (Exception e) {
             log.error("Failed to create admin user: {}", e.getMessage(), e);
             throw new Exception("Failed to create admin user", e);

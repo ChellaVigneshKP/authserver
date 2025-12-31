@@ -131,6 +131,7 @@ If initialization is skipped even when `INITIALIZE_SERVER=true`:
 The initialization attempts to create a default external source if it doesn't exist. If this fails:
 1. Manually insert an external source with code `default` into the database
 2. Or ensure the `ExternalSource` table has the correct structure
+3. **Note**: The automatic creation uses SQL Server syntax with the `dbo` schema. If you're using a different database or schema, pre-configure the external source in the database before initialization.
 
 ## Development
 
