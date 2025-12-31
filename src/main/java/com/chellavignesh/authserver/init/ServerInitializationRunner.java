@@ -52,6 +52,9 @@ public class ServerInitializationRunner implements CommandLineRunner {
     @Value("${server.initialize.admin.password:#{null}}")
     private String defaultAdminPasswordProperty;
 
+    @Value("${server.initialize.db.schema:dbo}")
+    private String databaseSchema;
+
     private String getDefaultAdminPassword() {
         // Check environment variable first, then property, then use default
         String envPassword = System.getenv("SERVER_INITIALIZE_ADMIN_PASSWORD");
@@ -156,10 +159,10 @@ public class ServerInitializationRunner implements CommandLineRunner {
      * In production, external sources should be pre-configured in the database.
      * This method checks if the default branding exists.
      * 
-     * Note: If external source needs to be created, this uses direct SQL insertion
-     * with the 'dbo' schema. This assumes SQL Server database. For other databases
-     * or different schemas, please pre-configure the external source in the database
-     * before running initialization.
+     * Note: If external source needs to be created, this uses direct SQL insertion.
+     * The database schema can be configured via the 'server.initialize.db.schema' property
+     * (defaults to 'dbo' for SQL Server). For databases without schemas or different
+     * naming, pre-configure the external source in the database before running initialization.
      */
     private ExternalSource ensureExternalSource() throws Exception {
         Optional<ExternalSource> existingSource = externalSourceService.findBySourceCode(DEFAULT_BRANDING);
@@ -181,11 +184,12 @@ public class ServerInitializationRunner implements CommandLineRunner {
                 .addValue("ExternalTypeId", DEFAULT_EXTERNAL_TYPE_ID);
 
         try {
-            namedParameterJdbcTemplate.update(
-                    "INSERT INTO dbo.ExternalSource (SourceId, SourceCode, SyncFlag, ExternalTypeId) " +
+            String sql = String.format(
+                    "INSERT INTO %s.ExternalSource (SourceId, SourceCode, SyncFlag, ExternalTypeId) " +
                     "VALUES (:SourceId, :SourceCode, :SyncFlag, :ExternalTypeId)",
-                    parameters
+                    databaseSchema
             );
+            namedParameterJdbcTemplate.update(sql, parameters);
             
             // Verify creation
             Optional<ExternalSource> newSource = externalSourceService.findBySourceCode(DEFAULT_BRANDING);

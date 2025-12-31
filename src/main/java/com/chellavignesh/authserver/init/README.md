@@ -30,7 +30,13 @@ Alternatively, you can set the properties in `application.properties`:
 ```properties
 server.initialize=true
 server.initialize.admin.password=YourSecurePassword123!
+server.initialize.db.schema=dbo
 ```
+
+**Configuration Options:**
+- `server.initialize`: Enable/disable initialization (default: `false`)
+- `server.initialize.admin.password`: Set the admin password (default: `Admin@123456`)
+- `server.initialize.db.schema`: Database schema name for direct SQL operations (default: `dbo`)
 
 **Note**: For production use, it's recommended to use environment variables or secure configuration management systems rather than storing passwords in property files.
 
@@ -130,8 +136,9 @@ If initialization is skipped even when `INITIALIZE_SERVER=true`:
 
 The initialization attempts to create a default external source if it doesn't exist. If this fails:
 1. Manually insert an external source with code `default` into the database
-2. Or ensure the `ExternalSource` table has the correct structure
-3. **Note**: The automatic creation uses SQL Server syntax with the `dbo` schema. If you're using a different database or schema, pre-configure the external source in the database before initialization.
+2. Ensure the `ExternalSource` table has the correct structure
+3. **Database Schema**: By default, the initialization uses the `dbo` schema (SQL Server). You can configure a different schema using `server.initialize.db.schema` property
+4. For databases without schema support or non-standard naming, pre-configure the external source before initialization
 
 ## Development
 
