@@ -15,13 +15,24 @@ export INITIALIZE_SERVER=true
 java -jar authserver.jar
 ```
 
+You can also configure the default admin password:
+
+```bash
+export INITIALIZE_SERVER=true
+export SERVER_INITIALIZE_ADMIN_PASSWORD="YourSecurePassword123!"
+java -jar authserver.jar
+```
+
 ### Application Property
 
-Alternatively, you can set the property in `application.properties`:
+Alternatively, you can set the properties in `application.properties`:
 
 ```properties
 server.initialize=true
+server.initialize.admin.password=YourSecurePassword123!
 ```
+
+**Note**: For production use, it's recommended to use environment variables or secure configuration management systems rather than storing passwords in property files.
 
 ## What Gets Created
 
@@ -57,11 +68,22 @@ When initialization runs, the following entities are created:
 
 ## Security Considerations
 
-1. **Default Password**: The default admin password (`Admin@123456`) should be changed immediately after the first login.
-2. **Production Use**: In production environments, consider:
-   - Using a more secure method to set the initial admin password
+1. **Default Password**: 
+   - The default admin password is `Admin@123456` if not configured otherwise
+   - You can override this using the `server.initialize.admin.password` property or `SERVER_INITIALIZE_ADMIN_PASSWORD` environment variable
+   - **Always change the password immediately after the first login**
+   - For production, set a secure password via environment variable before initialization
+
+2. **Password Logging**: 
+   - The initialization process does NOT log passwords to protect credentials
+   - The password is only available through your configuration
+
+3. **Production Use**: In production environments, consider:
+   - Setting a strong password via environment variable before first run
+   - Using a secrets management system (e.g., HashiCorp Vault, AWS Secrets Manager)
    - Creating the external source and organization through database migrations
    - Disabling the initialization after the first run
+   - Restricting access to the initialization functionality
 
 ## Example Startup Logs
 
@@ -83,10 +105,10 @@ INFO  Server initialization completed successfully!
 INFO  =================================================
 INFO  Default Admin User Details:
 INFO    Username: chella
-INFO    Password: Admin@123456
 INFO    Email: chella@example.com
 INFO  =================================================
 WARN  IMPORTANT: Please change the default admin password immediately!
+WARN  For security reasons, the password is not logged. Check your configuration or documentation for the default password.
 ```
 
 ## Troubleshooting

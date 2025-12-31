@@ -13,15 +13,19 @@ For first-time setup, you can automatically create the initial admin user, organ
 
 ```bash
 export INITIALIZE_SERVER=true
+export SERVER_INITIALIZE_ADMIN_PASSWORD="YourSecurePassword123!"
 ./mvnw spring-boot:run
 ```
 
 This will create:
-- Default admin user with username: `chella` and password: `Admin@123456`
+- Default admin user with username: `chella`
 - Default organization
 - Default client application
 - Default external source (branding)
 
-**⚠️ Important**: Change the default admin password immediately after first login!
+**⚠️ Important**: 
+- Set a secure password using the `SERVER_INITIALIZE_ADMIN_PASSWORD` environment variable
+- Change the admin password after first login
+- The default password (if not configured) is `Admin@123456`
 
 For more details, see [Server Initialization Guide](src/main/java/com/chellavignesh/authserver/init/README.md).

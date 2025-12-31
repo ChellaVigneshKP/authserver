@@ -42,11 +42,14 @@ public class ServerInitializationRunner implements CommandLineRunner {
     private static final String DEFAULT_ADMIN_LASTNAME = "User";
     private static final String DEFAULT_ADMIN_EMAIL = "chella@example.com";
     private static final String DEFAULT_ADMIN_PHONE = "+11234567890";
-    private static final String DEFAULT_ADMIN_PASSWORD = "Admin@123456";
     private static final String DEFAULT_BRANDING = "default";
+    private static final int DEFAULT_EXTERNAL_TYPE_ID = 1;
 
     @Value("${server.initialize:false}")
     private boolean initializeServer;
+
+    @Value("${server.initialize.admin.password:Admin@123456}")
+    private String defaultAdminPassword;
 
     private final OrganizationService organizationService;
     private final UserService userService;
@@ -111,10 +114,10 @@ public class ServerInitializationRunner implements CommandLineRunner {
             log.info("=================================================");
             log.info("Default Admin User Details:");
             log.info("  Username: {}", DEFAULT_USERNAME);
-            log.info("  Password: {}", DEFAULT_ADMIN_PASSWORD);
             log.info("  Email: {}", DEFAULT_ADMIN_EMAIL);
             log.info("=================================================");
             log.warn("IMPORTANT: Please change the default admin password immediately!");
+            log.warn("For security reasons, the password is not logged. Check your configuration or documentation for the default password.");
 
         } catch (Exception e) {
             log.error("Server initialization failed: {}", e.getMessage(), e);
@@ -157,7 +160,7 @@ public class ServerInitializationRunner implements CommandLineRunner {
                 .addValue("SourceId", sourceId)
                 .addValue("SourceCode", DEFAULT_BRANDING)
                 .addValue("SyncFlag", false)
-                .addValue("ExternalTypeId", 1); // Assuming 1 is a valid type ID
+                .addValue("ExternalTypeId", DEFAULT_EXTERNAL_TYPE_ID);
 
         try {
             namedParameterJdbcTemplate.update(
@@ -204,7 +207,7 @@ public class ServerInitializationRunner implements CommandLineRunner {
         userDto.setUsername(DEFAULT_USERNAME);
         userDto.setEmail(DEFAULT_ADMIN_EMAIL);
         userDto.setPhoneNumber(DEFAULT_ADMIN_PHONE);
-        userDto.setPassword(DEFAULT_ADMIN_PASSWORD);
+        userDto.setPassword(defaultAdminPassword);
         userDto.setOrgGuid(organization.getGuid());
         userDto.setOrgId(organization.getId());
         userDto.setBranding(externalSource.getSourceCode());
