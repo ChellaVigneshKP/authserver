@@ -230,7 +230,7 @@ public class ServerInitializationRunner implements CommandLineRunner {
         userDto.setEmail(DEFAULT_ADMIN_EMAIL);
         userDto.setPhoneNumber(DEFAULT_ADMIN_PHONE);
         userDto.setPassword(getDefaultAdminPassword());
-        userDto.setOrgGuid(organization.getGuid());
+        userDto.setOrgGuid(organization.getRowGuid());
         userDto.setOrgId(organization.getId());
         userDto.setBranding(externalSource.getSourceCode());
         userDto.setSyncFlag(false);
