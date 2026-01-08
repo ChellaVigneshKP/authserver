@@ -118,10 +118,9 @@ GO
 SELECT 
     [SourceId],
     [SourceCode],
-    [Name],
-    [Status]
-FROM [Partner].[ExternalSource]
-WHERE [Status] = 1;
+    [ExternalTypeId],
+    [CreatedOn]
+FROM [dbo].[ExternalSource];
 GO
 
 -- 14. Get admin group permissions

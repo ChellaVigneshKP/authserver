@@ -55,6 +55,9 @@ BEGIN
     PRINT 'AuthFlowId: ' + CAST(@AuthFlowId AS VARCHAR)
     
     -- Create Admin Portal Application
+    -- Declare a table variable for ForgotUserNameParam
+    DECLARE @ForgotUserNameParam ForgetUserNameType;
+    
     EXEC [Client].[CreateApplication] 
         @OrganizationId = @AdminOrgId,
         @Name = 'Admin Portal',
@@ -62,9 +65,20 @@ BEGIN
         @ApplicationTypeId = @AppTypeId,
         @AuthFlowId = @AuthFlowId,
         @Uri = 'http://localhost:3000',
-        @ConsentLifetime = NULL,
-        @SupportSchemaClaims = 0,
-        @AlwaysSendClientClaims = 0
+        @JWKSetUrl = NULL,
+        @RequirePKCE = 0,
+        @JWSAlgorithmId = NULL,
+        @AuthCodeTimeToLive = 300,
+        @AccessTokenTimeToLive = 3600,
+        @RefreshTokenTimeToLive = 86400,
+        @ReuseRefreshTokens = 0,
+        @AccessTokenFormatId = NULL,
+        @DeviceCodeTimeToLive = 300,
+        @MaxRequestTransitTime = 1,
+        @UsernameType = NULL,
+        @AllowForgotUsername = 0,
+        @ForgotUserNameParam = @ForgotUserNameParam,
+        @PinTimeToLive = NULL
 END
 ELSE
 BEGIN
@@ -151,6 +165,42 @@ END
 PRINT 'Admin Portal Application configured successfully'
 GO
 
+-- Check if admin group exists, if not rename the Administrators group for Ascensus org to 'Ascensus Admin'
+DECLARE @AdminOrgId INT
+SELECT @AdminOrgId = [OrganizationId] FROM [Partner].[Organization] WHERE [Name] = 'Ascensus'
+
+DECLARE @AdminGroupId INT
+SELECT @AdminGroupId = [OrganizationGroupId] FROM [Partner].[OrganizationGroup] 
+WHERE [OrganizationId] = @AdminOrgId AND [GroupName] = 'Ascensus Admin'
+
+-- If 'Ascensus Admin' doesn't exist but 'Administrators' does for this org, rename it
+IF @AdminGroupId IS NULL
+BEGIN
+    DECLARE @AdministratorsGroupId INT
+    SELECT @AdministratorsGroupId = [OrganizationGroupId] FROM [Partner].[OrganizationGroup] 
+    WHERE [OrganizationId] = @AdminOrgId AND [GroupName] = 'Administrators'
+    
+    IF @AdministratorsGroupId IS NOT NULL
+    BEGIN
+        UPDATE [Partner].[OrganizationGroup]
+        SET [GroupName] = 'Ascensus Admin'
+        WHERE [OrganizationGroupId] = @AdministratorsGroupId
+        
+        PRINT 'Renamed Administrators group to Ascensus Admin'
+        SET @AdminGroupId = @AdministratorsGroupId
+    END
+    ELSE
+    BEGIN
+        PRINT 'ERROR: Neither Ascensus Admin nor Administrators group exists. Check GroupTemplate setup.'
+    END
+END
+
+IF @AdminGroupId IS NOT NULL
+BEGIN
+    PRINT 'Admin Group ID: ' + CAST(@AdminGroupId AS VARCHAR)
+END
+GO
+
 -- Create admin profile if it doesn't exist
 DECLARE @AdminOrgId INT
 SELECT @AdminOrgId = [OrganizationId] FROM [Partner].[Organization] WHERE [Name] = 'Ascensus'
@@ -163,34 +213,26 @@ IF NOT EXISTS (SELECT 1 FROM [Person].[Profile] WHERE [FirstName] = 'Ascensus' A
 BEGIN
     PRINT 'Creating Admin Profile'
     
-    -- Get external source ID (assuming default branding)
-    DECLARE @ExternalSourceId UNIQUEIDENTIFIER
-    SELECT TOP 1 @ExternalSourceId = [SourceId] FROM [Partner].[ExternalSource] WHERE [Status] = 1
-    
-    PRINT 'Using External Source ID: ' + CAST(@ExternalSourceId AS VARCHAR(50))
-    
     -- Note: This creates the profile structure. 
     -- The actual admin user with credentials should be created via the API or manual SQL
     -- after the system is running, using proper password hashing.
     
     -- Create a placeholder that will be updated with proper credentials
-    INSERT INTO [Person].[Profile] ([FirstName], [LastName], [ExternalSourceId], [Status])
-    VALUES ('Ascensus', 'Admin', @ExternalSourceId, 1)
+    INSERT INTO [Person].[Profile] ([FirstName], [LastName], [LoginProviderId], [EmailConfirmed], [PhoneNumberConfirmed], [TwoFactorEnabled], [DataOriginId], [SyncFlag], [Email], [PhoneNumber], [Suffix])
+    VALUES ('Ascensus', 'Admin', 1, 0, 0, 1, 1, 0, 'admin@authserver.local', '', 0)
     
     DECLARE @ProfileId INT = SCOPE_IDENTITY()
     PRINT 'Created Admin Profile with ID: ' + CAST(@ProfileId AS VARCHAR)
     
-    -- Link profile to organization
-    EXEC [Person].[CreateProfileOrganization] @OrganizationId = @AdminOrgId, @ProfileId = @ProfileId
+    -- Link profile to organization (direct INSERT instead of non-existent stored procedure)
+    INSERT INTO [Person].[ProfileOrganization] ([ProfileId], [OrganizationId])
+    VALUES (@ProfileId, @AdminOrgId)
     
-    -- Get ProfileOrganizationId
-    DECLARE @ProfileOrgId INT
-    SELECT @ProfileOrgId = [ProfileOrganizationId] 
-    FROM [Person].[ProfileOrganization] 
-    WHERE [OrganizationId] = @AdminOrgId AND [ProfileId] = @ProfileId
+    PRINT 'Linked profile to organization'
     
-    -- Assign to admin group
-    EXEC [Person].[AssignUserToGroup] @ProfileOrganizationId = @ProfileOrgId, @OrganizationGroupId = @AdminGroupId
+    -- Assign to admin group (direct INSERT instead of non-existent stored procedure)
+    INSERT INTO [Person].[ProfileGroup] ([ProfileId], [OrganizationGroupId])
+    VALUES (@ProfileId, @AdminGroupId)
     
     PRINT 'Admin Profile linked to organization and admin group'
     PRINT ''
