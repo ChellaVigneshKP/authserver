@@ -8,6 +8,13 @@
 -- 4. Admin Profile (Ascensus Admin user)
 -- 5. Admin User credentials
 -- =============================================
+-- PREREQUISITES:
+-- This script must be run AFTER all migration scripts have been executed,
+-- specifically FinalTable.sql and FinalProcedure.sql which define:
+-- - ForgetUserNameType table type
+-- - Client.CreateApplication stored procedure
+-- - Required table schemas and constraints
+-- =============================================
 
 -- Check if admin organization already exists
 IF NOT EXISTS (SELECT 1 FROM [Partner].[Organization] WHERE [Name] = 'Ascensus')
@@ -63,7 +70,8 @@ BEGIN
     PRINT 'AccessTokenFormatId: ' + CAST(@AccessTokenFormatId AS VARCHAR)
     
     -- Create Admin Portal Application
-    -- Declare a table variable for ForgotUserNameParam
+    -- Note: ForgetUserNameType must be created first (defined in FinalTable.sql)
+    -- This assumes all migration scripts have been run before this init script
     DECLARE @ForgotUserNameParam ForgetUserNameType;
     
     EXEC [Client].[CreateApplication] 
