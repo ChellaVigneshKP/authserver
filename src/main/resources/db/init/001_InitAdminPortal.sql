@@ -38,6 +38,7 @@ BEGIN
     -- Get required enum IDs
     DECLARE @AppTypeId INT
     DECLARE @AuthFlowId INT
+    DECLARE @AccessTokenFormatId INT
     
     -- Get Web Application Type ID
     SELECT @AppTypeId = [EnumId] 
@@ -51,8 +52,15 @@ BEGIN
     INNER JOIN [dbo].[EnumType] et ON e.EnumTypeId = et.EnumTypeId
     WHERE et.[Name] = 'AuthFlow' AND e.[Code] = 'AuthorizationCode'
     
+    -- Get self-contained Access Token Format ID (JWT)
+    SELECT @AccessTokenFormatId = [EnumId]
+    FROM [dbo].[Enum] e
+    INNER JOIN [dbo].[EnumType] et ON e.EnumTypeId = et.EnumTypeId
+    WHERE et.[Name] = 'AccessTokenFormat' AND e.[Code] = 'self-contained'
+    
     PRINT 'AppTypeId: ' + CAST(@AppTypeId AS VARCHAR)
     PRINT 'AuthFlowId: ' + CAST(@AuthFlowId AS VARCHAR)
+    PRINT 'AccessTokenFormatId: ' + CAST(@AccessTokenFormatId AS VARCHAR)
     
     -- Create Admin Portal Application
     -- Declare a table variable for ForgotUserNameParam
@@ -72,7 +80,7 @@ BEGIN
         @AccessTokenTimeToLive = 3600,
         @RefreshTokenTimeToLive = 86400,
         @ReuseRefreshTokens = 0,
-        @AccessTokenFormatId = NULL,
+        @AccessTokenFormatId = @AccessTokenFormatId,
         @DeviceCodeTimeToLive = 300,
         @MaxRequestTransitTime = 1,
         @UsernameType = NULL,
