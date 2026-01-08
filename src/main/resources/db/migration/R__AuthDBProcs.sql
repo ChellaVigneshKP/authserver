@@ -358,6 +358,7 @@ BEGIN
            MAX(CASE WHEN [Code] = 'Access Token' THEN [EnumId] END)     AS [AccessTokenEnumId],
            MAX(CASE WHEN [Code] = 'Refresh Token' THEN [EnumId] END)    AS [RefreshTokenEnumId],
            MAX(CASE WHEN [Code] = 'OIDC Token' THEN [EnumId] END)       AS [IDTokenEnumId],
+           MAX(CASE WHEN [Code] = 'reference' THEN [EnumId] END) AS [ReferenceAccessTokenFormatEnumId],
            MAX(CASE WHEN [Code] = 'Auth Code Token' THEN [EnumId] END)  AS [AuthCodeTokenEnumId],
            MAX(CASE WHEN [Code] = 'Session Active' THEN [EnumId] END)   AS [AuthSessionActiveEnumId],
            MAX(CASE WHEN [Code] = 'Session Inactive' THEN [EnumId] END) AS [AuthSessionInactiveEnumId],
@@ -366,7 +367,12 @@ BEGIN
            MAX(CASE WHEN [Code] = 'Mrs' THEN [EnumId] END)              AS [MrsSuffixEnumId],
            MAX(CASE WHEN [Code] = 'Miss' THEN [EnumId] END)             AS [MissSuffixEnumId],
            MAX(CASE WHEN [Code] = 'Sr' THEN [EnumId] END)               AS [SrSuffixEnumId],
-           MAX(CASE WHEN [Code] = 'Jr' THEN [EnumId] END)               AS [JrSuffixEnumId]
+           MAX(CASE WHEN [Code] = 'Jr' THEN [EnumId] END)               AS [JrSuffixEnumId],
+           MAX(CASE WHEN [Code] = 'Inactive' THEN [EnumId] END) AS [InactiveEnumId],
+           MAX(CASE WHEN [Code] = 'Active' THEN [EnumId] END) AS [ActiveEnumId],
+           MAX(CASE WHEN [Code] = 'Disabled' THEN [EnumId] END) AS [DisabledEnumId],
+           MAX(CASE WHEN [Code] = 'Username' THEN [EnumId] END) AS [UsernameEnumId],
+           MAX(CASE WHEN [Code] = 'Email' THEN [EnumId] END) AS [EmailEnumId]
     FROM [dbo].[Enum]
 END
 GO

@@ -2607,13 +2607,11 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[GetProfileOrganizationByProfileId]
-@ProfileId INT
+CREATE OR ALTER PROCEDURE [Person].[GetProfileOrganizationByProfileId] @ProfileId INT
 AS
 BEGIN
-    SELECT
-        p.*,
-        pa.RowGuid AS OrganizationRowGuid
+    SELECT p.*,
+           pa.RowGuid AS OrganizationRowGuid
     FROM [Person].[ProfileOrganization] p
              INNER JOIN [Partner].[Organization] pa
                         ON p.OrganizationId = pa.OrganizationId
@@ -2621,8 +2619,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[GetUserPermissions]
-@UserId INT
+CREATE OR ALTER PROCEDURE [Person].[GetUserPermissions] @UserId INT
 AS
 BEGIN
     SELECT ogp.*
@@ -2634,18 +2631,15 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[UpdateAccessFailedCount]
-    @Username NVARCHAR(255),
-    @LoginSuccess BIT
+CREATE OR ALTER PROCEDURE [Person].[UpdateAccessFailedCount] @Username NVARCHAR(255),
+                                                             @LoginSuccess BIT
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION
-
             DECLARE @CurrentCount INT
 
-            SELECT
-                @CurrentCount = AccessFailedCount
+            SELECT @CurrentCount = AccessFailedCount
             FROM Person.Credential
             WHERE UserName = @Username
 
@@ -2653,11 +2647,10 @@ BEGIN
                 BEGIN
                     -- If success, reset AccessFailedCount to 0, unlock credential, set status to active
                     UPDATE Person.Credential
-                    SET
-                        AccessFailedCount = 0,
-                        CredentialLocked = 0,
-                        Status = 1,
-                        LastLogin = GETUTCDATE()
+                    SET AccessFailedCount = 0,
+                        CredentialLocked  = 0,
+                        Status            = 1,
+                        LastLogin         = GETUTCDATE()
                     WHERE UserName = @Username
                 END
             ELSE
@@ -2672,13 +2665,11 @@ BEGIN
                         BEGIN
                             -- Lock account and mark inactive
                             UPDATE Person.Credential
-                            SET
-                                Status = 0,
+                            SET Status           = 0,
                                 CredentialLocked = 1
                             WHERE UserName = @Username
                         END
                 END
-
         COMMIT;
 
         EXEC [Person].[GetUserAuthDetailsByUserName] @Username
@@ -2691,11 +2682,10 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[UpdateAccessFailedCountWithExternalSourceCode]
-    @Username NVARCHAR(255),
-    @SourceCode NVARCHAR(255),
-    @LoginSuccess BIT,
-    @AccessFailedLimit INT
+CREATE OR ALTER PROCEDURE [Person].[UpdateAccessFailedCountWithExternalSourceCode] @Username NVARCHAR(255),
+                                                                                   @SourceCode NVARCHAR(255),
+                                                                                   @LoginSuccess BIT,
+                                                                                   @AccessFailedLimit INT
 AS
 BEGIN
     BEGIN TRY
@@ -2720,8 +2710,7 @@ BEGIN
             ELSE
                 BEGIN
                     -- Get current AccessFailedCount
-                    SELECT
-                        @CurrentCount = AccessFailedCount
+                    SELECT @CurrentCount = AccessFailedCount
                     FROM Person.Credential cred
                              INNER JOIN [dbo].[ExternalSource] es
                                         ON cred.ExternalId = es.SourceId
@@ -2747,7 +2736,6 @@ BEGIN
                                  @AccessFailedLimit
                         END
                 END
-
         COMMIT;
 
         -- Return updated auth details
@@ -2764,18 +2752,16 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[UnLockAccount]
-    @Username NVARCHAR(255),
-    @SourceCode NVARCHAR(255)
+CREATE OR ALTER PROCEDURE [Person].[UnLockAccount] @Username NVARCHAR(255),
+                                                   @SourceCode NVARCHAR(255)
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
         UPDATE cred
-        SET
-            cred.Status = 1,
-            cred.CredentialLocked = 0,
+        SET cred.Status            = 1,
+            cred.CredentialLocked  = 0,
             cred.AccessFailedCount = 0
         FROM Person.Credential cred
                  INNER JOIN [dbo].[ExternalSource] es
@@ -2783,7 +2769,6 @@ BEGIN
         WHERE cred.UserName = @Username
           AND es.SourceCode = @SourceCode
           AND (cred.CredentialLocked <> 0 OR cred.AccessFailedCount > 0);
-
         COMMIT;
     END TRY
     BEGIN CATCH
@@ -2795,26 +2780,23 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[LockAccount]
-    @Username NVARCHAR(255),
-    @SourceCode NVARCHAR(255),
-    @AccessFailedLimit INT
+CREATE OR ALTER PROCEDURE [Person].[LockAccount] @Username NVARCHAR(255),
+                                                 @SourceCode NVARCHAR(255),
+                                                 @AccessFailedLimit INT
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
         UPDATE cred
-        SET
-            cred.Status = 0,
-            cred.CredentialLocked = 1,
+        SET cred.Status            = 0,
+            cred.CredentialLocked  = 1,
             cred.AccessFailedCount = @AccessFailedLimit
         FROM Person.Credential cred
                  INNER JOIN [dbo].[ExternalSource] es
                             ON es.SourceId = cred.ExternalId
         WHERE cred.UserName = @Username
           AND es.SourceCode = @SourceCode;
-
         COMMIT;
     END TRY
     BEGIN CATCH
@@ -2826,23 +2808,22 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[ReactivateUserWithPassword]
-    @UserGuid UNIQUEIDENTIFIER,
-    @FirstName NVARCHAR(255),
-    @LastName NVARCHAR(255),
-    @PhoneNumber NVARCHAR(128),
-    @Email NVARCHAR(255),
-    @MemberGuid UNIQUEIDENTIFIER,
-    @LoginGuid UNIQUEIDENTIFIER,
-    @SecondaryPhoneNumber NVARCHAR(128) = NULL,
-    @Username VARCHAR(255),
-    @ExternalId UNIQUEIDENTIFIER,
-    @Password VARBINARY(4000),
-    @Version INT,
-    @UnLockAccount BIT = 1,
-    @PasswordAuditLimit INT = 12,
-    @ModifiedOn DATETIME2(0) = NULL,
-    @ModifiedBy NVARCHAR(255) = NULL
+CREATE OR ALTER PROCEDURE [Person].[ReactivateUserWithPassword] @UserGuid UNIQUEIDENTIFIER,
+                                                                @FirstName NVARCHAR(255),
+                                                                @LastName NVARCHAR(255),
+                                                                @PhoneNumber NVARCHAR(128),
+                                                                @Email NVARCHAR(255),
+                                                                @MemberGuid UNIQUEIDENTIFIER,
+                                                                @LoginGuid UNIQUEIDENTIFIER,
+                                                                @SecondaryPhoneNumber NVARCHAR(128) = NULL,
+                                                                @Username VARCHAR(255),
+                                                                @ExternalId UNIQUEIDENTIFIER,
+                                                                @Password VARBINARY(4000),
+                                                                @Version INT,
+                                                                @UnLockAccount BIT = 1,
+                                                                @PasswordAuditLimit INT = 12,
+                                                                @ModifiedOn DATETIME2(0) = NULL,
+                                                                @ModifiedBy NVARCHAR(255) = NULL
 AS
 BEGIN
     -- The stored procedure [Person].[ReactivateUserWithPassword] should
@@ -2857,19 +2838,16 @@ BEGIN
     SET @Status = 1;
 
     -- If the user does not exist or is not inactive, do nothing
-    IF NOT EXISTS (
-        SELECT 1
-        FROM [Person].[Profile]
-        WHERE RowGuid = @UserGuid
-          AND Status = 0
-    )
+    IF NOT EXISTS (SELECT 1
+                   FROM [Person].[Profile]
+                   WHERE RowGuid = @UserGuid
+                     AND Status = 0)
         RETURN;
 
     -- Preserve existing name-related fields
-    SELECT
-        @MiddleInitial = MiddleInitial,
-        @Title = Title,
-        @Suffix = Suffix
+    SELECT @MiddleInitial = MiddleInitial,
+           @Title = Title,
+           @Suffix = Suffix
     FROM [Person].[Profile]
     WHERE RowGuid = @UserGuid;
 
@@ -2920,7 +2898,6 @@ BEGIN
              @ModifiedOn,
              @ModifiedBy,
              @ExternalId;
-
         COMMIT;
 
         -- Return ProfileId
@@ -2938,30 +2915,22 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE [Token].[CreateAuthCode]
-    @ApplicationId INTEGER,
-    @SessionId UNIQUEIDENTIFIER,
-    @Data NVARCHAR(512)
+CREATE OR ALTER PROCEDURE [Token].[CreateAuthCode] @ApplicationId INTEGER,
+                                                   @SessionId UNIQUEIDENTIFIER,
+                                                   @Data NVARCHAR(512)
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION
-
             INSERT INTO [Token].[AuthCode]
-            (
-                [ApplicationId],
-                [SessionId],
-                [Data],
-                [Datahash]
-            )
-            VALUES
-                (
-                    @ApplicationId,
+            ([ApplicationId],
+             [SessionId],
+             [Data],
+             [Datahash])
+            VALUES (@ApplicationId,
                     @SessionId,
                     @Data,
-                    HASHBYTES('SHA2_256', @Data)
-                );
-
+                    HASHBYTES('SHA2_256', @Data));
         COMMIT;
 
         DECLARE @AuthCodeId INT;
@@ -2978,34 +2947,16 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetAuthCodeById]
-@AuthCodeId INTEGER
+CREATE OR ALTER PROCEDURE [Token].[GetAuthCodeById] @AuthCodeId INTEGER
 AS
 BEGIN
-    -- SELECT * FROM [Token].[AuthCode] c
-    -- WHERE c.AuthCodeId = @AuthCodeId
-
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT 1
-        FROM [Token].[AuthCode] c
-        WHERE c.AuthCodeId = @AuthCodeId
-          AND daynumber = @daynumber
-    )
-        SELECT *
-        FROM [Token].[AuthCode] c
-        WHERE c.AuthCodeId = @AuthCodeId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT *
-        FROM [Token].[AuthCode] c
-        WHERE c.AuthCodeId = @AuthCodeId;
+    SELECT *
+    FROM [Token].[AuthCode] c
+    WHERE c.AuthCodeId = @AuthCodeId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetSessionIdByAuthCode]
-@Data NVARCHAR(512)
+CREATE OR ALTER PROCEDURE [Token].[GetSessionIdByAuthCode] @Data NVARCHAR(512)
 AS
 BEGIN
     SELECT c.SessionId
@@ -3016,13 +2967,11 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[SetAuthCodeConsumedOn]
-@Data NVARCHAR(512)
+CREATE OR ALTER PROCEDURE [Token].[SetAuthCodeConsumedOn] @Data NVARCHAR(512)
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION
-
             UPDATE [Token].[AuthCode]
             SET [ConsumedOn] = GETUTCDATE()
             WHERE DataHash = HASHBYTES('SHA2_256', @Data);
@@ -3030,7 +2979,6 @@ BEGIN
             UPDATE [Token].[Token]
             SET [ConsumedOn] = GETUTCDATE()
             WHERE DataHash = HASHBYTES('SHA2_256', @Data);
-
         COMMIT;
     END TRY
     BEGIN CATCH
@@ -3051,16 +2999,15 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[CreateTokenWithHash]
-    @TokenTypeId INTEGER,
-    @ApplicationId INTEGER,
-    @SubjectId NVARCHAR(200),
-    @SessionId NVARCHAR(100),
-    @IsOpaque BIT,
-    @Data NVARCHAR(MAX),
-    @SigningKey VARBINARY(MAX),
-    @TimeToLive INT,
-    @DataHash BINARY(32)
+CREATE OR ALTER PROCEDURE [Token].[CreateTokenWithHash] @TokenTypeId INTEGER,
+                                                        @ApplicationId INTEGER,
+                                                        @SubjectId NVARCHAR(200),
+                                                        @SessionId NVARCHAR(100),
+                                                        @IsOpaque BIT,
+                                                        @Data NVARCHAR(MAX),
+                                                        @SigningKey VARBINARY(MAX),
+                                                        @TimeToLive INT,
+                                                        @DataHash BINARY(32)
 AS
 BEGIN
     BEGIN TRY
@@ -3072,21 +3019,17 @@ BEGIN
         BEGIN TRANSACTION;
 
         INSERT INTO [Token].[Token]
-        (
-            [TokenTypeId],
-            [ApplicationId],
-            [SubjectId],
-            [SessionId],
-            [IsOpaque],
-            [Data],
-            [CreatedOn],
-            [Expiration],
-            [SigningKey],
-            [DataHash]
-        )
-        VALUES
-            (
-                @TokenTypeId,
+        ([TokenTypeId],
+         [ApplicationId],
+         [SubjectId],
+         [SessionId],
+         [IsOpaque],
+         [Data],
+         [CreatedOn],
+         [Expiration],
+         [SigningKey],
+         [DataHash])
+        VALUES (@TokenTypeId,
                 @ApplicationId,
                 @SubjectId,
                 @SessionId,
@@ -3096,8 +3039,7 @@ BEGIN
                 @Expiration,
                 @SigningKey,
                 @DataHash -- HASHBYTES('SHA2_256', @Data)
-            );
-
+               );
         COMMIT;
 
         DECLARE @TokenId INT;
@@ -3115,65 +3057,28 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE [Token].[GetTokenById]
-@TokenId INTEGER
+CREATE OR ALTER PROCEDURE [Token].[GetTokenById] @TokenId INTEGER
 AS
 BEGIN
-    -- SELECT * FROM [Token].[Token] t
-    -- WHERE t.TokenId = @TokenId
-
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT 1
-        FROM [Token].[Token] t
-        WHERE t.TokenId = @TokenId
-          AND daynumber = @daynumber
-    )
-        SELECT *
-        FROM [Token].[Token] t
-        WHERE t.TokenId = @TokenId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT *
-        FROM [Token].[Token] t
-        WHERE t.TokenId = @TokenId;
+    SELECT *
+    FROM [Token].[Token] t
+    WHERE t.TokenId = @TokenId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetTokenByValueHash]
-    @hashValue BINARY(32),
-    @TokenTypeId INTEGER
+CREATE OR ALTER PROCEDURE [Token].[GetTokenByValueHash] @hashValue BINARY(32),
+                                                        @TokenTypeId INTEGER
 AS
 BEGIN
-    -- SELECT * FROM [Token].[Token] t
-    -- WHERE t.DataHash = HASHBYTES('SHA2_256', @Value)
-    --   AND t.TokenTypeId = @TokenTypeId
 
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT *
-        FROM [Token].[Token] t
-        WHERE t.DataHash = @hashValue
-          AND t.TokenTypeId = @TokenTypeId
-          AND daynumber = @daynumber
-    )
-        SELECT *
-        FROM [Token].[Token] t
-        WHERE t.DataHash = @hashValue
-          AND t.TokenTypeId = @TokenTypeId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT *
-        FROM [Token].[Token] t
-        WHERE t.DataHash = @hashValue
-          AND t.TokenTypeId = @TokenTypeId;
+    SELECT *
+    FROM [Token].[Token] t
+    WHERE t.DataHash = @hashValue
+      AND t.TokenTypeId = @TokenTypeId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetAllActiveTokensBySessionId]
-@SessionId UNIQUEIDENTIFIER
+CREATE OR ALTER PROCEDURE [Token].[GetAllActiveTokensBySessionId] @SessionId UNIQUEIDENTIFIER
 AS
 BEGIN
     SELECT *
@@ -3186,9 +3091,8 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetTokensByClientIdAndRequestDateTime]
-    @ClientId NCHAR(32),
-    @requestDatetime DATETIME2(7)
+CREATE OR ALTER PROCEDURE [Token].[GetTokensByClientIdAndRequestDateTime] @ClientId NCHAR(32),
+                                                                          @requestDatetime DATETIME2(7)
 AS
 BEGIN
     SELECT t.*
@@ -3197,34 +3101,27 @@ BEGIN
                   ON a.ApplicationId = t.ApplicationId
     WHERE a.ClientId = @ClientId
       AND t.SigningKey IS NOT NULL
-      AND t.CreatedOn <= @requestDatetime   -- Before requested datetime
+      AND t.CreatedOn <= @requestDatetime  -- Before requested datetime
       AND t.Expiration >= @requestDatetime -- After requested datetime
     ORDER BY t.CreatedOn DESC;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[InsertSsoCookie]
-    @SessionId UNIQUEIDENTIFIER,
-    @EncryptedSessionId VARBINARY(4000),
-    @EncryptionKey VARBINARY(4000)
+CREATE OR ALTER PROCEDURE [Token].[InsertSsoCookie] @SessionId UNIQUEIDENTIFIER,
+                                                    @EncryptedSessionId VARBINARY(4000),
+                                                    @EncryptionKey VARBINARY(4000)
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
         INSERT INTO [Token].[Sso]
-        (
-            SessionID,
-            EncryptedSessionID,
-            EncryptionKey
-        )
-        VALUES
-            (
-                @SessionId,
+        (SessionID,
+         EncryptedSessionID,
+         EncryptionKey)
+        VALUES (@SessionId,
                 @EncryptedSessionId,
-                @EncryptionKey
-            );
-
+                @EncryptionKey);
         COMMIT;
     END TRY
     BEGIN CATCH
@@ -3236,8 +3133,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[FindSsoCookieByEncryptedSessionId]
-@HashedEncryptedSessionId BINARY(32)
+CREATE OR ALTER PROCEDURE [Token].[FindSsoCookieByEncryptedSessionId] @HashedEncryptedSessionId BINARY(32)
 AS
 BEGIN
     SELECT *
@@ -3246,55 +3142,44 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[CreateAuthSession]
-    @ApplicationId INTEGER,
-    @SubjectId NVARCHAR(100),
-    @Scope NVARCHAR(1024),
-    @AuthFlowId INTEGER,
-    @ClientFingerprint VARBINARY(MAX),
-    @ClientId NCHAR(32),
-    @Branding NVARCHAR(100)
+CREATE OR ALTER PROCEDURE [Token].[CreateAuthSession] @ApplicationId INTEGER,
+                                                      @SubjectId NVARCHAR(100),
+                                                      @Scope NVARCHAR(1024),
+                                                      @AuthFlowId INTEGER,
+                                                      @ClientFingerprint VARBINARY(MAX),
+                                                      @ClientId NCHAR(32),
+                                                      @Branding NVARCHAR(100)
 AS
 BEGIN
     DECLARE @AuthSessionActiveId INT;
 
-    SET @AuthSessionActiveId = (
-        SELECT EnumId
-        FROM [dbo].[Enum] e
-        WHERE e.Code = 'Session Active'
-          AND e.EnumTypeId = (
-            SELECT EnumTypeId
-            FROM [dbo].[EnumType] et
-            WHERE et.Name = 'AuthSessionStatus'
-        )
-    );
+    SET @AuthSessionActiveId = (SELECT EnumId
+                                FROM [dbo].[Enum] e
+                                WHERE e.Code = 'Session Active'
+                                  AND e.EnumTypeId = (SELECT EnumTypeId
+                                                      FROM [dbo].[EnumType] et
+                                                      WHERE et.Name = 'AuthSessionStatus'));
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         INSERT INTO [Token].[AuthSession]
-        (
-            [ApplicationId],
-            [SubjectId],
-            [Scope],
-            [AuthFlowId],
-            [AuthSessionStatusId],
-            [ClientFingerprint],
-            [ClientId],
-            [Branding]
-        )
-        VALUES
-            (
-                @ApplicationId,
+        ([ApplicationId],
+         [SubjectId],
+         [Scope],
+         [AuthFlowId],
+         [AuthSessionStatusId],
+         [ClientFingerprint],
+         [ClientId],
+         [Branding])
+        VALUES (@ApplicationId,
                 @SubjectId,
                 @Scope,
                 @AuthFlowId,
                 @AuthSessionActiveId,
                 @ClientFingerprint,
                 @ClientId,
-                @Branding
-            );
-
+                @Branding);
         COMMIT;
 
         DECLARE @AuthSessionId INT;
@@ -3311,88 +3196,39 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetAuthSessionById]
-@AuthSessionId INTEGER
+CREATE OR ALTER PROCEDURE [Token].[GetAuthSessionById] @AuthSessionId INTEGER
 AS
 BEGIN
-    -- SELECT s.*, r.RedirectUri
-    -- FROM [Token].[AuthSession] s
-    -- LEFT JOIN [Client].[RedirectUri] r
-    --     ON r.RedirectUriId = s.RedirectUriId
-    -- WHERE s.AuthSessionId = @AuthSessionId
-
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT 1
-        FROM [Token].[AuthSession]
-        WHERE AuthSessionId = @AuthSessionId
-          AND daynumber = @daynumber
-    )
-        SELECT s.*, r.RedirectUri
-        FROM [Token].[AuthSession] s
-                 LEFT JOIN [Client].[RedirectUri] r
-                           ON r.RedirectUriId = s.RedirectUriId
-        WHERE s.AuthSessionId = @AuthSessionId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT s.*, r.RedirectUri
-        FROM [Token].[AuthSession] s
-                 LEFT JOIN [Client].[RedirectUri] r
-                           ON r.RedirectUriId = s.RedirectUriId
-        WHERE s.AuthSessionId = @AuthSessionId;
+    SELECT s.*, r.RedirectUri
+    FROM [Token].[AuthSession] s
+             LEFT JOIN [Client].[RedirectUri] r
+                       ON r.RedirectUriId = s.RedirectUriId
+    WHERE s.AuthSessionId = @AuthSessionId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetAuthSessionBySessionId]
-@SessionId UNIQUEIDENTIFIER
+CREATE OR ALTER PROCEDURE [Token].[GetAuthSessionBySessionId] @SessionId UNIQUEIDENTIFIER
 AS
 BEGIN
-    -- SELECT s.*, r.RedirectUri
-    -- FROM [Token].[AuthSession] s
-    -- LEFT JOIN [Client].[RedirectUri] r
-    --     ON r.RedirectUriId = s.RedirectUriId
-    -- WHERE s.SessionId = @SessionId
-
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT 1
-        FROM [Token].[AuthSession]
-        WHERE SessionId = @SessionId
-          AND daynumber = @daynumber
-    )
-        SELECT s.*, r.RedirectUri
-        FROM [Token].[AuthSession] s
-                 LEFT JOIN [Client].[RedirectUri] r
-                           ON r.RedirectUriId = s.RedirectUriId
-        WHERE s.SessionId = @SessionId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT s.*, r.RedirectUri
-        FROM [Token].[AuthSession] s
-                 LEFT JOIN [Client].[RedirectUri] r
-                           ON r.RedirectUriId = s.RedirectUriId
-        WHERE s.SessionId = @SessionId;
+    SELECT s.*, r.RedirectUri
+    FROM [Token].[AuthSession] s
+             LEFT JOIN [Client].[RedirectUri] r
+                       ON r.RedirectUriId = s.RedirectUriId
+    WHERE s.SessionId = @SessionId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[SetAuthSessionInactive]
-@SessionId UNIQUEIDENTIFIER
+CREATE OR ALTER PROCEDURE [Token].[SetAuthSessionInactive] @SessionId UNIQUEIDENTIFIER
 AS
 BEGIN
     DECLARE @AuthSessionInactiveId INT;
 
-    SET @AuthSessionInactiveId = (
-        SELECT EnumId
-        FROM [dbo].[Enum] e
-        WHERE e.Code = 'Session Inactive'
-          AND e.EnumTypeId = (
-            SELECT EnumTypeId
-            FROM [dbo].[EnumType] et
-            WHERE et.Name = 'AuthSessionStatus'
-        )
-    );
+    SET @AuthSessionInactiveId = (SELECT EnumId
+                                  FROM [dbo].[Enum] e
+                                  WHERE e.Code = 'Session Inactive'
+                                    AND e.EnumTypeId = (SELECT EnumTypeId
+                                                        FROM [dbo].[EnumType] et
+                                                        WHERE et.Name = 'AuthSessionStatus'));
 
     UPDATE [Token].[AuthSession]
     SET AuthSessionStatusId = @AuthSessionInactiveId
@@ -3400,22 +3236,17 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetMostRecentActiveSession]
-@SubjectId NVARCHAR(100)
+CREATE OR ALTER PROCEDURE [Token].[GetMostRecentActiveSession] @SubjectId NVARCHAR(100)
 AS
 BEGIN
     DECLARE @AuthSessionActiveId INT;
 
-    SET @AuthSessionActiveId = (
-        SELECT EnumId
-        FROM [dbo].[Enum] e
-        WHERE e.Code = 'Session Active'
-          AND e.EnumTypeId = (
-            SELECT EnumTypeId
-            FROM [dbo].[EnumType] et
-            WHERE et.Name = 'AuthSessionStatus'
-        )
-    );
+    SET @AuthSessionActiveId = (SELECT EnumId
+                                FROM [dbo].[Enum] e
+                                WHERE e.Code = 'Session Active'
+                                  AND e.EnumTypeId = (SELECT EnumTypeId
+                                                      FROM [dbo].[EnumType] et
+                                                      WHERE et.Name = 'AuthSessionStatus'));
 
     SELECT TOP 1 *
     FROM [Token].[AuthSession] s
@@ -3425,31 +3256,27 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[SetBrandingAndRedirectUri]
-    @SessionId UNIQUEIDENTIFIER,
-    @Branding NVARCHAR(100),
-    @RedirectUri NVARCHAR(1024),
-    @ApplicationId INT
+CREATE OR ALTER PROCEDURE [Token].[SetBrandingAndRedirectUri] @SessionId UNIQUEIDENTIFIER,
+                                                              @Branding NVARCHAR(100),
+                                                              @RedirectUri NVARCHAR(1024),
+                                                              @ApplicationId INT
 AS
 BEGIN
     DECLARE @RedirectUriId INT;
 
-    SET @RedirectUriId = (
-        SELECT RedirectUriId
-        FROM [Client].[RedirectUri]
-        WHERE RedirectUri = @RedirectUri
-          AND ApplicationId = @ApplicationId
-    );
+    SET @RedirectUriId = (SELECT RedirectUriId
+                          FROM [Client].[RedirectUri]
+                          WHERE RedirectUri = @RedirectUri
+                            AND ApplicationId = @ApplicationId);
 
     UPDATE [Token].[AuthSession]
-    SET Branding = @Branding,
+    SET Branding      = @Branding,
         RedirectUriId = @RedirectUriId
     WHERE SessionId = @SessionId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[getHistoricPasswords]
-@ProfileId INT
+CREATE OR ALTER PROCEDURE [Person].[getHistoricPasswords] @ProfileId INT
 AS
 BEGIN
     SELECT ca.Password,
@@ -3461,8 +3288,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Person].[validatePasswordBlackListed]
-@Password NVARCHAR(255)
+CREATE OR ALTER PROCEDURE [Person].[validatePasswordBlackListed] @Password NVARCHAR(255)
 AS
 BEGIN
     DECLARE @PasswordValid TINYINT;
@@ -3479,34 +3305,27 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE [Token].[CreatePkce]
-    @ApplicationId INTEGER,
-    @SessionId UNIQUEIDENTIFIER,
-    @Data NVARCHAR(2048),
-    @Algorithm NVARCHAR(30),
-    @RedirectUri NVARCHAR(2000)
+CREATE OR ALTER PROCEDURE [Token].[CreatePkce] @ApplicationId INTEGER,
+                                               @SessionId UNIQUEIDENTIFIER,
+                                               @Data NVARCHAR(2048),
+                                               @Algorithm NVARCHAR(30),
+                                               @RedirectUri NVARCHAR(2000)
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
         INSERT INTO [Token].[Pkce]
-        (
-            [ApplicationId],
-            [SessionId],
-            [Data],
-            [Algorithm],
-            [RedirectUri]
-        )
-        VALUES
-            (
-                @ApplicationId,
+        ([ApplicationId],
+         [SessionId],
+         [Data],
+         [Algorithm],
+         [RedirectUri])
+        VALUES (@ApplicationId,
                 @SessionId,
                 @Data,
                 @Algorithm,
-                @RedirectUri
-            );
-
+                @RedirectUri);
         COMMIT;
 
         DECLARE @PkceId INT;
@@ -3523,76 +3342,39 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetPkceById]
-@PkceId INTEGER
+CREATE OR ALTER PROCEDURE [Token].[GetPkceById] @PkceId INTEGER
 AS
 BEGIN
-    --SELECT * FROM [Token].[Pkce] p
-    --WHERE p.PkceId = @PkceId
-
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT 1
-        FROM [Token].[Pkce] p
-        WHERE p.PkceId = @PkceId
-          AND daynumber = @daynumber
-    )
-        SELECT *
-        FROM [Token].[Pkce] p
-        WHERE p.PkceId = @PkceId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT *
-        FROM [Token].[Pkce] p
-        WHERE p.PkceId = @PkceId;
+    SELECT *
+    FROM [Token].[Pkce] p
+    WHERE p.PkceId = @PkceId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Token].[GetPkceBySessionId]
-@SessionId UNIQUEIDENTIFIER
+CREATE OR ALTER PROCEDURE [Token].[GetPkceBySessionId] @SessionId UNIQUEIDENTIFIER
 AS
 BEGIN
-    --SELECT * FROM [Token].[Pkce] p
-    --WHERE p.SessionId = @SessionId
-
-    DECLARE @daynumber INT = DATEPART(DAYOFYEAR, GETUTCDATE());
-
-    IF EXISTS (
-        SELECT 1
-        FROM [Token].[Pkce] p
-        WHERE p.SessionId = @SessionId
-          AND daynumber = @daynumber
-    )
-        SELECT *
-        FROM [Token].[Pkce] p
-        WHERE p.SessionId = @SessionId
-          AND daynumber = @daynumber;
-    ELSE
-        SELECT *
-        FROM [Token].[Pkce] p
-        WHERE p.SessionId = @SessionId;
+    SELECT *
+    FROM [Token].[Pkce] p
+    WHERE p.SessionId = @SessionId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Partner].[SavePasswordKeyStore]
-    @PasswordKeyStoreBytes VARBINARY(MAX),
-    @PasswordKeyId UNIQUEIDENTIFIER,
-    @NewId INT OUT
+CREATE OR ALTER PROCEDURE [Partner].[SavePasswordKeyStore] @PasswordKeyStoreBytes VARBINARY(MAX),
+                                                           @PasswordKeyId UNIQUEIDENTIFIER,
+                                                           @NewId INT OUT
 AS
 BEGIN
     INSERT INTO [Partner].[KeyStorePassword]
-    (KeyStore, PasswordKeyId)
-    VALUES
-        (@PasswordKeyStoreBytes, @PasswordKeyId);
+        (KeyStore, PasswordKeyId)
+    VALUES (@PasswordKeyStoreBytes, @PasswordKeyId);
 
     SET @NewId = SCOPE_IDENTITY();
 END
 GO
 
-CREATE OR ALTER PROCEDURE [Partner].[OrgGuidToId]
-    @Guid NVARCHAR(255),
-    @OrgId INT OUT
+CREATE OR ALTER PROCEDURE [Partner].[OrgGuidToId] @Guid NVARCHAR(255),
+                                                  @OrgId INT OUT
 AS
 BEGIN
     SELECT @OrgId = OrganizationId
