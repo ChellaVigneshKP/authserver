@@ -165,4 +165,4 @@ xYz9876543210AbCdEfGhIjKlMnOpQrStUvWxYz
 
 ## Alternative: Database Direct Insert
 
-If you cannot run the command line runner, you can also generate secrets by directly inserting into the database. However, this is not recommended as it bypasses proper secret hashing and keystorestorage. Use the command line runner whenever possible.
+If you cannot run the command line runner, you can also generate secrets by directly inserting into the database. However, this is not recommended as it bypasses proper secret hashing and keystore storage. Use the command line runner whenever possible.

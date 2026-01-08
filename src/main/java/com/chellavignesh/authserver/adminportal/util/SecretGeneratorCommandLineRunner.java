@@ -109,6 +109,8 @@ public class SecretGeneratorCommandLineRunner implements CommandLineRunner {
             dto.setName(credentialName);
             dto.setDescription(description);
             dto.setType("SHARED_SECRET");
+            // Note: ES256 is used to match the default algorithm set during application creation
+            // for CLIENT_SECRET_JWT auth flow. See ApplicationRepository.create() line 88.
             dto.setAlgorithm("ES256");
             dto.setAlgorithmEnum(AlgorithmEnum.ES256);
             dto.setAuthFlow(AuthFlowEnum.CLIENT_SECRET_JWT);
