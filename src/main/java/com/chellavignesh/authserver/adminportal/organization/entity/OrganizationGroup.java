@@ -30,7 +30,7 @@ public class OrganizationGroup {
             group.setStatus(OrganizationStatus.fromByte(result.getByte("Status")));
             group.setOrgId(result.getInt("OrganizationId"));
             return group;
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return null;
         }
     }

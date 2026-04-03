@@ -130,7 +130,7 @@ public class RedisMemoryMonitor {
     private long parseLong(String value) {
         try {
             return Long.parseLong(value);
-        } catch (NumberFormatException _) {
+        } catch (NumberFormatException ignored) {
             return 0;
         }
     }

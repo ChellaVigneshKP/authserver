@@ -28,7 +28,7 @@ public record CredentialResponseDto(UUID id, String name, String value, String a
             try {
                 DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
                 date = df.parse(credential.getExpireOn());
-            } catch (Exception _) {
+            } catch (Exception ignored) {
             }
             return (new Date()).compareTo(date) > 0;
         }

@@ -67,7 +67,7 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
         public boolean isFinished() {
             try {
                 return cachedBodyInputStream.available() == 0;
-            } catch (IOException _) {
+            } catch (IOException ignored) {
                 return true;
             }
         }

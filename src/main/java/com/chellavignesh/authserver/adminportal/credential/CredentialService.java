@@ -124,7 +124,7 @@ public class CredentialService {
         if (credentials.isEmpty()) {
             dto.setCredentialStatus(CredentialStatus.Active);
         } else if (credentials.size() == 1) {
-            if (Objects.equals(credentials.getFirst().getName(), dto.getName())) {
+            if (Objects.equals(credentials.get(0).getName(), dto.getName())) {
                 throw new CredentialDuplicateNameException("Credential name already exists");
             }
             dto.setCredentialStatus(CredentialStatus.Active);
@@ -219,7 +219,7 @@ public class CredentialService {
         if (active) {
             List<Credential> credentials = credentialRepository.getActiveCredentials(appId);
             if (credentials.size() == 1) {
-                if (Objects.equals(credentials.getFirst().getName(), credential.get().getName())) {
+                if (Objects.equals(credentials.get(0).getName(), credential.get().getName())) {
                     throw new CredentialDuplicateNameException("Credential with name" + credential.get().getName() + " already exists");
                 }
             } else if (credentials.size() > 1) {

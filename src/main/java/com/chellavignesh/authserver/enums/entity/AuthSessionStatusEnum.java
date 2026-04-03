@@ -18,7 +18,7 @@ public enum AuthSessionStatusEnum {
         try {
             newValues.put(INACTIVE, rs.getInt("AuthSessionInactiveEnumId"));
             newValues.put(ACTIVE, rs.getInt("AuthSessionActiveEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);

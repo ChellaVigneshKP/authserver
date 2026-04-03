@@ -21,7 +21,7 @@ public enum TokenTypeEnum {
             newValues.put(REFRESH_TOKEN, rs.getInt("RefreshTokenEnumId"));
             newValues.put(ID_TOKEN, rs.getInt("IdTokenEnumId"));
             newValues.put(CODE, rs.getInt("AuthCodeTokenEnumId"));
-        } catch (Exception _) {
+        } catch (Exception ignored) {
             return;
         }
         enumToVal.putAll(newValues);

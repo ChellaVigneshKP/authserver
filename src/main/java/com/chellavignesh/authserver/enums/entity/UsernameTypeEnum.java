@@ -19,7 +19,7 @@ public enum UsernameTypeEnum {
         try {
             newValues.put(USERNAME, rs.getInt("UsernameEnumId"));
             newValues.put(EMAIL, rs.getInt("EmailEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);

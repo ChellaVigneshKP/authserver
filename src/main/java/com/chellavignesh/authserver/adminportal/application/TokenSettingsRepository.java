@@ -107,7 +107,7 @@ public class TokenSettingsRepository {
         paramters.addValue("orgId", orgId);
         paramters.addValue("appId", appId);
         List<Integer> tokenSettingIdList = namedParameterJdbcTemplate.queryForList(
-                "{call dbo.TokenSettingExistsForApp(:orgId, :appId)}",
+                "{call Client.TokenSettingExistsForApp(:orgId, :appId)}",
                 paramters,
                 Integer.class
         );

@@ -35,7 +35,7 @@ public class PkceRepository {
         Optional<Integer> pkceId = jdbcTemplate.query(
                 "{call Token.CreatePkce(:applicationId, :sessionId, :data, :algorithm, :redirectUri)}",
                 parameters,
-                (rs, _) -> rs.getInt("ID")
+                (rs, rowNum) -> rs.getInt("ID")
         ).stream().findFirst();
 
         if (pkceId.isPresent()) {

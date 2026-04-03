@@ -35,7 +35,7 @@ public class TokenSettings {
             settings.setRefreshTokenTimeToLive(result.getInt("RefreshTokenTimeToLive"));
             settings.setReuseRefreshTokens(result.getBoolean("ReuseRefreshTokens"));
             settings.setMaxRequestTransitTime(result.getInt("MaxRequestTransitTime"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return null;
         }
         return settings;

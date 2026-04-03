@@ -40,7 +40,7 @@ public class Secret {
             secret.setSecretHash(result.getString("SecretHashValue"));
             secret.setExpiration(DateUtil.getISO8601Date(result.getDate("ExpireOn")));
             try {
-                KeyStorePair keyStorePair = pemKeyStorePairParser.parse(result.getBytes("KeyStore"), result.getBytes("PasswordKeyStore"), password, result.getString("PasswordKeyId"));
+                KeyStorePair keyStorePair = pemKeyStorePairParser.parse(result.getBytes("KeyStore"), null, password, result.getString("PasswordKeyId"));
                 if (keyStorePair.getSecret().isPresent()) {
                     secret.setSecretKey(keyStorePair.getSecret().get());
                 }

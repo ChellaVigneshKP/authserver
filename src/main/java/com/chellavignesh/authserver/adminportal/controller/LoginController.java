@@ -21,6 +21,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.SavedRequest;
+
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -124,6 +127,8 @@ public class LoginController {
             return "pages/login-legacy";
         }
 
+        // Extract branding and clientId from saved authorize request if missing from session
+        restoreSessionAttributesFromSavedRequest(request);
 
         String clientId = getClientIdFromRequestSession(request);
         var cmsData = cmsService.getCmsInfoForRequest(request);
@@ -281,6 +286,34 @@ public class LoginController {
         }
 
         return parameters.containsKey("burl");
+    }
+
+    private void restoreSessionAttributesFromSavedRequest(HttpServletRequest request) {
+        var session = request.getSession(false);
+        if (session == null) return;
+
+        // If branding is already in session, nothing to do
+        if (session.getAttribute(ApplicationConstants.BRANDING_INFO) != null) return;
+
+        // Try to extract from the saved authorize request that Spring stored before redirecting here
+        SavedRequest savedRequest = new HttpSessionRequestCache().getRequest(request, null);
+        if (savedRequest == null) return;
+
+        Map<String, String[]> params = savedRequest.getParameterMap();
+
+        String[] brandingParams = params.get(ApplicationConstants.BRANDING_INFO);
+        if (brandingParams != null && brandingParams.length > 0) {
+            session.setAttribute(ApplicationConstants.BRANDING_INFO, brandingParams[0]);
+            logger.debug("Restored branding '{}' from saved authorize request", brandingParams[0]);
+        }
+
+        if (session.getAttribute(ApplicationConstants.CLIENT_ID) == null) {
+            String[] clientIdParams = params.get("client_id");
+            if (clientIdParams != null && clientIdParams.length > 0) {
+                session.setAttribute(ApplicationConstants.CLIENT_ID, clientIdParams[0]);
+                logger.debug("Restored clientId from saved authorize request");
+            }
+        }
     }
 
     String getClientIdFromRequestSession(HttpServletRequest request) {

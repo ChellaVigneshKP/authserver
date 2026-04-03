@@ -76,7 +76,7 @@ public class JdbcAuthenticationProvider implements AuthenticationProvider {
 
         try {
             applicationService.getRegisteredClientByClientId(client.getRegisteredClientId());
-        } catch (AppNotFoundException _) {
+        } catch (AppNotFoundException ignored) {
             return true;
         }
 

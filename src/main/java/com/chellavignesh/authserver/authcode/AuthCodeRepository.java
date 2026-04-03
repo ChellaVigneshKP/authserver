@@ -31,7 +31,7 @@ public class AuthCodeRepository {
                 .addValue("data", dto.getData());
         Optional<Integer> authCodeId = jdbcTemplate.query(
                 "{call Token.CreateAuthCode(:applicationId, :sessionId, :data)}", parameters,
-                (rs, _) -> rs.getInt("ID")
+                (rs, rowNum) -> rs.getInt("ID")
         ).stream().findFirst();
 
         if (authCodeId.isPresent()) {

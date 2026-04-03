@@ -117,7 +117,7 @@ public class CredentialRepository {
         Optional<Integer> credentialId = jdbcTemplate.query(
                 "{call Client.UpdateCredentialStatus(:orgId, :appId, :credentialGuid, :status, :modifiedOn, :modifiedBy)}",
                 parameters,
-                (rs, _) -> rs.getInt("ID")
+                (rs, rowNum) -> rs.getInt("ID")
         ).stream().findFirst();
 
         if (credentialId.isPresent()) {

@@ -57,7 +57,7 @@ public class PasswordKeyStore {
         try {
             var entry = (KeyStore.SecretKeyEntry) keyStore.getEntry(alias, new KeyStore.PasswordProtection(keyStorePasswordAlias.toString().toCharArray()));
             return Optional.of(Base64.getEncoder().encodeToString(entry.getSecretKey().getEncoded()));
-        } catch (KeyStoreException | UnrecoverableEntryException | NoSuchAlgorithmException _) {
+        } catch (KeyStoreException | UnrecoverableEntryException | NoSuchAlgorithmException ignored) {
             throw new UnrecoverableKeyException();
         } catch (NullPointerException e) {
             return Optional.empty();

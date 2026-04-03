@@ -129,7 +129,7 @@ public class IntrospectionSuccessHandler implements AuthenticationSuccessHandler
         } catch (IllegalArgumentException e) {
             log.error("Failed to base64 decode the resource: {}", e.toString());
             return resource;
-        } catch (NullPointerException _) {
+        } catch (NullPointerException ignored) {
             return resource;
         }
     }

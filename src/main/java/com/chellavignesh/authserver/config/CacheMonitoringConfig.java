@@ -40,7 +40,7 @@ public class CacheMonitoringConfig {
                 log.info("🔎 [CACHE-METRICS] Available caches: {}", cacheNames);
                 log.info("📦 [CACHE-METRICS] Cache type: Redis (distributed across pods)");
 
-            } catch (ConcurrentModificationException _) {
+            } catch (ConcurrentModificationException ignored) {
                 log.warn("⚠️ [CACHE-METRICS] Could not retrieve cache names " + "(concurrent modification during load test)");
             }
         }
@@ -66,7 +66,7 @@ public class CacheMonitoringConfig {
 
             log.debug("=======================================");
 
-        } catch (ConcurrentModificationException _) {
+        } catch (ConcurrentModificationException ignored) {
             log.warn("⚠️ Could not retrieve cache names at startup (concurrent modification)");
         }
     }

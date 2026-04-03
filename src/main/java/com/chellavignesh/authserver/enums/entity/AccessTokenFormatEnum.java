@@ -19,7 +19,7 @@ public enum AccessTokenFormatEnum {
         try {
             newValues.put(SELF_CONTAINED, rs.getInt("SelfContainedAccessTokenFormatEnumId"));
             newValues.put(REFERENCE, rs.getInt("ReferenceAccessTokenFormatEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);

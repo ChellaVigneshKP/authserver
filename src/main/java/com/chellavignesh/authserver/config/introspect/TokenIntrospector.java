@@ -30,7 +30,7 @@ public class TokenIntrospector implements OpaqueTokenIntrospector {
 
             return new OAuth2IntrospectionAuthenticatedPrincipal(tokenService.getClaimsForToken(maybeToken.orElseThrow()), Collections.emptyList());
 
-        } catch (Exception _) {
+        } catch (Exception ignored) {
             throw new BadOpaqueTokenException("Token is not active or doesn't exist");
         }
     }

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(find /d/Portfolio/authserver -name *.html -o -name *.js -o -name *.ts -o -name *.vue -o -name *.jsx)",
+      "Read(//d/Portfolio/**)",
+      "Bash(npm create:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(cd:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(java:*)",
+      "Bash(sqlcmd:*)",
+      "Bash(find src/main/java -name \"*.java\" -exec sed -i 's/catch \\(\\\\\\([A-Za-z]*Exception\\\\\\) _\\)/catch \\(\\\\1 ignored\\)/g' {} +)",
+      "Bash(timeout 30 ./mvnw spring-boot:run)"
+    ]
+  }
+}

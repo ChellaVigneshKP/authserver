@@ -104,7 +104,7 @@ public class UserRepository {
 
         Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfile(" + ":userGuid," + ":firstName," + ":lastName," + ":title," + ":middleInitial," + ":phoneNumber," + ":suffix," + ":memberId," + ":loginId," + ":modifiedOn," + ":modifiedBy," + ":secondaryPhoneNumber" + ")}",
                 parameters,
-                (rs, _) -> rs.getInt("ID")).stream().findFirst();
+                (rs, rowNum) -> rs.getInt("ID")).stream().findFirst();
 
         if (appId.isPresent()) {
             return getById(appId.get()).get();
@@ -127,9 +127,9 @@ public class UserRepository {
 
         log.debug("Updating user in the database with parameters: {}", parameters);
 
-        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy" + ")}",
+        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfileForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy" + ")}",
                 parameters,
-                (rs, _) -> rs.getInt("ID")).stream().findFirst();
+                (rs, rowNum) -> rs.getInt("ID")).stream().findFirst();
 
         if (appId.isPresent()) {
             log.info("User updated in the database with appId: {}", appId.get());
@@ -151,7 +151,7 @@ public class UserRepository {
         Optional<Integer> appId = namedParameterJdbcTemplate.query(
                 "{call Person.UpdateUserEmail(:userGuid, :email, :modifiedOn, :modifiedBy)}",
                 parameters,
-                (rs, _) -> rs.getInt("ID")
+                (rs, rowNum) -> rs.getInt("ID")
         ).stream().findFirst();
 
         if (appId.isPresent()) {

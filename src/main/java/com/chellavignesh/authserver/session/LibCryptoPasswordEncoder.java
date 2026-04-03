@@ -118,7 +118,7 @@ public class LibCryptoPasswordEncoder implements PasswordEncoder {
     private String decodePassword(CharSequence raw) {
         try {
             return new String(Base64.getDecoder().decode(raw.toString()));
-        } catch (Exception _) {
+        } catch (Exception ignored) {
             return raw.toString();
         }
     }

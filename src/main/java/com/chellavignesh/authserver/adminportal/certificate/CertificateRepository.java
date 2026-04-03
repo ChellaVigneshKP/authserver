@@ -54,7 +54,7 @@ public class CertificateRepository {
 
         try {
             return jdbcTemplate.execute(
-                    "{call Client.SaveCertificate(:OrgGuid, :CertificateName, :CertificateTypeId, :IsX509Certificate, :KeyStoreBytes, :Status, :Fingerprint, :Thumbprint, :Subject, :Issuer, :ValidFrom, :ValidTo, :PasswordKeyStoreBytes, :PasswordKeyId)}",
+                    "{call Partner.SaveCertificate(:OrgGuid, :CertificateName, :CertificateTypeId, :IsX509Certificate, :KeyStoreBytes, :Status, :Fingerprint, :Thumbprint, :Subject, :Issuer, :ValidFrom, :ValidTo, :PasswordKeyStoreBytes, :PasswordKeyId)}",
                     parameters,
                     cs -> {
                         try (ResultSet rs = cs.executeQuery()) {

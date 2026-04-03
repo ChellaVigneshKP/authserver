@@ -26,7 +26,7 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
         try {
             principal = (OAuth2IntrospectionAuthenticatedPrincipal) authentication.getPrincipal();
-        } catch (ClassCastException _) {
+        } catch (ClassCastException ignored) {
             // DefaultOAuth2AuthenticatedPrincipal with active = false
             return false;
         }
@@ -49,7 +49,7 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
                 }
 
                 return validActions.contains(perm);
-            } catch (ClassCastException _) {
+            } catch (ClassCastException ignored) {
                 return false;
             }
         }

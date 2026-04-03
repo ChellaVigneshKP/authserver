@@ -7,7 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.TimeZone;
 import java.util.UUID;
 
 @Data
@@ -32,22 +34,20 @@ public class Token {
      */
     private byte[] signingKey;
 
+    private static final Calendar UTC_CAL = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+
     public static Token fromResult(ResultSet rs) throws SQLException {
         Token token = new Token();
-        try {
-            token.setId(rs.getInt("TokenId"));
-            token.setTokenType(TokenTypeEnum.fromInt(rs.getInt("TokenTypeId")));
-            token.setSubjectId(rs.getString("SubjectId"));
-            token.setSessionId(UUID.fromString(rs.getString("SessionId")));
-            token.setApplicationId(rs.getInt("ApplicationId"));
-            token.setData(rs.getString("Data"));
-            token.setOpaque(rs.getBoolean("isOpaque"));
-            token.setCreatedOn(rs.getTimestamp("CreatedOn"));
-            token.setExpiration(rs.getTimestamp("Expiration"));
-            token.setSigningKey(rs.getBytes("SigningKey"));
-            return token;
-        } catch (SQLException _) {
-            return null;
-        }
+        token.setId(rs.getInt("TokenId"));
+        token.setTokenType(TokenTypeEnum.fromInt(rs.getInt("TokenTypeId")));
+        token.setSubjectId(rs.getString("SubjectId"));
+        token.setSessionId(UUID.fromString(rs.getString("SessionId")));
+        token.setApplicationId(rs.getInt("ApplicationId"));
+        token.setData(rs.getString("Data"));
+        token.setOpaque(rs.getBoolean("isOpaque"));
+        token.setCreatedOn(rs.getTimestamp("CreatedOn", UTC_CAL));
+        token.setExpiration(rs.getTimestamp("Expiration", UTC_CAL));
+        token.setSigningKey(rs.getBytes("SigningKey"));
+        return token;
     }
 }

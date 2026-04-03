@@ -27,7 +27,7 @@ public class Profile {
             profile.setEmail(result.getString("Email"));
             profile.setPhoneNumber(result.getString("PhoneNumber"));
             return profile;
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return null;
         }
     }

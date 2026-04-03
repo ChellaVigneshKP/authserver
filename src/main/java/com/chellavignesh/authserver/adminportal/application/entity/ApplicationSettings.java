@@ -30,7 +30,7 @@ public class ApplicationSettings {
             settings.setRequireConsent(rs.getBoolean("RequireConsent"));
             settings.setRequirePkce(rs.getBoolean("RequirePkce"));
             settings.setAllowPlainTextPkce(rs.getBoolean("AllowPlainTextPkce"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return null;
         }
         return settings;

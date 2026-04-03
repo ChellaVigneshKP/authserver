@@ -32,7 +32,7 @@ public class UserInfoSuccessHandler implements AuthenticationSuccessHandler {
 
             try {
                 claims = authenticationToken.getUserInfo().getClaims();
-            } catch (ConcurrentModificationException _) {
+            } catch (ConcurrentModificationException ignored) {
                 // Retry once if concurrent modification detected during initial read
                 log.warn("🟡 [USERINFO-CONCURRENCY] ConcurrentModificationException when reading claims, retrying... Request: {}", request.getRequestURI());
                 claims = authenticationToken.getUserInfo().getClaims();

@@ -10,7 +10,7 @@ public record UserMetadata(UUID id, String key, String value) {
         UserMetadata userMetadata = null;
         try {
             userMetadata = new UserMetadata(UUID.fromString(result.getString("RowGuid")), result.getString("Key"), result.getString("Value"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
         }
         return userMetadata;
     }

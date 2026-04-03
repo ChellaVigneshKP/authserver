@@ -65,7 +65,7 @@ public record UserDetails(
     private static boolean getOptionalBoolean(ResultSet rs, String columnName) throws SQLException {
         try {
             return rs.getBoolean(columnName);
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return false;
         }
     }

@@ -42,7 +42,7 @@ public class JWKService {
             if (entity.getKeyStorePair() != null && entity.getKeyStorePair().getCertificate().isPresent()) {
                 try {
                     jwkList.add(JWK.parse(entity.getKeyStorePair().getCertificate().get()));
-                } catch (JOSEException _) {
+                } catch (JOSEException ignored) {
 
                 }
             }

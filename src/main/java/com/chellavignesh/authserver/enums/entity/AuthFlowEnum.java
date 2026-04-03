@@ -21,7 +21,7 @@ public enum AuthFlowEnum {
             newValues.put(CLIENT_SECRET_JWT, rs.getInt("ClientSecretJwtEnumId"));
             newValues.put(PRIVATE_KEY_JWT, rs.getInt("PrivateKeyJwtEnumId"));
             newValues.put(PKCE, rs.getInt("AuthCodeEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);

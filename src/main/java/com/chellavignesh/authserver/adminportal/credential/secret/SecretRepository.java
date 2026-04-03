@@ -79,7 +79,7 @@ public class SecretRepository {
         parameters.addValue("appId", appId);
         parameters.addValue("secretId", secretGuid.toString());
         Integer secretIdFound = jdbcTemplate.queryForObject(
-                "{call Client.SecretExists(:orgId, :appId, :secretGuid)}",
+                "{call Client.SecretExists(:secretId)}",
                 parameters,
                 Integer.class
         );

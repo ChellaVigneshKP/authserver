@@ -30,7 +30,7 @@ public class ResourceRepository {
         parameters.addValue("allowedMethod", dto.getAllowedMethod());
 
         Integer resourceId = namedParameterJdbcTemplate.execute(
-                "{call Resource.CreateResource(:name, :description, :uri, :urn, :allowedMethod)}",
+                "{call dbo.CreateResourceLibrary(:name, :description, :uri, :allowedMethod, :urn)}",
                 parameters,
                 cs -> {
                     try (ResultSet rs = cs.executeQuery()) {
@@ -51,7 +51,7 @@ public class ResourceRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("resourceId", resourceId);
         return namedParameterJdbcTemplate.query(
-                "{call Partner.GetResourceById(:orgId)}",
+                "{call dbo.GetResourceLibraryById(:resourceId)}",
                 parameters,
                 new ResourceLibraryRowMapper()
         ).stream().findFirst();

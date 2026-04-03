@@ -27,7 +27,7 @@ public class ExternalSource {
             externalSource.setSourceCode(result.getString("SourceCode"));
             externalSource.setSyncFlag(result.getBoolean("SyncFlag"));
             externalSource.setExternalType(ExternalType.fromResult(result));
-        } catch (IllegalArgumentException _) {
+        } catch (IllegalArgumentException ignored) {
             log.error("Could not map ExternalSource row");
             return null;
         }

@@ -17,7 +17,7 @@ public enum CertificateType {
         try {
             newValues.put(ORGANIZATION, rs.getInt("OrganizationEnumId"));
             newValues.put(PUBLIC_KEY, rs.getInt("PublicKeyEnumId"));
-        } catch (Exception _) {
+        } catch (Exception ignored) {
             return;
         }
         enumToVal.putAll(newValues);

@@ -19,7 +19,7 @@ public enum ApplicationTypeEnum {
             newValues.put(MOBILE, rs.getInt("MobileEnumId"));
             newValues.put(WEB, rs.getInt("WebEnumId"));
             newValues.put(SERVER, rs.getInt("ServerEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);

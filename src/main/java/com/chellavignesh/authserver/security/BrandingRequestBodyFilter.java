@@ -27,7 +27,7 @@ public class BrandingRequestBodyFilter extends OncePerRequestFilter {
     private final String loginPagePath;
     private final ExternalSourceService externalSourceService;
 
-    public BrandingRequestBodyFilter(@Value("#{environment.getProperty(T(com.chellavignesh.authserver.config.ApplicationConstants).SERVLET_CONTEXT_PATH)}") final String contextPath, @Autowired final ExternalSourceService externalSourceService) {
+    public BrandingRequestBodyFilter(@Value("#{environment.getProperty(T(com.chellavignesh.authserver.config.ApplicationConstants).SERVLET_CONTEXT_PATH) ?: ''}") final String contextPath, @Autowired final ExternalSourceService externalSourceService) {
 
         this.loginPagePath = contextPath + ApplicationConstants.LOGIN_PAGE_PATH;
         this.externalSourceService = externalSourceService;

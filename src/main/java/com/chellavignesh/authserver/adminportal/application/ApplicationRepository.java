@@ -55,7 +55,7 @@ public class ApplicationRepository {
         parameters.addValue("appGuid", appGuid.toString());
 
         Integer applicationId = this.namedParameterJdbcTemplate.queryForObject(
-                "{call dbo.ApplicationExists(:orgId, :appGuid)}",
+                "{call Client.ApplicationExists(:orgId, :appGuid)}",
                 parameters,
                 Integer.class
         );
@@ -70,7 +70,7 @@ public class ApplicationRepository {
         parameters.addValue("modifiedOn", new Date());
         parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
         namedParameterJdbcTemplate.update(
-                "{call dbo.UpdateApplicationUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
+                "{call Client.UpdateApplicationUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
                 parameters
         );
         return true;
@@ -171,7 +171,7 @@ public class ApplicationRepository {
         parameters.addValue("appName", appName);
         parameters.addValue("orgId", orgId);
         return namedParameterJdbcTemplate.query(
-                "{call dbo.GetApplicationByName(:appName, :orgId)}",
+                "{call Client.GetApplicationByName(:appName, :orgId)}",
                 parameters,
                 new ApplicationRowMapper()
         ).stream().findFirst().isPresent();
@@ -241,7 +241,7 @@ public class ApplicationRepository {
         parameters.addValue("appGuid", appId);
         parameters.addValue("active", active);
         namedParameterJdbcTemplate.update(
-                "{call dbo.UpdateApplicationActivation(:orgId, :appId, :active)}",
+                "{call Client.UpdateApplicationActivation(:orgId, :appId, :active)}",
                 parameters
         );
         return true;
@@ -251,7 +251,7 @@ public class ApplicationRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
         return namedParameterJdbcTemplate.query(
-                "{call dbo.GetApplications(:orgId)}",
+                "{call Client.GetApplications(:orgId)}",
                 parameters,
                 new ApplicationRowMapper()
         );
@@ -371,7 +371,7 @@ public class ApplicationRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("clientId", clientId);
         return namedParameterJdbcTemplate.query(
-                "{call Client.getAllResourcesByClientId(:clientId)}",
+                "{call Resource.getAllResourcesByClientId(:clientId)}",
                 parameters,
                 new ApplicationResourceRowMapper()
         );
@@ -387,7 +387,7 @@ public class ApplicationRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("appId", appId);
         return namedParameterJdbcTemplate.query(
-                "{call Client.getAllResourcesByAppId(:appId)}",
+                "{call Resource.getAllResourcesByAppId(:appId)}",
                 parameters,
                 new ApplicationResourceRowMapper()
         );

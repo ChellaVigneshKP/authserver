@@ -81,7 +81,7 @@ public class CmsService {
 
                     return parse(createFileName(branding, Optional.empty()));
 
-                } catch (IOException _) {
+                } catch (IOException ignored) {
                     throw new CmsProcessingException("Error while parsing json file");
                 }
 

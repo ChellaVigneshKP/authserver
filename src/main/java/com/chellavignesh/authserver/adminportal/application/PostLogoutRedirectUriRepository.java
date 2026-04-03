@@ -26,7 +26,7 @@ public class PostLogoutRedirectUriRepository {
         parameters.addValue("modifiedOn", new java.util.Date());
         parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
         jdbcTemplate.update(
-                "{call dbo.UpdatePostLogoutRedirectUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
+                "{call Client.UpdatePostLogoutRedirectUri(:orgId, :appId, :uri)}",
                 parameters
         );
         return true;
@@ -36,7 +36,7 @@ public class PostLogoutRedirectUriRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
         parameters.addValue("appId", appId);
-        jdbcTemplate.update("{call CLient.DeletePostLogoutRedirectUris(:orgId, :appId)}", parameters);
+        jdbcTemplate.update("{call Client.DeletePostLogoutRedirectUri(:orgId, :appId)}", parameters);
 
         for (String uri : uris) {
             parameters = new MapSqlParameterSource();
@@ -46,7 +46,7 @@ public class PostLogoutRedirectUriRepository {
             parameters.addValue("modifiedOn", new Date());
             parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
             jdbcTemplate.update(
-                    "{call dbo.CreatePostLogoutRedirectUris(:orgId, :appId, :uris, :createdOn, :createdBy)}",
+                    "{call Client.CreatePostLogoutRedirectUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
                     parameters
             );
         }

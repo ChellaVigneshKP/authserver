@@ -57,7 +57,7 @@ public class ClientSecretJWTAuthenticationProvider implements AuthenticationProv
         RegisteredClient registeredClient = null;
         try {
             registeredClient = applicationService.getRegisteredClientByClientId(clientId, 1);
-        } catch (AppNotFoundException _) {
+        } catch (AppNotFoundException ignored) {
             /*
             This is expected if there are no secrets for the client.
              */
@@ -87,7 +87,7 @@ public class ClientSecretJWTAuthenticationProvider implements AuthenticationProv
                 if (i < Integer.parseInt(maxActiveSecrets)) {
                     try {
                         registeredClient = applicationService.getRegisteredClientByClientId(clientId, i + 1);
-                    } catch (AppNotFoundException _) {
+                    } catch (AppNotFoundException ignored) {
                         /*
                         This is expected if there are no more secrets for the client.
                          */

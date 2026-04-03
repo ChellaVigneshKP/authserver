@@ -170,7 +170,17 @@ public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationServic
 
     @Override
     public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
-        return tokenService.getByValue(token, TokenTypeEnum.fromOAuth2TokenType(tokenType)).map(t -> findBySessionId(t.getSessionId())).orElse(null);
+        log.debug("findByToken called with tokenType: {}, token length: {}", tokenType != null ? tokenType.getValue() : "null", token != null ? token.length() : 0);
+        var tokenEnum = TokenTypeEnum.fromOAuth2TokenType(tokenType);
+        log.debug("Mapped to TokenTypeEnum: {}", tokenEnum);
+        var found = tokenService.getByValue(token, tokenEnum);
+        log.debug("Token lookup result present: {}", found.isPresent());
+        var result = found.map(t -> {
+            log.debug("Found token with sessionId: {}", t.getSessionId());
+            return findBySessionId(t.getSessionId());
+        }).orElse(null);
+        log.debug("findByToken returning: {}", result != null ? "OAuth2Authorization[id=" + result.getId() + "]" : "null");
+        return result;
     }
 
     @Override
@@ -256,15 +266,19 @@ public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationServic
 
         if (authCodeToken != null) {
             Optional<Pkce> pkceRecord = pkceService.getBySessionId(authSession.get().getSessionId());
+            log.debug("PKCE record for sessionId {}: present={}", authSession.get().getSessionId(), pkceRecord.isPresent());
             if (pkceRecord.isEmpty()) {
+                log.warn("No PKCE record found for sessionId: {}", authSession.get().getSessionId());
                 return null;
             }
 
             String codeChallenge = pkceRecord.get().getData();
             String codeChallengeMethod = pkceRecord.get().getAlgorithm();
             String redirectUri = getRedirectUri(pkceRecord.get(), registeredClient);
+            log.debug("PKCE data: codeChallenge={}, method={}, redirectUri={}", codeChallenge, codeChallengeMethod, redirectUri);
 
             OAuth2AuthorizationRequest request = OAuth2AuthorizationRequest.authorizationCode().clientId(registeredClient.getClientId()).authorizationUri(brandUrlMappingService.getUrlByBrand(getBrandFromSession(httpSession)) + "/oauth2/authorize").redirectUri(redirectUri).additionalParameters(params -> params.put("code_challenge", codeChallenge)).additionalParameters(params -> params.put("code_challenge_method", codeChallengeMethod)).build();
+            log.debug("Built OAuth2AuthorizationRequest: additionalParams={}", request.getAdditionalParameters());
 
             Instant createdOn = authCodeToken.getCreatedOn() != null ? Instant.ofEpochMilli(authCodeToken.getCreatedOn().getTime()) : null;
 

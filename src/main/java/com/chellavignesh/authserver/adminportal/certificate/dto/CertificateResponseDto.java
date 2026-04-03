@@ -67,7 +67,7 @@ public class CertificateResponseDto {
             try {
                 DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
                 date = df.parse(a.getValidTo());
-            } catch (Exception _) {
+            } catch (Exception ignored) {
             }
             return (new Date()).compareTo(date) > 0;
         }

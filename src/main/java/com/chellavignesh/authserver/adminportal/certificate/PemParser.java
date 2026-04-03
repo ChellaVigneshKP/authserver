@@ -36,15 +36,16 @@ public class PemParser {
             PrivateKey privateKey = null;
             Object object;
             while (!Objects.isNull(object = parser.readObject())) {
-                switch (object) {
-                    case X509CertificateHolder x509CertificateHolder ->
-                            certificateList.add(handleX509Certificate(x509CertificateHolder));
-                    case PKCS8EncryptedPrivateKeyInfo pkcs8EncryptedPrivateKeyInfo ->
-                            privateKey = handlePKC8EncryptedPrivateKeyInfo(pkcs8EncryptedPrivateKeyInfo, password);
-                    case PrivateKeyInfo privateKeyInfo -> privateKey = handlePrivateKeyInfo(privateKeyInfo);
-                    case PEMEncryptedKeyPair pemEncryptedKeyPair ->
-                            privateKey = handleEncryptedKeyPair(pemEncryptedKeyPair, password);
-                    default -> throw new InvalidPemException("No objects in pem file match expected types");
+                if (object instanceof X509CertificateHolder x509CertificateHolder) {
+                    certificateList.add(handleX509Certificate(x509CertificateHolder));
+                } else if (object instanceof PKCS8EncryptedPrivateKeyInfo pkcs8EncryptedPrivateKeyInfo) {
+                    privateKey = handlePKC8EncryptedPrivateKeyInfo(pkcs8EncryptedPrivateKeyInfo, password);
+                } else if (object instanceof PrivateKeyInfo privateKeyInfo) {
+                    privateKey = handlePrivateKeyInfo(privateKeyInfo);
+                } else if (object instanceof PEMEncryptedKeyPair pemEncryptedKeyPair) {
+                    privateKey = handleEncryptedKeyPair(pemEncryptedKeyPair, password);
+                } else {
+                    throw new InvalidPemException("No objects in pem file match expected types");
                 }
             }
             return new PemParseResults(certificateList, privateKey);

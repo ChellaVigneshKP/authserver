@@ -28,7 +28,7 @@ public class UserCredentials {
             userCredentials.setPassword(result.getString("Password"));
             userCredentials.setRowGuid(UUID.fromString(result.getString("RowGuid")));
             return userCredentials;
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return null;
         }
     }

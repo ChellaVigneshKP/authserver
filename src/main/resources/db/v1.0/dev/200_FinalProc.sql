@@ -2963,7 +2963,7 @@ BEGIN
     FROM [Token].[AuthCode] c
     WHERE c.DataHash = HASHBYTES('SHA2_256', @Data)
       AND (c.Expiration IS NULL OR GETUTCDATE() < c.Expiration)
-      AND c.ConsumedOn IS NULL;
+      AND c.ConsumedOn >= '9999-01-01';
 END
 GO
 

@@ -19,7 +19,7 @@ public enum CredentialStatus {
             newValues.put(Inactive, rs.getInt("InactiveEnumId"));
             newValues.put(Active, rs.getInt("ActiveEnumId"));
             newValues.put(Disabled, rs.getInt("DisabledEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);

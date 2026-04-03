@@ -26,7 +26,7 @@ public enum AlgorithmEnum {
             newValues.put(RS256, rs.getInt("RS256EnumId"));
             newValues.put(ES256, rs.getInt("ES256EnumId"));
             newValues.put(HS256, rs.getInt("HS256EnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
         }
         enumToVal.putAll(newValues);
         enumToVal.forEach((k, v) -> valToEnum.put(v, k));

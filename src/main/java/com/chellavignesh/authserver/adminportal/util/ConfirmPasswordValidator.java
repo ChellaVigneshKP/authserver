@@ -22,7 +22,7 @@ public class ConfirmPasswordValidator implements ConstraintValidator<ValidConfir
             password = value.getClass().getMethod("getPassword").invoke(value).toString();
             confirmPassword = value.getClass().getMethod("getConfirmPassword").invoke(value).toString();
 
-        } catch (NullPointerException _) {
+        } catch (NullPointerException ignored) {
             return true;
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException(e);

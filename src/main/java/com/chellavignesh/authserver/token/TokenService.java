@@ -199,7 +199,7 @@ public class TokenService {
 
         try {
             metadata.putAll(userService.getMetadata(user.rowGuid()));
-        } catch (UserNotFoundException _) {
+        } catch (UserNotFoundException ignored) {
             // No metadata found for this user
         }
 

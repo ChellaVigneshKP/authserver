@@ -40,7 +40,7 @@ public class IntrospectionAuthenticationProvider implements AuthenticationProvid
 
             return tokenAuth;
 
-        } catch (Exception _) {
+        } catch (Exception ignored) {
             return auth;
         }
     }

@@ -21,7 +21,7 @@ public enum SuffixType {
             newValues.put(Miss, rs.getInt("MissEnumId"));
             newValues.put(Sr, rs.getInt("SrEnumId"));
             newValues.put(Jr, rs.getInt("JrEnumId"));
-        } catch (SQLException _) {
+        } catch (SQLException ignored) {
             return;
         }
         enumToVal.putAll(newValues);
