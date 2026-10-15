@@ -18,127 +18,127 @@ Priority: **P1** blocks a core flow or presents a substantial security issue; **
 
 **Prioritized issue register**
 
-**F01 — P1: Clean builds cannot resolve the private application libraries**  
+**F01 — P1: Clean builds cannot resolve the private application libraries**
 Evidence level: Reproduced.
 
 The POM declares `com.chellavignesh:lib-crypto:2.0.2` and `com.chellavignesh:auth-java-sdk:1.0`, but supplies no repository/bootstrap instructions to resolve them. A fresh Maven repository fetched public dependencies then failed on these exact artifacts. Local installations or personal Maven settings can conceal this. The README contains only badges. Evidence: [pom.xml:182](/Users/chella.vignesh/Spectro/vignesh/authserver/pom.xml:182), [build log](/tmp/authserver-audit/build-network.log). Establish a documented authenticated artifact repository or an explicit supported source-build bootstrap; prove a clean machine build.
 
-**F02 — P1: There is no reproducible database deployment for main**  
+**F02 — P1: There is no reproducible database deployment for main**
 Evidence level: Code-confirmed.
 
 Flyway is disabled. Its configured directory contains only `R__AuthDBProcs.sql`, with 21 distinct procedure definitions and no versioned table/schema/seed bootstrap. Most SQL is parked under `db/v1.0` and is not discovered by that location. Enabling Flyway alone does not install a usable database. The repeatable still declares a six-argument `Client.CreateApplication`, whereas Java supplies 19 arguments and the newer standalone procedure has 20 including an optional PIN TTL. It also declares `Person.GetProfile` with an integer key while Java supplies a UUID. Evidence: [application.properties:9](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/application.properties:9), [R__AuthDBProcs.sql:308](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/migration/R__AuthDBProcs.sql:308), [ApplicationRepository.java:113](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/ApplicationRepository.java:113). Consolidate a single ordered schema, seed and procedure history and verify both an empty install and an upgrade of a representative existing database.
 
-**F03 — P1: Seventeen invoked procedure names are absent from all main SQL**  
+**F03 — P1: Seventeen invoked procedure names are absent from all main SQL**
 Evidence level: Code-confirmed.
 
 The scan found 132 distinct Java procedure calls: 17 have no matching definition anywhere in main SQL; 118 have no definition in the configured migration directory. Several are schema errors rather than genuinely absent business operations: e.g. Java calls `dbo.GetApplications` while SQL defines `Client.GetApplications`, and `Client.getAllResourcesByClientId` while SQL defines it under `Resource`. Others, such as `Client.GetSecrets`, lack matching definitions outright. Evidence: [complete call/definition inventory](/tmp/authserver-audit/procedure-contracts.csv). Compare the intended signature and tenant scope before adding wrappers or changing a schema prefix. These are source inventory counts, not proof of what a manually maintained live database contains.
 
-**F04 — P1: Five repository operations fail before executing SQL**  
+**F04 — P1: Five repository operations fail before executing SQL**
 Evidence level: Reproduced.
 
 (1) Application creation binds `usernameType` but references `:usernameTyoe`; (2) deactivation binds `appGuid` but references `:appId`; (3) post-logout URI creation binds `uri/modifiedOn/modifiedBy` but references `:uris/:createdOn/:createdBy`; (4) ResourceRepository.getById binds `resourceId` but references `:orgId`; (5) SecretRepository.exists binds `secretId` but references `:secretGuid`. Spring's actual parser rejected all five with `InvalidDataAccessApiUsageException`. Evidence: [ApplicationRepository.java:113](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/ApplicationRepository.java:113), [ApplicationRepository.java:241](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/ApplicationRepository.java:241), [PostLogoutRedirectUriRepository.java:49](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/PostLogoutRedirectUriRepository.java:49), [ResourceRepository.java:54](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/resource/ResourceRepository.java:54), [SecretRepository.java:82](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/credential/secret/SecretRepository.java:82). Correct bindings and add repository contract tests; fixing only missing procedures leaves these failures intact.
 
-**F05 — P1: MFA expiry arguments are reversed**  
+**F05 — P1: MFA expiry arguments are reversed**
 Evidence level: Code-confirmed.
 
 Java invokes `GetMfaExpiryPinTimeV2(pinTimeToLive, sessionId)` positionally. Both the repeatable and standalone definition take `(SessionId UNIQUEIDENTIFIER, PinTimeToLive INT)`. Named placeholders are replaced with positional JDBC bindings; their Java names do not reorder SQL procedure arguments. Evidence: [MfaExpiryPinTimeRepository.java:26](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/MfaExpiryPinTimeRepository.java:26), [R__AuthDBProcs.sql:381](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/migration/R__AuthDBProcs.sql:381). Align order/types and test PIN generation and expiry against SQL Server.
 
-**F06 — P1: The supplied token tables and newer procedures disagree**  
+**F06 — P1: The supplied token tables and newer procedures disagree**
 Evidence level: Code-confirmed.
 
 The base table definitions make AuthCode/Pkce Expiration and ConsumedOn NOT NULL. The standalone newer inserts omit required fields; token insertion also omits ConsumedOn. The newer code later expects unconsumed rows to have `ConsumedOn IS NULL`. Several lookup procedures reference a `daynumber` column for which no checked-in column definition was found. Evidence: [002_AuthDBSchema.sql:869](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/v1.0/dev/002_AuthDBSchema.sql:869), [FinalProcedure.sql:3054](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/v1.0/prod/FinalProcedure.sql:3054), [FinalProcedure.sql:2981](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/v1.0/prod/FinalProcedure.sql:2981). Specify one schema and consumed/expiry representation and reconcile every write/read with it. Which contradictions affect your existing database depends on its manually applied history.
 
-**F07 — P1: A user lookup returns fewer columns than its mapper requires**  
+**F07 — P1: A user lookup returns fewer columns than its mapper requires**
 Evidence level: Code-confirmed.
 
 `Person.GetUserByUsernameAndBranding` in FinalProcedure selects `p.*`, credential RowGuid as LoginId, and Branding. UserRepository maps it through UserDetails, which requires UserName, OrgId, GroupGuid, Results and ProfileOrgGuid among other columns. The explicit projection does not supply those joined aliases; UserName is on Credential, not Profile. Evidence: [FinalProcedure.sql:2148](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/v1.0/prod/FinalProcedure.sql:2148), [UserDetails.java:42](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/user/entity/UserDetails.java:42). Define and test explicit result projections for each mapper; do not assume `SELECT *` supplies the same contract everywhere.
 
-**F08 — P1: Mapper errors are hidden as null objects; timestamps are misread**  
+**F08 — P1: Mapper errors are hidden as null objects; timestamps are misread**
 Evidence level: Reproduced/code-confirmed.
 
 AuthCode reads DATETIME2 ConsumedOn using getInt and converts it to an epoch Instant. A simulated JDBC conversion failure causes the actual mapper to return null. SQL NULL would instead become zero unless wasNull is checked. Pkce reads timestamps with getDate, losing time-of-day. Application, ApplicationSettings, TokenSettings, Token and AuthSession mapping also swallow conversion/missing-column errors and return null, which is then fed to stream().findFirst(), Optional.get() and downstream code. Evidence: [AuthCode.java:29](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/authcode/entity/AuthCode.java:29), [Pkce.java:36](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/pkce/entity/Pkce.java:36), [AuthSession.java:47](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/session/entity/AuthSession.java:47). Use correct temporal types and propagate mapping errors with procedure/column context. `main-fixed` has useful timestamp changes, but they require concurrency review and DB tests.
 
-**F09 — P1: The MapStruct implementation is not generated by the Maven configuration**  
+**F09 — P1: The MapStruct implementation is not generated by the Maven configuration**
 Evidence level: Code-confirmed.
 
 UserDtoMapper initializes `Mappers.getMapper(UserDtoMapper.class)`, but no implementation is checked in. Maven explicitly configures only Lombok under annotationProcessorPaths; it does not include mapstruct-processor. A clean Maven build therefore has no declared processor that can generate UserDtoMapperImpl. The first user-profile or on-prem synchronization path that loads the mapper will fail if no stale IDE-generated implementation happens to be present. Evidence: [pom.xml:254](/Users/chella.vignesh/Spectro/vignesh/authserver/pom.xml:254), [UserDtoMapper.java:35](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/user/mapper/UserDtoMapper.java:35). Add the proper annotation processor setup and verify a clean generated-source build and profile mapping.
 
-**F10 — P1: Password creation removes part of the hash**  
+**F10 — P1: Password creation removes part of the hash**
 Evidence level: Reproduced.
 
 PasswordEncoderFactory.encode uses substring(6). The configured encoder emits a three-character `{1}` prefix. The probe passed `{1}0123456789abcdef` through the actual factory method and got `3456789abcdef`, instead of `0123456789abcdef`. This corrupts passwords created/updated through the factory, even after other hashing problems are fixed. Evidence: [PasswordEncoderFactory.java:20](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/session/PasswordEncoderFactory.java:20), [KPCVPasswordEncoder.java:22](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/session/KPCVPasswordEncoder.java:22). Strip the actual prefix deliberately; inspect affected persisted password formats before deciding on migration or reset.
 
-**F11 — P1: The default pepper alias is incompatible with hashing**  
+**F11 — P1: The default pepper alias is incompatible with hashing**
 Evidence level: Reproduced.
 
 The configured pepper alias can be loaded from the bundled keystore, but KPCVEncoder later passes that alias to UUID.fromString while constructing/verifying hashes. Hashing with the checked-in configuration throws Invalid UUID string. This is separate from the substring corruption. Evidence: [application.properties:63](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/application.properties:63), [KPCVEncoder.java:82](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/util/KPCVEncoder.java:82). Use an alias/key format compatible with existing hashes and validate it at startup; changing a pepper can invalidate users' existing passwords.
 
-**F12 — P1: The public base URL and actual servlet routes disagree**  
+**F12 — P1: The public base URL and actual servlet routes disagree**
 Evidence level: Code-confirmed.
 
 server.base-path includes `/services` but main does not configure server.servlet.context-path. Controllers/security match `/login`, `/oauth2/*`, `/api/*`; generated URLs include `/services/*`. BrandingRequestBodyFilter reads the missing context-path property and concatenates null with `/login`, producing `null/login`, so POST /login is never wrapped with branding. CustomUserDetailsService then rejects usernames lacking its appended brand delimiter. Evidence: [application.properties:3](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/application.properties:3), [BrandingRequestBodyFilter.java:32](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/security/BrandingRequestBodyFilter.java:32), [CustomUserDetailsService.java:75](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/session/CustomUserDetailsService.java:75). Define a single routing contract, including proxy behavior, and test generated redirects and form processing.
 
-**F13 — P1: Default brand resolution throws instead of falling back**  
+**F13 — P1: Default brand resolution throws instead of falling back**
 Evidence level: Reproduced.
 
 There are no brand.mappings entries in main properties and the BrandUrlMap record has no default map. BrandUrlMappingService dereferences mappings().get/containsKey before its URL fallback. The actual service throws NullPointerException with an absent map. This affects redirects, discovery, login cookies and certificate Location responses. Evidence: [BrandUrlMap.java:9](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/cms/BrandUrlMap.java:9), [BrandUrlMappingService.java:26](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/cms/BrandUrlMappingService.java:26). Bind an empty map by default and validate configured tenant destinations.
 
-**F14 — P1: The browser flows have almost no view resources**  
+**F14 — P1: The browser flows have almost no view resources**
 Evidence level: Code-confirmed.
 
 Main contains only fragments/scripts.html and pages/404.html. Controllers return login/login, login-legacy, mfa/request-pin, mfa/enter-pin, mfa-legacy, account-access views, forgot-username/mobile-forgot-username views and change-profile/password views. Those targets do not exist. Evidence: [LoginController.java:243](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/controller/LoginController.java:243), [MFAController.java:235](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/controller/MFAController.java:235). Restore views against the actual model/form contract and exercise the flows; template presence alone is insufficient.
 
-**F15 — P1: CMS loading cannot use the configured classpath location**  
+**F15 — P1: CMS loading cannot use the configured classpath location**
 Evidence level: Code-confirmed.
 
 cms.file.location is `classpath:cms/`; CmsService uses new File(fileLocation + '/' + fileName), which treats the classpath prefix as a literal filesystem directory. Main also has no CMS JSON resources. Even after templates are restored, branded pages cannot load their content. Evidence: [application.properties:66](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/application.properties:66), [CmsService.java:47](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/cms/CmsService.java:47). Use Spring Resource loading for packaged resources and supply/test the required brand/context data.
 
-**F16 — P1: MFA-pending authentication can satisfy authorization**  
+**F16 — P1: MFA-pending authentication can satisfy authorization**
 Evidence level: Isolated provider reproduction; live flow unverified.
 
 CustomAuthenticationSuccessHandler creates an authenticated three-argument UsernamePasswordAuthenticationToken containing PRE_AUTH while MFA is pending. The authorization chain/converter does not reject that marker. PreAuthorizationFilter skips logout whenever a continue parameter is present. An isolated run of the actual Spring authorization-code provider with this PRE_AUTH token issued a code without verifying an OTP. Evidence: [CustomAuthenticationSuccessHandler.java:123](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/CustomAuthenticationSuccessHandler.java:123), [PreAuthorizationFilter.java:56](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/authorization/PreAuthorizationFilter.java:56), [CustomOAuth2AuthorizationCodeRequestAuthenticationConverter.java:88](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/authorization/CustomOAuth2AuthorizationCodeRequestAuthenticationConverter.java:88). Enforce MFA completion before code issuance and SSO eligibility. Validate the complete password → pending MFA → direct authorize attempt before exposure; the isolated result is not a deployed exploit claim.
 
-**F17 — P1: Inactive/expired tokens can become authenticated bearer principals**  
+**F17 — P1: Inactive/expired tokens can become authenticated bearer principals**
 Evidence level: Reproduced with controlled token-service claims.
 
 TokenService returns `active=false` for an expired token/inactive session. TokenIntrospector still constructs and returns an authenticated principal rather than rejecting it. The actual Spring OpaqueTokenAuthenticationProvider accepted the actual introspector with controlled inactive claims: `active_claim=false authenticated=true`. Missing permission claims may deny many admin operations, but authentication-only routes do not get the required token rejection. Evidence: [TokenIntrospector.java:31](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/introspect/TokenIntrospector.java:31), [TokenService.java:134](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/token/TokenService.java:134), [SpringSecurityConfig.java:91](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/security/SpringSecurityConfig.java:91). Reject inactive tokens in the introspector and test expiry, logout and user deactivation at each protected route.
 
-**F18 — P1: Refresh and authorization-code persistence do not preserve the grant state**  
+**F18 — P1: Refresh and authorization-code persistence do not preserve the grant state**
 Evidence level: Code-confirmed.
 
 In JdbcOAuth2AuthorizationService.save, the authorization-code exchange branch saves the access token but never saves its refresh token. Refresh tokens are saved only in the other branch. Reconstruction assigns grant types according to which token rows it finds and can overwrite the grant again when a code row remains. Token's Java model has no consumed state, and GetAllActiveTokensBySessionId in FinalProcedure neither excludes consumed rows nor compares expiration with the current instant (it compares with today's date). Evidence: [JdbcOAuth2AuthorizationService.java:142](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/JdbcOAuth2AuthorizationService.java:142), [JdbcOAuth2AuthorizationService.java:155](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/JdbcOAuth2AuthorizationService.java:155), [FinalProcedure.sql:3175](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/db/v1.0/prod/FinalProcedure.sql:3175). Persist and reconstruct grants, scopes, token metadata, expiry and consumption coherently; test refresh rotation and single-use authorization codes, including concurrency.
 
-**F19 — P1: OAuth persistence can partially succeed and conceal failure**  
+**F19 — P1: OAuth persistence can partially succeed and conceal failure**
 Evidence level: Code-confirmed.
 
 The save flow performs separate auth-code, PKCE, token and session writes without one surrounding transaction. createToken/createAuthCode/createPkceRecord catch their checked creation exceptions and only log; earlier lookup/key generation failures can return normally from save. A response can therefore outlive an incomplete persistence operation, producing a later invalid_grant or unusable token instead of a clear failure at issuance. Evidence: [JdbcOAuth2AuthorizationService.java:295](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/JdbcOAuth2AuthorizationService.java:295), [JdbcOAuth2AuthorizationService.java:322](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/JdbcOAuth2AuthorizationService.java:322). Make the issuance state transition atomic and propagate failures; test interrupted and failed DB writes.
 
-**F20 — P2: Settings mutations evict keys that the caches do not use**  
+**F20 — P2: Settings mutations evict keys that the caches do not use**
 Evidence level: Code-confirmed.
 
 getForApp(orgId, appId) uses Spring's default composite cache key, but updateSettings evicts that cache with appId alone. It also evicts registered-client-by-client-id using a numeric appId, whereas that cache is keyed by clientId. Cached redirect URIs and other dependent client data also lack corresponding mutation invalidation. This makes settings appear unchanged until expiry/periodic eviction. Evidence: [TokenSettingsRepository.java:57](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/TokenSettingsRepository.java:57), [TokenSettingsRepository.java:82](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/TokenSettingsRepository.java:82), [ApplicationService.java:192](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/ApplicationService.java:192). Standardize keys and invalidate every dependent cached representation at commit.
 
-**F21 — P2: RegisteredClient changes when it passes through Redis**  
+**F21 — P2: RegisteredClient changes when it passes through Redis**
 Evidence level: Reproduced.
 
 ApplicationService adds max_request_transit_time to TokenSettings. RegisteredClientRedisSerializer copies only selected settings, so the actual round-trip changed this setting from 30 to null. Future settings can disappear in the same way. Evidence: [RegisteredClientRedisSerializer.java:125](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/RegisteredClientRedisSerializer.java:125), [ApplicationService.java:311](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/ApplicationService.java:311). Preserve the complete supported settings contract and test equality before/after serialization. The reproduced setting loss does not prove every current request passes through this cached representation.
 
-**F22 — P2: Session configuration has incompatible serialization paths**  
+**F22 — P2: Session configuration has incompatible serialization paths**
 Evidence level: Serializer failure reproduced; effective full wiring unverified.
 
 The springSessionDefaultRedisSerializer bean uses a plain ObjectMapper without the security/type modules used by RedisConfig's other templates. Its actual SecurityContextImpl round-trip returns LinkedHashMap. SessionConfig additionally creates a primary custom RedisSessionRepository alongside the repository imported by EnableRedisHttpSession; that custom repository may select another template, so it is not established that the broken serializer is used in every main request. Evidence: [SessionConfig.java:69](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/SessionConfig.java:69), [SessionConfig.java:92](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/SessionConfig.java:92), [RedisConfig.java:304](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/config/RedisConfig.java:304). Select one session repository/template/serializer and prove saved-request, security-context, principal, MFA-authority and multi-request round-trips. Treat the effective wiring as an integration-validation item.
 
-**F23 — P2: The fingerprint filter crashes without an Authentication**  
+**F23 — P2: The fingerprint filter crashes without an Authentication**
 Evidence level: Reproduced.
 
 RequestClientFingerprintFilter dereferences getAuthentication().getPrincipal() without a null check and skips only /oauth2 paths. It is both a component filter and explicitly added to a security chain; static resources use a separate chain. Calling the actual filter with an anonymous favicon request and empty context throws NullPointerException. Effective servlet/security ordering needs an integration test to establish all affected routes. Evidence: [RequestClientFingerprintFilter.java:32](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/security/RequestClientFingerprintFilter.java:32), [SpringSecurityConfig.java:141](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/security/SpringSecurityConfig.java:141). Restrict registration/matching and handle missing authentication.
 
-**F24 — P2: Discovery, request validation and static serving each have broken defaults**  
+**F24 — P2: Discovery, request validation and static serving each have broken defaults**
 Evidence level: Code-confirmed.
 
 Organization discovery advertises `/oauth2/oauth2/authorize`, duplicating the segment. Default application JWK URLs omit the `/organizations/` path segment that JWKSetController actually handles and use a client/application identifier where that route expects an organization UUID. Static resource mappings are disabled despite the login UI referencing assets. RequestDatetimeValidator runs a regex matcher against a possibly null Authorization value and parses timestamps without mapping malformed values to a controlled client error; its filter catches only the missing-datetime exception. Evidence: [OidcOrgConfigController.java:33](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/controller/OidcOrgConfigController.java:33), [ApplicationRepository.java:82](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/adminportal/application/ApplicationRepository.java:82), [application.properties:27](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/application.properties:27), [RequestDatetimeValidator.java:43](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/java/com/chellavignesh/authserver/security/RequestDatetimeValidator.java:43). Cover discovery URLs, packaged assets, missing headers and invalid timestamps in request-level tests.
 
-**F25 — P2: There is no test suite capable of establishing usability**  
+**F25 — P2: There is no test suite capable of establishing usability**
 Evidence level: Code-confirmed.
 
 Main and every inventoried functional branch have one Java test file: a bare @SpringBootTest contextLoads test. There are no committed endpoint, stored-procedure/mapper, password round-trip, refresh, MFA bypass, or empty-database migration acceptance tests. Hardcoded database/keystore credentials and pepper configuration are also present in tracked files; the report intentionally does not repeat their values. Evidence: [AuthserverApplicationTests.java:6](/Users/chella.vignesh/Spectro/vignesh/authserver/src/test/java/com/chellavignesh/authserver/AuthserverApplicationTests.java:6), [application.properties:6](/Users/chella.vignesh/Spectro/vignesh/authserver/src/main/resources/application.properties:6), [pom.xml:277](/Users/chella.vignesh/Spectro/vignesh/authserver/pom.xml:277). Add meaningful flow tests and environment-specific secret/config management; determine whether committed credentials were ever used outside local development before planning rotation. Do not treat a context-only test or UI screenshot as proof of server health.

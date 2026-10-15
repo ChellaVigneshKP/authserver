@@ -3084,7 +3084,7 @@ IF @@ROWCOUNT<>1 THROW 51017,'Token is expired, unknown or already consumed.',1;
 END
 GO
 
-CREATE OR ALTER PROCEDURE [dbo].[GetEnums] 
+CREATE OR ALTER PROCEDURE [dbo].[GetEnums]
 AS
 BEGIN
     SET NOCOUNT ON;
