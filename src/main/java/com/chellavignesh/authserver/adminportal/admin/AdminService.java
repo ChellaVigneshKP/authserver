@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Slf4j
+@org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization
 @Service
 public class AdminService {
     private final AdminConfig adminConfig;

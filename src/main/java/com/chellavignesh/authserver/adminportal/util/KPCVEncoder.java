@@ -33,33 +33,26 @@ public class KPCVEncoder {
     private final byte[] pepperKey;
 
     public KPCVEncoder(HasherConfig hasherConfig) {
-        // get the property value and print it out
         iterations = Integer.parseInt(hasherConfig.iterations());
-        pepperAlias = hasherConfig.pepper();
-
-        KeyStore ks = null;
-        try {
-            ks = KeyStore.getInstance(hasherConfig.keystoretype());
-            ks.load(KPCVEncoder.class.getClassLoader().getResourceAsStream(hasherConfig.keystorefile()), hasherConfig.password().toCharArray()); // TODO pull these values from a secure vault
-        } catch (NoSuchAlgorithmException | CertificateException | IOException | KeyStoreException e) {
-            log.error("Error loading keystore", e);
+        if (iterations < 10000 || iterations > 2_000_000) {
+            throw new IllegalArgumentException("Hasher iterations must be between 10000 and 2000000");
         }
-
-        KeyStore.SecretKeyEntry entry = null;
-
-        try {
-            entry = (KeyStore.SecretKeyEntry) ks.getEntry(pepperAlias, new KeyStore.PasswordProtection(hasherConfig.password().toCharArray()));
-        } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
-            log.error("Error getting key entry", e);
+        pepperAlias = UUID.fromString(hasherConfig.pepper()).toString();
+        String location = hasherConfig.keystorefile();
+        if (!location.contains(":")) {
+            location = location.startsWith("/") ? "file:" + location : "classpath:" + location;
         }
-
-        SecretKey someKey = entry.getSecretKey();
-        pepperKey = someKey.getEncoded();
-
-        try {
+        try (var input = new org.springframework.core.io.DefaultResourceLoader().getResource(location).getInputStream()) {
+            KeyStore store = KeyStore.getInstance(hasherConfig.keystoretype());
+            store.load(input, hasherConfig.password().toCharArray());
+            var entry = store.getEntry(pepperAlias, new KeyStore.PasswordProtection(hasherConfig.password().toCharArray()));
+            if (!(entry instanceof KeyStore.SecretKeyEntry secret)) {
+                throw new IllegalStateException("Configured password pepper key is missing");
+            }
+            pepperKey = secret.getSecretKey().getEncoded();
             skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512");
-        } catch (NoSuchAlgorithmException e) {
-            log.error("Algorithm PBKDF2WithHmacSHA512 not found", e);
+        } catch (GeneralSecurityException | IOException exception) {
+            throw new IllegalStateException("Cannot load configured password hashing keystore", exception);
         }
     }
 
@@ -104,6 +97,7 @@ public class KPCVEncoder {
             buffer.get(pwdHashBytes, 0, buffer.remaining());
             // get iteration count
             int iterations = ByteBuffer.wrap(iterationsBytes).getInt();
+            if (iterations < 10000 || iterations > 2_000_000 || pwdHashBytes.length != 64) return false;
 
             // make sure the pepper alias matches what the pepper alias passes in
             byte[] pepperAliasBytes = UUIDUtils.asBytes(UUID.fromString(pepperAlias));
@@ -114,7 +108,7 @@ public class KPCVEncoder {
             // generate new hash
             char[] passwordToHash = passwordToHash(plainPwd, pepperBytes);
             byte[] genHashBytes = generateHash(passwordToHash, saltBytes, iterations);
-            validated = Arrays.equals(pwdHashBytes, genHashBytes);
+            validated = MessageDigest.isEqual(pwdHashBytes, genHashBytes);
 
         } catch (Exception ex) {
             log.error("Password validation error", ex);
@@ -136,8 +130,14 @@ public class KPCVEncoder {
 
     private byte[] generateHash(char[] passwordToHash, byte[] saltBytes, int iterations) throws InvalidKeySpecException {
         PBEKeySpec spec = new PBEKeySpec(passwordToHash, saltBytes, iterations, 512);
-        SecretKey sk = skf.generateSecret(spec);
-        return sk.getEncoded();
+        try {
+            synchronized (skf) {
+                return skf.generateSecret(spec).getEncoded();
+            }
+        } finally {
+            spec.clearPassword();
+            Arrays.fill(passwordToHash, '\0');
+        }
     }
 
     public String getHashPasswordHex(String plainPassword) {
@@ -150,7 +150,7 @@ public class KPCVEncoder {
         try {
             hashPassword = hashPassword(plainPassword, iterations, pepperAlias, pepperKey);
         } catch (InvalidKeySpecException e) {
-            log.error("Error while encoding password", e);
+            throw new IllegalStateException("Could not hash password", e);
         }
 
         return hashPassword;

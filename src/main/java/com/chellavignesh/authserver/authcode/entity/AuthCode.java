@@ -26,10 +26,11 @@ public class AuthCode {
             code.setApplicationId(rs.getInt("ApplicationId"));
             code.setSessionId(UUID.fromString(rs.getString("SessionId")));
             code.setData(rs.getString("Data"));
-            code.setConsumedOn(Instant.ofEpochMilli(rs.getInt("ConsumedOn")));
+            var consumed = rs.getTimestamp("ConsumedOn", java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")));
+            code.setConsumedOn(consumed == null ? null : consumed.toInstant());
             return code;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

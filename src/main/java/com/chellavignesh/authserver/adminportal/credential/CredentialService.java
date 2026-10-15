@@ -157,7 +157,6 @@ public class CredentialService {
         return credentials;
     }
 
-    @Cacheable(cacheNames = "credential-secrets-by-app", key = "#orgId + '-' + #appId")
     public List<Credential> getAllClientSecretJwt(Integer orgId, Integer appId) {
         log.debug("Loading and decrypting secrets for application: {}:{}", orgId, appId);
         List<Credential> credentials = credentialRepository.getAll(orgId, appId, AuthFlowEnum.CLIENT_SECRET_JWT);

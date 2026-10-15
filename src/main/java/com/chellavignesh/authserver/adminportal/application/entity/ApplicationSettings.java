@@ -20,7 +20,7 @@ public class ApplicationSettings {
     private Boolean requirePkce;
     private Boolean allowPlainTextPkce;
 
-    public static ApplicationSettings fromResult(ResultSet rs) {
+    public static ApplicationSettings fromResult(ResultSet rs) throws SQLException {
         ApplicationSettings settings = new ApplicationSettings();
         try {
             settings.setOrgId(rs.getInt("OrganizationId"));
@@ -30,8 +30,8 @@ public class ApplicationSettings {
             settings.setRequireConsent(rs.getBoolean("RequireConsent"));
             settings.setRequirePkce(rs.getBoolean("RequirePkce"));
             settings.setAllowPlainTextPkce(rs.getBoolean("AllowPlainTextPkce"));
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
         return settings;
     }

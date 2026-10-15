@@ -46,8 +46,8 @@ public class Credential {
             secret.setTokenAlgorithm(AlgorithmEnum.fromInt(result.getInt("TokenAlgorithmId")));
             secret.setExpireOn(DateUtil.getISO8601Date(result.getDate("ExpireOn")));
             return secret;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

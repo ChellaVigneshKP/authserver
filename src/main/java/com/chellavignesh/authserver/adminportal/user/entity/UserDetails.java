@@ -57,16 +57,9 @@ public record UserDetails(
                 result.getString("Branding"),
                 result.getString("SecondaryPhoneNumber"),
                 UUID.fromString(result.getString("ProfileOrgGuid")),
-                getOptionalBoolean(result, "CredSyncFlag"),
-                getOptionalBoolean(result, "SyncFlag")
+                result.getBoolean("CredSyncFlag"),
+                result.getBoolean("SyncFlag")
         );
     }
 
-    private static boolean getOptionalBoolean(ResultSet rs, String columnName) throws SQLException {
-        try {
-            return rs.getBoolean(columnName);
-        } catch (SQLException _) {
-            return false;
-        }
-    }
 }

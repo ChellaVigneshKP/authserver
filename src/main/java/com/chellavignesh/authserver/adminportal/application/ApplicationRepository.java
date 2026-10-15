@@ -52,10 +52,10 @@ public class ApplicationRepository {
     public boolean exists(Integer orgId, UUID appGuid) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
-        parameters.addValue("appGuid", appGuid.toString());
+        parameters.addValue("appGuid", appGuid.toString() == null ? null : appGuid.toString().toString());
 
         Integer applicationId = this.namedParameterJdbcTemplate.queryForObject(
-                "{call dbo.ApplicationExists(:orgId, :appGuid)}",
+                "{call Client.ApplicationExists(:orgId, :appGuid)}",
                 parameters,
                 Integer.class
         );
@@ -70,7 +70,7 @@ public class ApplicationRepository {
         parameters.addValue("modifiedOn", new Date());
         parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
         namedParameterJdbcTemplate.update(
-                "{call dbo.UpdateApplicationUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
+                "{call Client.UpdateApplicationUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
                 parameters
         );
         return true;
@@ -84,6 +84,8 @@ public class ApplicationRepository {
         Integer jwsAlgorithmId;
         if (Objects.requireNonNull(dto.getAuthMethod()) == AuthFlowEnum.PRIVATE_KEY_JWT) {
             jwsAlgorithmId = AlgorithmEnum.RS256.getValue();
+        } else if (dto.getAuthMethod() == AuthFlowEnum.CLIENT_SECRET_JWT) {
+            jwsAlgorithmId = AlgorithmEnum.HS256.getValue();
         } else {
             jwsAlgorithmId = AlgorithmEnum.ES256.getValue();
         }
@@ -110,7 +112,7 @@ public class ApplicationRepository {
                     .addValue("allowForgotUsername", dto.getAllowForgotUsername())
                     .addValue("forgotUserNameSetting", forgetUserNameOT);
             Optional<Integer> appId = namedParameterJdbcTemplate.query(
-                    "{call Client.CreateApplication(:orgId, :name, :description, :uri, :applicationTypeId, :authFlowId, :jwkSetUrl, :requirePKCE, :jwsAlgorithmId, :authCodeTimeToLive, :accessTokenTimeToLive, :refreshTokenTimeToLive, :reuseRefreshTokens, :accessTokenFormatId, :deviceCodeTimeToLive, :maxRequestTransitTime, :usernameTyoe, :allowForgotUsername, :forgotUserNameSetting)}", parameters,
+                    "{call Client.CreateApplication(:orgId, :name, :description, :uri, :applicationTypeId, :authFlowId, :jwkSetUrl, :requirePKCE, :jwsAlgorithmId, :authCodeTimeToLive, :accessTokenTimeToLive, :refreshTokenTimeToLive, :reuseRefreshTokens, :accessTokenFormatId, :deviceCodeTimeToLive, :maxRequestTransitTime, :usernameType, :allowForgotUsername, :forgotUserNameSetting)}", parameters,
                     (RowMapper<Integer>) (rs, rowNum) -> rs.getInt("ID")
             ).stream().findFirst();
             if (appId.isPresent()) {
@@ -171,7 +173,7 @@ public class ApplicationRepository {
         parameters.addValue("appName", appName);
         parameters.addValue("orgId", orgId);
         return namedParameterJdbcTemplate.query(
-                "{call dbo.GetApplicationByName(:appName, :orgId)}",
+                "{call Client.GetApplicationByName(:appName, :orgId)}",
                 parameters,
                 new ApplicationRowMapper()
         ).stream().findFirst().isPresent();
@@ -179,13 +181,12 @@ public class ApplicationRepository {
 
     public Optional<Application> get(UUID appGuid) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("appGuid", appGuid.toString());
+        parameters.addValue("appGuid", appGuid.toString() == null ? null : appGuid.toString().toString());
         return namedParameterJdbcTemplate.query(
                 "{call Client.GetApplication(:appGuid)}", parameters, new ApplicationRowMapper()
         ).stream().findFirst();
     }
 
-    @Cacheable("application-get-by-id")
     public Optional<Application> getById(Integer appId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("appId", appId);
@@ -200,7 +201,6 @@ public class ApplicationRepository {
         logger.trace("Evicting cache for application-get-by-id");
     }
 
-    @Cacheable("application-get-detail-by-id")
     public Optional<ApplicationDetail> getApplicationDetailById(Integer appId) {
         var storeProc = new GetApplicationDetailProcedure(namedParameterJdbcTemplate.getJdbcTemplate().getDataSource());
         Map<String, Object> results = storeProc.execute(appId);
@@ -220,7 +220,6 @@ public class ApplicationRepository {
         logger.trace("Evicting cache for application-get-detail-by-id");
     }
 
-    @Cacheable("application-get-by-client-id")
     public Optional<Application> getByClientId(String clientId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("clientId", clientId);
@@ -238,10 +237,10 @@ public class ApplicationRepository {
     public boolean inactivateApplication(Integer orgId, Integer appId, Boolean active) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
-        parameters.addValue("appGuid", appId);
+        parameters.addValue("appId", appId);
         parameters.addValue("active", active);
         namedParameterJdbcTemplate.update(
-                "{call dbo.UpdateApplicationActivation(:orgId, :appId, :active)}",
+                "{call Client.UpdateApplicationActivation(:orgId, :appId, :active)}",
                 parameters
         );
         return true;
@@ -251,13 +250,12 @@ public class ApplicationRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
         return namedParameterJdbcTemplate.query(
-                "{call dbo.GetApplications(:orgId)}",
+                "{call Client.GetApplications(:orgId)}",
                 parameters,
                 new ApplicationRowMapper()
         );
     }
 
-    @Cacheable("application-get-settings-by-application-id")
     public ApplicationSettings getSettingsByApplicationId(Integer appId) throws AppSettingsNotFoundException {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("appId", appId);
@@ -274,7 +272,6 @@ public class ApplicationRepository {
         logger.trace("Evicting cache for application-get-settings-by-application-id");
     }
 
-    @Cacheable("application-get-redirect-uris")
     public Set<String> getApplicationRedirectUris(Integer appId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("appId", appId);
@@ -291,7 +288,6 @@ public class ApplicationRepository {
         logger.trace("Evicting cache for application-get-redirect-uris");
     }
 
-    @Cacheable("application-get-logout-redirect-uris")
     public Set<String> getApplicationLogoutRedirectUris(Integer appId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("appId", appId);
@@ -340,7 +336,7 @@ public class ApplicationRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
         parameters.addValue("appId", appId);
-        parameters.addValue("resourceLibraryGuid", resourceLibraryGuid);
+        parameters.addValue("resourceLibraryGuid", resourceLibraryGuid == null ? null : resourceLibraryGuid.toString());
         return namedParameterJdbcTemplate.query(
                 "{call Resource.GetResource(:orgId, :appId, :resourceLibraryGuid)}", parameters, new ResourceRowMapper()
         ).stream().findFirst();
@@ -366,12 +362,11 @@ public class ApplicationRepository {
         ).stream().findFirst().isPresent();
     }
 
-    @Cacheable("application-get-all-assigned-resources-by-client-id")
     public List<ApplicationResource> getAllAssignedResourcesByClientId(String clientId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("clientId", clientId);
         return namedParameterJdbcTemplate.query(
-                "{call Client.getAllResourcesByClientId(:clientId)}",
+                "{call Resource.getAllResourcesByClientId(:clientId)}",
                 parameters,
                 new ApplicationResourceRowMapper()
         );
@@ -387,7 +382,7 @@ public class ApplicationRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("appId", appId);
         return namedParameterJdbcTemplate.query(
-                "{call Client.getAllResourcesByAppId(:appId)}",
+                "{call Resource.getAllResourcesByAppId(:appId)}",
                 parameters,
                 new ApplicationResourceRowMapper()
         );

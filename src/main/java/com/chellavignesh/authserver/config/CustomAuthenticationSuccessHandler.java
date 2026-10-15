@@ -83,6 +83,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
+        session.setAttribute(ApplicationConstants.AUTHENTICATED_BRANDING, branding);
+
         session.setAttribute(ApplicationConstants.LAST_LOGIN, userDetails.getLastLogin());
 
         AuthSession authSession = createAuthSession(session, savedRequest, userDetails.getUsername());
@@ -123,6 +125,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             Authentication preAuth = new UsernamePasswordAuthenticationToken(userDetails, authentication.getCredentials(), authorities);
 
             SecurityContextHolder.getContext().setAuthentication(preAuth);
+            new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                    .saveContext(SecurityContextHolder.getContext(), request, response);
 
             String targetUrl;
             if (!useUpdatedLogin) {
@@ -188,13 +192,14 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
 
     @Nullable
     private byte[] getClientFingerprint(HttpSession session) {
-        byte[] fingerprint = null;
-        try {
-            fingerprint = Base64.getDecoder().decode((String) session.getAttribute(ApplicationConstants.CLIENT_FINGERPRINT));
-        } catch (Exception e) {
-            log.error("Could not decode client fingerprint", e);
+        Object fingerprint = session.getAttribute(ApplicationConstants.CLIENT_FINGERPRINT);
+        if (fingerprint instanceof byte[] bytes) return bytes.clone();
+        // Jackson's session serializer represents a standalone byte array as Base64.
+        if (fingerprint instanceof String encoded) {
+            try { return Base64.getDecoder().decode(encoded); }
+            catch (IllegalArgumentException exception) { return null; }
         }
-        return fingerprint;
+        return null;
     }
 
     private String getParameter(Map<String, String[]> params, String name) throws BadRequestException{
@@ -209,10 +214,11 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         Cookie cookie = new Cookie(ApplicationConstants.SSO_COOKIE_NAME, Base64.getEncoder().encodeToString(encryptedSessionId));
 
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure("https".equalsIgnoreCase(brandUrlMappingService.getUrlByBrand((String) session.getAttribute(ApplicationConstants.BRANDING_INFO)).getScheme()));
+        cookie.setPath(java.net.URI.create(brandUrlMappingService.getUrlByBrand((String) session.getAttribute(ApplicationConstants.BRANDING_INFO)).toString()).getPath());
         cookie.setAttribute("SameSite", "Strict");
 
-        cookie.setDomain(brandUrlMappingService.getUrlByBrand((String) session.getAttribute(ApplicationConstants.BRANDING_INFO)).getHost());
+        // Host-only cookie; tenant host is selected by the browser origin.
         return cookie;
     }
 

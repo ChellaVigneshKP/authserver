@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.access.common.PatternLayoutEncoder">
+            <!-- Query strings can contain authorization codes and logout ID tokens. -->
+            <pattern>%h %l %u %t "%m %U %H" %s %b%n</pattern>
+        </encoder>
+    </appender>
+    <appender-ref ref="console"/>
+</configuration>

@@ -22,13 +22,13 @@ public class Profile {
     public static Profile fromResult(ResultSet result) throws SQLException {
         try {
             Profile profile = new Profile();
-            profile.setId(result.getInt("OrganizationId"));
+            profile.setId(result.getInt("ProfileId"));
             profile.setName(result.getString("Name"));
             profile.setEmail(result.getString("Email"));
             profile.setPhoneNumber(result.getString("PhoneNumber"));
             return profile;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

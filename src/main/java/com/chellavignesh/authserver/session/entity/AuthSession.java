@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,14 +30,15 @@ public class AuthSession {
     private String branding;
     private String redirectUri;
 
-    public static AuthSession fromResult(ResultSet result) {
-        try {
+    public static AuthSession fromResult(ResultSet result) throws SQLException {
             AuthSession authSession = new AuthSession();
             authSession.setAuthSessionId(result.getInt("AuthSessionId"));
             authSession.setApplicationId(result.getInt("ApplicationId"));
             authSession.setSessionId(UUID.fromString(result.getString("SessionId")));
             authSession.setSubjectId(result.getString("SubjectId"));
-            authSession.setScopes(new HashSet<>(List.of(result.getString("Scope").split(" "))));
+            String scope = result.getString("Scope");
+            authSession.setScopes(scope == null || scope.isBlank() ? Set.of()
+                    : Arrays.stream(scope.trim().split("\\s+")).collect(Collectors.toSet()));
             authSession.setAuthSessionStatus(AuthSessionStatusEnum.fromInt(result.getInt("AuthSessionStatusId")));
             authSession.setAuthFlow(AuthFlowEnum.fromInt(result.getInt("AuthFlowId")));
             authSession.setClientFingerprint(result.getBytes("ClientFingerprint"));
@@ -44,10 +48,6 @@ public class AuthSession {
             log.debug("[SESSION-DEBUG] AuthSession loaded → sessionId: {}, applicationId: {}, redirectUri: {}, branding: {}",
                     authSession.getSessionId(), authSession.getApplicationId(), redirectUri, authSession.getBranding());
             return authSession;
-        } catch (Exception ex) {
-            log.error("Failed to create AuthSession from ResultSet: {}", ex.getMessage());
-            return null;
-        }
     }
 }
 

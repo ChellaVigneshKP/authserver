@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local development credentials, databases and downloaded build tools
+.local/
+.superpowers/
+
+__pycache__/
+*.pyc

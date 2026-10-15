@@ -41,7 +41,7 @@ public class Organization {
             ));
             return organization;
         } catch (SQLException e) {
-            return null;
+            throw e;
         }
     }
 

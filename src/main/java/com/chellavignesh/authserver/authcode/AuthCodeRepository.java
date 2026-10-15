@@ -28,14 +28,15 @@ public class AuthCodeRepository {
         var parameters = new MapSqlParameterSource()
                 .addValue("applicationId", dto.getApplicationId())
                 .addValue("sessionId", dto.getSessionId())
-                .addValue("data", dto.getData());
+                .addValue("data", dto.getData())
+                .addValue("expiresAt", dto.getExpiration() == null ? null : java.time.LocalDateTime.ofInstant(dto.getExpiration(), java.time.ZoneOffset.UTC), java.sql.Types.TIMESTAMP);
         Optional<Integer> authCodeId = jdbcTemplate.query(
-                "{call Token.CreateAuthCode(:applicationId, :sessionId, :data)}", parameters,
+                "{call Token.CreateAuthCode(:applicationId, :sessionId, :data, :expiresAt)}", parameters,
                 (rs, _) -> rs.getInt("ID")
         ).stream().findFirst();
 
         if (authCodeId.isPresent()) {
-            return getById(authCodeId.get()).get();
+            return getById(authCodeId.get()).orElseThrow(() -> new AuthCodeCreationFailedException("Created code is missing"));
         } else {
             throw new AuthCodeCreationFailedException("Failed to create auth code");
         }

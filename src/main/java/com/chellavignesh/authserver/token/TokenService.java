@@ -61,6 +61,14 @@ public class TokenService {
         return tokenRepository.create(dto);
     }
 
+    public Token create(CreateTokenDto dto, Instant issuedAt, Instant expiresAt, Set<String> scopes) throws TokenCreationFailedException {
+        return tokenRepository.create(dto, issuedAt, expiresAt, scopes);
+    }
+
+    public void consume(Integer id) {
+        tokenRepository.consume(id);
+    }
+
     // ============================================
     // TOKEN LOOKUP
     // ============================================
@@ -89,8 +97,14 @@ public class TokenService {
         var attributes = new HashMap<String, Object>();
 
         // Treat null expiration as expired
-        AuthSession session = authSessionService.getBySessionId(token.getSessionId()).orElseThrow();   // TODO: This should be handled better
+        AuthSession session = authSessionService.getBySessionId(token.getSessionId()).orElse(null);
+        if (session == null) {
+            attributes.put("active", false);
+            return attributes;
+        }
         if (isTokenActive(token, session)) {
+            // OAuth tokens retain their own scopes, including a narrowed refresh grant.
+            if (token.getScopes() != null) session.setScopes(token.getScopes());
             Integer applicationId;
             RegisteredClient client;
             Application application;
@@ -101,6 +115,11 @@ public class TokenService {
                 application = applicationService.getById(applicationId).get();
                 client = applicationService.getRegisteredClientById(applicationId);
                 organization = organizationService.getById(application.getOrgId()).get();
+                if (client == null || !Boolean.TRUE.equals(application.getActive())
+                        || organization.getStatus() != com.chellavignesh.authserver.adminportal.organization.OrganizationStatus.ACTIVE) {
+                    attributes.put("active", false);
+                    return attributes;
+                }
 
             } catch (AppNotFoundException e) {
                 throw new RuntimeException(e);  // TODO: Handle better
@@ -122,7 +141,7 @@ public class TokenService {
             // Subject-level claims
             if (!Objects.equals(session.getSubjectId(), client.getId())) {
                 addUserClaims(attributes, session.getScopes(), session.getSubjectId(), client.getId(), session.getBranding());
-                if (!session.getBranding().equals("idp")) {
+                if (!"idp".equals(session.getBranding())) {
                     attributes.put("org_guid", organization.getRowGuid());
                 }
             } else {
@@ -142,7 +161,8 @@ public class TokenService {
     // ============================================
 
     public boolean isTokenActive(Token token, AuthSession session) {
-        return token.getExpiration() != null
+        return token.getConsumedOn() == null
+                && token.getExpiration() != null
                 && token.getExpiration().toInstant().isAfter(Instant.now())
                 && AuthSessionStatusEnum.ACTIVE.equals(session.getAuthSessionStatus());
     }
@@ -193,9 +213,7 @@ public class TokenService {
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("uuid_member_id", user.rowGuid());
 
-        Optional<UserCredentials> credentials = userService.getCredentialsByUsername(user.username());
-
-        credentials.ifPresent(creds -> metadata.put("uuid_login_id", creds.getRowGuid()));
+        metadata.put("uuid_login_id", user.loginId());
 
         try {
             metadata.putAll(userService.getMetadata(user.rowGuid()));

@@ -25,11 +25,11 @@ public class UserCredentials {
             userCredentials.setId(result.getInt("Id"));
             userCredentials.setProfileId(result.getInt("ProfileId"));
             userCredentials.setUsername(result.getString("Username"));
-            userCredentials.setPassword(result.getString("Password"));
+            userCredentials.setPassword(java.util.HexFormat.of().withUpperCase().formatHex(result.getBytes("Password")));
             userCredentials.setRowGuid(UUID.fromString(result.getString("RowGuid")));
             return userCredentials;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

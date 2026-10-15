@@ -128,6 +128,7 @@ public class RegisteredClientRedisSerializer implements RedisSerializer<Register
         dto.setAuthorizationCodeTimeToLive(ts.getAuthorizationCodeTimeToLive());
         dto.setDeviceCodeTimeToLive(ts.getDeviceCodeTimeToLive());
         dto.setReuseRefreshTokens(ts.isReuseRefreshTokens());
+        dto.setMaxRequestTransitTime(ts.getSetting("max_request_transit_time"));
 
         if (ts.getAccessTokenFormat() != null) {
             dto.setAccessTokenFormat(ts.getAccessTokenFormat().getValue());
@@ -169,7 +170,8 @@ public class RegisteredClientRedisSerializer implements RedisSerializer<Register
         ClientSettings.Builder csb = ClientSettings.builder()
                 .requireProofKey(dto.isRequireProofKey())
                 .requireAuthorizationConsent(dto.isRequireAuthorizationConsent())
-                .jwkSetUrl(dto.getJwkSetUrl());
+                ;
+        if (dto.getJwkSetUrl() != null) csb.jwkSetUrl(dto.getJwkSetUrl());
 
         if (dto.getTokenEndpointAuthSigningAlgorithm() != null) {
             SignatureAlgorithm alg =
@@ -200,6 +202,9 @@ public class RegisteredClientRedisSerializer implements RedisSerializer<Register
             }
         }
 
+        if (dto.getMaxRequestTransitTime() != null) {
+            tsb.setting("max_request_transit_time", dto.getMaxRequestTransitTime());
+        }
         builder.tokenSettings(tsb.build());
 
         return builder.build();
@@ -233,6 +238,7 @@ public class RegisteredClientRedisSerializer implements RedisSerializer<Register
         private boolean reuseRefreshTokens;
         private String accessTokenFormat;
         private String idTokenSignatureAlgorithm;
+        private Integer maxRequestTransitTime;
     }
 }
 

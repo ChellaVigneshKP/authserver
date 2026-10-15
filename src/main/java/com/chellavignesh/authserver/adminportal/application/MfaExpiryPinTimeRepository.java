@@ -23,7 +23,7 @@ public class MfaExpiryPinTimeRepository {
         parameters.addValue("sessionId", sessionId);
 
         return namedParameterJdbcTemplate.queryForObject(
-                "{call Client.GetMfaExpiryPinTimeV2(:pinTimeToLive, :sessionId)}",
+                "{call Client.GetMfaExpiryPinTimeV2(:sessionId, :pinTimeToLive)}",
                 parameters,
                 (rs, _) -> MfaExpiry.fromResult(rs)
         );

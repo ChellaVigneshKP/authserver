@@ -453,7 +453,7 @@ public class MFAController {
             case LOGIN_FLOW:
                 userService.updateAccessFailedCountWithExternalSourceCode(authentication.getName(), brand, 1);
 
-                updateAuthentication(authentication, true);
+                updateAuthentication(authentication, true, request, response);
 
                 SavedRequest savedRequest = requestCache.getRequest(request, response);
 
@@ -493,11 +493,12 @@ public class MFAController {
 
 
     boolean isUserAuthenticated(Authentication authentication) {
-        return authentication.isAuthenticated() || authentication.getAuthorities().contains(new PreAuthGrantedAuthority());
+        return authentication != null && (authentication.isAuthenticated() || authentication.getAuthorities().contains(new PreAuthGrantedAuthority()));
     }
 
 
-    void updateAuthentication(Authentication authentication, boolean isAuthenticated) {
+    void updateAuthentication(Authentication authentication, boolean isAuthenticated,
+            HttpServletRequest request, HttpServletResponse response) {
         // Remove temporary granted authority from the Authorization
         List<GrantedAuthority> updatedAuthorities = authentication.getAuthorities().stream().filter(authority -> !authority.equals(new PreAuthGrantedAuthority())).collect(Collectors.toList());
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -511,6 +512,8 @@ public class MFAController {
         }
 
         SecurityContextHolder.getContext().setAuthentication(newAuth);
+        new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                .saveContext(SecurityContextHolder.getContext(), request, response);
     }
 
 
@@ -664,6 +667,12 @@ public class MFAController {
     public String handleInvalidUserSessionException(InvalidUserSessionException e) {
         log.error("Invalid user session in MFA Flow: {}", e.getMessage());
         return "pages/404";
+    }
+
+    @ExceptionHandler({FactorRetrievalFailedException.class})
+    public org.springframework.http.ResponseEntity<String> handleUnavailableVerification() {
+        return org.springframework.http.ResponseEntity.status(503)
+                .body("Verification is temporarily unavailable. Please try again later.");
     }
 
 }

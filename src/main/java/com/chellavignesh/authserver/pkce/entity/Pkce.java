@@ -32,12 +32,12 @@ public class Pkce {
             pkce.setData(rs.getString("Data"));
             pkce.setAlgorithm(rs.getString("Algorithm"));
             pkce.setRedirectUri(rs.getString("RedirectUri"));
-            pkce.setCreatedOn(rs.getDate("CreatedOn"));
-            pkce.setExpiration(rs.getDate("Expiration"));
-            pkce.setConsumedOn(rs.getDate("ConsumedOn"));
+            pkce.setCreatedOn(rs.getTimestamp("CreatedOn", java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))));
+            pkce.setExpiration(rs.getTimestamp("Expiration", java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))));
+            pkce.setConsumedOn(rs.getTimestamp("ConsumedOn", java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))));
             return pkce;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

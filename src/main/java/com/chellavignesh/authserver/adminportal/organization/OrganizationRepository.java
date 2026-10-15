@@ -79,8 +79,6 @@ public class OrganizationRepository {
         ).stream().findFirst();
     }
 
-
-    @Cacheable("organization-get-by-id")
     public Optional<Organization> getById(Integer orgId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);

@@ -142,7 +142,12 @@ public class LoginController {
             }
         }
 
-        Application application = forgotPasswordService.checkClientId(clientId).get();
+        if (clientId == null || clientId.isBlank()) {
+            model.addAttribute("message", "Start sign in from your application so that the client and branding can be validated.");
+            return "pages/404";
+        }
+        Application application = forgotPasswordService.checkClientId(clientId)
+                .orElseThrow(() -> new AppNotFoundException("Application not found"));
 
         if (application != null) {
             UsernameTypeEnum usernameType = application.getUsernameType();
@@ -205,9 +210,9 @@ public class LoginController {
         Cookie cookie = new Cookie(ApplicationConstants.SSO_COOKIE_NAME, "");
         cookie.setHttpOnly(true);
         cookie.setMaxAge(0);
-        cookie.setSecure(true);
+        cookie.setSecure("https".equalsIgnoreCase(brandUrlMappingService.getUrlByBrand(branding).getScheme()));
+        cookie.setPath(request.getContextPath().isEmpty() ? "/" : request.getContextPath());
         cookie.setAttribute(COOKIE_SAME_SITE_ATTR, "strict");
-        cookie.setDomain(brandUrlMappingService.getUrlByBrand(branding).getHost());
         response.addCookie(cookie);
 
         // Banner
@@ -222,7 +227,7 @@ public class LoginController {
         model.addAttribute("loginBannerHTML", cmsData.getOrDefault("loginBannerHTML", ""));
 
         // Intro content
-        if (!branding.contains("able") || (application.getCmsContext() != null && application.getCmsContext().equals("entity"))) {
+        if (branding == null || !branding.contains("able") || (application.getCmsContext() != null && application.getCmsContext().equals("entity"))) {
 
             model.addAttribute("intro", Map.of("items", List.of(cmsData.getOrDefault("loginContent1", ""), cmsData.getOrDefault("loginContent2", ""), cmsData.getOrDefault("loginContent3", "")), "logo", cmsData.getOrDefault("loginLogoPath", ""), "summary", cmsData.getOrDefault("loginContentA", ""), "title", cmsData.getOrDefault("loginTitleA", "")));
         } else {
@@ -251,7 +256,7 @@ public class LoginController {
         // Regular expression to find href attribute
         Pattern pattern = Pattern.compile("href=['\"](.*?)['\"]");
         Matcher matcher = pattern.matcher(htmlString);
-        String pParameter = String.format("p=%s", p);
+        String pParameter = "p=" + java.net.URLEncoder.encode(p, StandardCharsets.UTF_8);
 
         if (matcher.find()) {
             String url = matcher.group(1);
@@ -265,7 +270,12 @@ public class LoginController {
     }
 
     public boolean containsBurlInPParameter(String p) {
-        byte[] decoded = Base64.getDecoder().decode(p);
+        byte[] decoded;
+        try {
+            decoded = Base64.getDecoder().decode(p);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
         String decodedStr = new String(decoded, StandardCharsets.UTF_8);
 
         String[] splitStr = decodedStr.split("&");

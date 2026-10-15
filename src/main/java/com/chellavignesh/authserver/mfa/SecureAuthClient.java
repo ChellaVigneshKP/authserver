@@ -50,6 +50,11 @@ public class SecureAuthClient {
         Map<String, String> clientDetails = clientDetailsService.getClientDetails(realmId);
         String clientId = clientDetails.get(ClientDetailsService.CLIENT_ID);
         String clientSecret = clientDetails.get(ClientDetailsService.CLIENT_SECRET);
+        if (!org.springframework.util.StringUtils.hasText(baseUrl)
+                || !org.springframework.util.StringUtils.hasText(clientId)
+                || !org.springframework.util.StringUtils.hasText(clientSecret)) {
+            throw new SecureAuthException("MFA provider is not configured for this realm");
+        }
 
         String dttm = getCurrentDateTimeGMT();
         String path = realm + endpoint;

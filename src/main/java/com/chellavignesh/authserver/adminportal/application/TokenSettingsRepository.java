@@ -35,15 +35,16 @@ public class TokenSettingsRepository {
         var parameters = new MapSqlParameterSource()
                 .addValue("orgId", orgId)
                 .addValue("appId", appId)
-                .addValue("authCodeTimeToLive", settingsDto.getAccessTokenTimeToLive())
+                .addValue("authCodeTimeToLive", settingsDto.getAuthCodeTimeToLive())
                 .addValue("accessTokenTimeToLive", settingsDto.getAccessTokenTimeToLive())
                 .addValue("refreshTokenTimeToLive", settingsDto.getRefreshTokenTimeToLive())
                 .addValue("reuseRefreshTokens", settingsDto.getReuseRefreshTokens())
                 .addValue("accessTokenFormatId", accessTokenFormatId.getValue())
+                .addValue("deviceCodeTimeToLive", settingsDto.getDeviceCodeTimeToLive())
                 .addValue("maxRequestTransitTime", settingsDto.getMaxRequestTransitTime());
 
         Optional<Integer> tsId = namedParameterJdbcTemplate.query(
-                "{call Client.CreateTokenSetting(:orgId, :appId, :authCodeTimeToLive, :accessTokenTimeToLive, :refreshTokenTimeToLive, :reuseRefreshTokens, :accessTokenFormatId, :maxRequestTransitTime)}", parameters,
+                "{call Client.CreateTokenSetting(:orgId, :appId, :authCodeTimeToLive, :accessTokenTimeToLive, :refreshTokenTimeToLive, :reuseRefreshTokens, :accessTokenFormatId, :deviceCodeTimeToLive, :maxRequestTransitTime)}", parameters,
                 (rs, rowNum) -> rs.getInt("ID")
         ).stream().findFirst();
 
@@ -55,7 +56,7 @@ public class TokenSettingsRepository {
     }
 
     @Caching(evict = {
-            @CacheEvict(cacheNames = {"token-settings-get-for-app", "registered-client-by-client-id"}, key = "#appId"),
+            @CacheEvict(cacheNames = {"token-settings-get-for-app", "registered-client-by-client-id"}, allEntries = true),
             @CacheEvict(cacheNames = "token-settings-get-by-id", allEntries = true)
     })
     public boolean updateSettings(Integer orgId, Integer appId, UpdateTokenSettingsDto settingsDto) {
@@ -79,7 +80,6 @@ public class TokenSettingsRepository {
         return true;
     }
 
-    @Cacheable("token-settings-get-for-app")
     public Optional<TokenSettings> getForApp(Integer orgId, Integer appId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
@@ -91,7 +91,6 @@ public class TokenSettingsRepository {
         ).stream().findFirst();
     }
 
-    @Cacheable("token-settings-get-by-id")
     public Optional<TokenSettings> getById(Integer tokenSettingId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("tokenSettingId", tokenSettingId);
@@ -107,7 +106,7 @@ public class TokenSettingsRepository {
         paramters.addValue("orgId", orgId);
         paramters.addValue("appId", appId);
         List<Integer> tokenSettingIdList = namedParameterJdbcTemplate.queryForList(
-                "{call dbo.TokenSettingExistsForApp(:orgId, :appId)}",
+                "{call Client.TokenSettingExistsForApp(:orgId, :appId)}",
                 paramters,
                 Integer.class
         );

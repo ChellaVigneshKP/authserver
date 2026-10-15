@@ -23,7 +23,7 @@ public class TokenSettings {
     private Boolean reuseRefreshTokens;
     private Integer maxRequestTransitTime;
 
-    public static TokenSettings fromResult(ResultSet result) {
+    public static TokenSettings fromResult(ResultSet result) throws SQLException {
         TokenSettings settings = new TokenSettings();
         try {
             settings.setId(result.getInt("TokenSettingId"));
@@ -35,8 +35,8 @@ public class TokenSettings {
             settings.setRefreshTokenTimeToLive(result.getInt("RefreshTokenTimeToLive"));
             settings.setReuseRefreshTokens(result.getBoolean("ReuseRefreshTokens"));
             settings.setMaxRequestTransitTime(result.getInt("MaxRequestTransitTime"));
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
         return settings;
     }

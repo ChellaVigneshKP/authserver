@@ -118,7 +118,7 @@ public class SpringSecurityConfig {
                 // OAuth2 resource server
                 .oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(opaque -> opaque.introspector(tokenIntrospector)))
 
-                .csrf(AbstractHttpConfigurer::disable).httpBasic(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/oauth2/**", "/userinfo")).httpBasic(AbstractHttpConfigurer::disable)
                 .httpBasic(HttpBasicConfigurer::disable)
 
                 .formLogin(login -> login.loginPage("/login")

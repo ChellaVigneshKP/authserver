@@ -189,7 +189,6 @@ public class ApplicationService {
         return applicationToRegisteredClient(application, 0);
     }
 
-    @Cacheable(cacheNames = "registered-client-by-client-id", key = "#clientId")
     public RegisteredClient getRegisteredClientByClientId(String clientId) throws AppNotFoundException {
         log.trace("Fetching registered client for client ID: {}", clientId);
         try {
@@ -230,7 +229,7 @@ public class ApplicationService {
 
     private RegisteredClient applicationToRegisteredClient(Application application, int activeSecretNumber) {
         log.trace("Creating registered client for application ID: {} for client ID:{}", application.getId(), application.getClientId());
-        if (!isOrganizationActive(application)) {
+        if (!Boolean.TRUE.equals(application.getActive()) || !isOrganizationActive(application)) {
             log.error("Organization with ID: {} is inactive", application.getOrgId());
             return null;
         }
@@ -262,6 +261,9 @@ public class ApplicationService {
         }
 
         String clientSecret = getClientSecret(application, activeSecretNumber);
+        if (application.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT && clientSecret == null) {
+            return null; // A confidential client must have a live configured secret.
+        }
         ClientSettings.Builder clientSettingsBuilder = ClientSettings.builder();
         if (settings.getRequirePkce() && settings.getJWSAlgorithm() == null) {
             log.trace("Application with ID: {} does not support PKCE", application.getId());
@@ -305,6 +307,8 @@ public class ApplicationService {
                         .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
                         //TODO: Set key for signing outgoing JWTs
                         .idTokenSignatureAlgorithm(SignatureAlgorithm.RS256)
+                        .authorizationCodeTimeToLive(Duration.ofSeconds(tokenSettings.getAuthCodeTimeToLive()))
+                        .reuseRefreshTokens(Boolean.TRUE.equals(tokenSettings.getReuseRefreshTokens()))
                         .accessTokenTimeToLive(Duration.ofSeconds(tokenSettings.getAccessTokenTimeToLive()))
                         .deviceCodeTimeToLive(Duration.ofSeconds(tokenSettings.getDeviceCodeTimeToLive()))
                         .refreshTokenTimeToLive(Duration.ofSeconds(tokenSettings.getRefreshTokenTimeToLive()))
@@ -351,24 +355,15 @@ public class ApplicationService {
     }
 
     private String getClientSecret(Application application, int activeSecretNumber) {
-        String clientSecret = "ThisIsASecretKeyThatIsAtleast32CharactersLong";
-        if (application.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT && activeSecretNumber > 0) {
-            List<Credential> credentials = credentialService.getAllClientSecretJwt(application.getOrgId(), application.getId());
-            int i = 1;
-            for (Credential credential : credentials) {
-                if (credential.getCredentialStatus() == CredentialStatus.Active) {
-                    if (checkIfExpire(credential)) {
-                        return null;
-                    }
-                    clientSecret = credential.getValue();
-                    if (i == activeSecretNumber) {
-                        break;
-                    }
-                    i++;
-                }
-            }
+        if (application.getAuthFlow() != AuthFlowEnum.CLIENT_SECRET_JWT) {
+            return null;
         }
-        return clientSecret;
+        int slot = Math.max(1, activeSecretNumber);
+        return credentialService.getAllClientSecretJwt(application.getOrgId(), application.getId()).stream()
+                .filter(credential -> credential.getCredentialStatus() == CredentialStatus.Active)
+                .filter(credential -> !checkIfExpire(credential))
+                .filter(credential -> credential.getValue() != null && !credential.getValue().isBlank())
+                .skip(slot - 1L).map(Credential::getValue).findFirst().orElse(null);
     }
 
     private boolean checkIfExpire(Credential credential) {

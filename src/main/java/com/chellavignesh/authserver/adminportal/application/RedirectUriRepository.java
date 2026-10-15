@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -31,6 +32,7 @@ public class RedirectUriRepository {
         return true;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public boolean createRedirectUris(Integer orgId, Integer appId, List<String> uris) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);

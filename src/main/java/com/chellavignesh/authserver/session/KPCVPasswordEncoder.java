@@ -18,8 +18,8 @@ public class KPCVPasswordEncoder implements PasswordEncoder {
     public String encode(CharSequence rawPassword) {
         String password = rawPassword != null ? new String(Base64.getDecoder().decode(rawPassword.toString())) : null;
 
-        // Spring needs the encoded password to be prefixed with the ID of the encoder used
-        return "{" + ENCODER_ID + "}" + passwordHasher.getHashPasswordHex(password);
+        // DelegatingPasswordEncoder adds the version prefix exactly once.
+        return passwordHasher.getHashPasswordHex(password);
     }
 
     @Override

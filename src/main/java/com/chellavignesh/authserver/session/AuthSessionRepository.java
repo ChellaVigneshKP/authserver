@@ -8,7 +8,7 @@ import com.chellavignesh.authserver.session.exception.FailedToUpdateSessionExcep
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -36,13 +36,13 @@ public class AuthSessionRepository {
         if (dto.getClientFingerprint() != null) {
             parameters.addValue("clientFingerprint", dto.getClientFingerprint());
         } else {
-            parameters.addValue("clientFingerprint", null, Types.NULL);
+            parameters.addValue("clientFingerprint", null, Types.VARBINARY);
         }
 
         Optional<Integer> sessionId = jdbcTemplate.query("{call Token.CreateAuthSession(:applicationId, :subjectId, :scope, :authFlowId, :clientFingerprint, :clientId, :branding)}", parameters, (rs, rowNum) -> rs.getInt("ID")).stream().findFirst();
 
         if (sessionId.isPresent()) {
-            return getById(sessionId.get()).get();
+            return getById(sessionId.get()).orElseThrow(() -> new AuthSessionCreationFailedException("Created session is missing"));
         }
 
         throw new AuthSessionCreationFailedException("Could not fetch newly created AuthSession by ID.");
@@ -52,7 +52,6 @@ public class AuthSessionRepository {
         return jdbcTemplate.query("{call Token.GetAuthSessionById(:id)}", new MapSqlParameterSource("id", id), new AuthSessionRowMapper()).stream().findFirst();
     }
 
-    @Cacheable("session-get-by-session-id")
     public Optional<AuthSession> getBySessionId(UUID sessionId) {
         return jdbcTemplate.query("{call Token.GetAuthSessionBySessionId(:sessionId)}", new MapSqlParameterSource("sessionId", sessionId.toString()), new AuthSessionRowMapper()).stream().findFirst();
     }

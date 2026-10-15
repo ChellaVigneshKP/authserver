@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Types;
 import java.util.Date;
@@ -39,11 +40,12 @@ public class UserRepository {
 
     public Optional<Profile> getProfile(UUID profileGuid) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("profileGuid", profileGuid);
+        parameters.addValue("profileGuid", profileGuid == null ? null : profileGuid.toString());
 
         return namedParameterJdbcTemplate.query("{call Person.GetProfile(:profileGuid)}", parameters, new ProfileRowMapper()).stream().findFirst();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public User create(CreateUserDto dto, String hashPassword, Integer version, int groupId, UUID externalId, int disallowedRecentPasswordCount) throws UserCreationFailedException {
 
         log.debug("Creating user in the database with syncFlag: {}", dto.getSyncFlag());
@@ -55,17 +57,17 @@ public class UserRepository {
                 .addValue("username", dto.getUsername())
                 .addValue("email", dto.getEmail())
                 .addValue("phoneNumber", dto.getPhoneNumber())
-                .addValue("password", hashPassword, Types.VARBINARY)
+                .addValue("password", java.util.HexFormat.of().parseHex(hashPassword), Types.VARBINARY)
                 .addValue("version", version)
                 .addValue("groupId", groupId)
-                .addValue("memberId", dto.getMemberId())
-                .addValue("loginId", dto.getLoginId())
-                .addValue("externalId", externalId)
+                .addValue("memberId", dto.getMemberId() == null ? null : dto.getMemberId().toString())
+                .addValue("loginId", dto.getLoginId() == null ? null : dto.getLoginId().toString())
+                .addValue("externalId", externalId == null ? null : externalId.toString())
                 .addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber())
                 .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount)
                 .addValue("syncFlag", dto.getSyncFlag());
 
-        log.debug("Creating user in the database with parameters: {}", parameters);
+        // Do not log credential parameters.
 
         Optional<Integer> appId = namedParameterJdbcTemplate.query(
                 "{call Person.CreateUser(" + ":orgId," + ":firstName," + ":lastName," + ":username," + ":password," + ":version," + ":groupId," + ":email," + ":phoneNumber," + ":memberId," + ":loginId," + ":externalId," + ":secondaryPhoneNumber," + ":disallowedRecentPasswordCount," + ":syncFlag" + ")}",
@@ -100,7 +102,7 @@ public class UserRepository {
             throw new UserNotFoundException("User does not exist.");
         }
 
-        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName()).addValue("title", dto.getTitle()).addValue("middleInitial", dto.getMiddleInitial()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("suffix", dto.getSuffix() != null ? dto.getSuffix().getValue() : 0).addValue("memberId", dto.getMemberId()).addValue("loginId", dto.getLoginId()).addValue("modifiedOn", new Date()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber());
+        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName()).addValue("title", dto.getTitle()).addValue("middleInitial", dto.getMiddleInitial()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("suffix", dto.getSuffix() != null ? dto.getSuffix().getValue() : 0).addValue("memberId", dto.getMemberId() == null ? null : dto.getMemberId().toString()).addValue("loginId", dto.getLoginId() == null ? null : dto.getLoginId().toString()).addValue("modifiedOn", new Date()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber());
 
         Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfile(" + ":userGuid," + ":firstName," + ":lastName," + ":title," + ":middleInitial," + ":phoneNumber," + ":suffix," + ":memberId," + ":loginId," + ":modifiedOn," + ":modifiedBy," + ":secondaryPhoneNumber" + ")}",
                 parameters,
@@ -123,11 +125,11 @@ public class UserRepository {
 
         log.debug("Updating user in the database with userGuid: {}", userGuid);
 
-        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid).addValue("email", dto.getEmail()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber()).addValue("modifiedBy", securityUtil.getTokenUserGuid());
+        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("email", dto.getEmail()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber()).addValue("modifiedBy", securityUtil.getTokenUserGuid());
 
         log.debug("Updating user in the database with parameters: {}", parameters);
 
-        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy" + ")}",
+        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfileForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy" + ")}",
                 parameters,
                 (rs, _) -> rs.getInt("ID")).stream().findFirst();
 
@@ -143,7 +145,7 @@ public class UserRepository {
     public User updateEmail(UpdateUserEmailDto dto, UUID userGuid) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("email", dto.getEmail())
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid());
@@ -165,8 +167,8 @@ public class UserRepository {
     public User updatePassword(UpdateUserPasswordDto dto, UUID userGuid, String hashPassword, Integer version, boolean unlockAccount, Integer disallowedRecentPasswordCount) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
-                .addValue("password", hashPassword, Types.VARBINARY)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
+                .addValue("password", java.util.HexFormat.of().parseHex(hashPassword), Types.VARBINARY)
                 .addValue("version", version)
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid())
@@ -190,12 +192,12 @@ public class UserRepository {
     public User updatePassword(UpdateUserPasswordDto dto, UUID userGuid, String hashPassword, Integer version, UUID externalId, boolean unlockAccount, Integer disallowedRecentPasswordCount) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
-                .addValue("password", hashPassword, Types.VARBINARY)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
+                .addValue("password", java.util.HexFormat.of().parseHex(hashPassword), Types.VARBINARY)
                 .addValue("version", version)
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("externalId", externalId)
+                .addValue("externalId", externalId == null ? null : externalId.toString())
                 .addValue("unlockAccount", unlockAccount ? 1 : 0)
                 .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount);
 
@@ -214,11 +216,11 @@ public class UserRepository {
 
     public User updateUsername(UpdateUsernameDto dto, UUID userGuid, UUID externalId) throws UserUpdateFailedException {
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("username", dto.getUsername())
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("externalId", externalId);
+                .addValue("externalId", externalId == null ? null : externalId.toString());
 
         Optional<Integer> userId = namedParameterJdbcTemplate.query(
                 "{call Person.UpdateUsername(:userGuid, :username, :externalId, :modifiedOn, :modifiedBy)}",
@@ -236,7 +238,7 @@ public class UserRepository {
     public User updateSecuritySettings(UpdateUserSecuritySettingsDto dto, UUID userGuid) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("twoFactorEnabled", dto.getTwoFactorEnabled() ? 1 : 0)
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid());
@@ -254,6 +256,7 @@ public class UserRepository {
         }
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public User updateMetadata(UpdateUserMetadataDto dto, UUID userGuid) throws UserUpdateFailedException, UserNotFoundException {
 
         Optional<UserDetails> userDetails = getByGuid(userGuid);
@@ -309,7 +312,7 @@ public class UserRepository {
     public User updateStatus(int status, UUID userGuid) throws UserDeleteFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("status", status)
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid());
@@ -367,7 +370,7 @@ public class UserRepository {
 
     public Optional<UserCredentials> getByLoginId(UUID loginId) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("loginId", loginId);
+        parameters.addValue("loginId", loginId == null ? null : loginId.toString());
 
         return namedParameterJdbcTemplate.query(
                 "{call Person.GetUserCredentialsByGuid(:loginId)}",
@@ -402,7 +405,7 @@ public class UserRepository {
 
     public Optional<UserDetails> getByGuid(UUID userGuid) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("userGuid", userGuid);
+        parameters.addValue("userGuid", userGuid == null ? null : userGuid.toString());
 
         return namedParameterJdbcTemplate.query(
                 "{call Person.GetUserDetailsByUserId(:userGuid)}",
@@ -415,7 +418,7 @@ public class UserRepository {
         log.info("Fetching user in the database by userGuid: {} and branding: {}", userGuid, branding);
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("branding", branding);
 
         return namedParameterJdbcTemplate.query(
@@ -440,7 +443,7 @@ public class UserRepository {
         parameters.addValue("status", status.orElse(null));
         parameters.addValue("search", search.orElse(null));
         parameters.addValue("type", type.orElse(null));
-        parameters.addValue("organizationId", organizationId.orElse(null));
+        parameters.addValue("organizationId", organizationId.orElse(null) == null ? null : organizationId.orElse(null).toString());
         parameters.addValue("sourceIds", brandingSourcesIds.isEmpty() ? null : StringUtils.join(brandingSourcesIds, ","));
 
         return namedParameterJdbcTemplate.query(
@@ -557,7 +560,7 @@ public class UserRepository {
     public User reactivateAccountWithPassword(CreateUserProfileDto dto, UUID userGuid, UUID externalId, int passwordVersion, int unlockAccount) throws UserSyncFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("firstName", dto.getProfile().getFirstName())
                 .addValue("lastName", dto.getProfile().getLastName())
                 .addValue("email", dto.getProfile().getEmail())
@@ -566,9 +569,9 @@ public class UserRepository {
                 .addValue("loginGuid", dto.getCredential().getLoginId())
                 .addValue("secondaryPhoneNumber", dto.getProfile().getSecondaryPhoneNumber())
                 .addValue("username", dto.getCredential().getUsername())
-                .addValue("password", dto.getCredential().getPasswordHash(), Types.VARBINARY)
+                .addValue("password", java.util.HexFormat.of().parseHex(dto.getCredential().getPasswordHash()), Types.VARBINARY)
                 .addValue("version", passwordVersion)
-                .addValue("externalId", externalId)
+                .addValue("externalId", externalId == null ? null : externalId.toString())
                 .addValue("unlockAccount", unlockAccount)
                 .addValue("passwordAuditLimit", 12)
                 .addValue("modifiedOn", new Date())

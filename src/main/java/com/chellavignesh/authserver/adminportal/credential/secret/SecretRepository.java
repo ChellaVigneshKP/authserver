@@ -77,7 +77,7 @@ public class SecretRepository {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
         parameters.addValue("appId", appId);
-        parameters.addValue("secretId", secretGuid.toString());
+        parameters.addValue("secretGuid", secretGuid.toString() == null ? null : secretGuid.toString().toString());
         Integer secretIdFound = jdbcTemplate.queryForObject(
                 "{call Client.SecretExists(:orgId, :appId, :secretGuid)}",
                 parameters,

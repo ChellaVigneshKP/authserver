@@ -29,7 +29,8 @@ public class RequestClientFingerprintFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NotNull HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain filterChain) throws ServletException, IOException {
 
-        if (SecurityContextHolder.getContext().getAuthentication().getPrincipal() instanceof OAuth2IntrospectionAuthenticatedPrincipal principal && principal.hasClaim(ApplicationConstants.CLIENT_FINGERPRINT) && !clientFingerprintValidator.isValidSignature(request, principal.getClaim(ApplicationConstants.CLIENT_FINGERPRINT))) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof OAuth2IntrospectionAuthenticatedPrincipal principal && principal.hasClaim(ApplicationConstants.CLIENT_FINGERPRINT) && !clientFingerprintValidator.isValidSignature(request, principal.getClaim(ApplicationConstants.CLIENT_FINGERPRINT))) {
 
             log.trace("Fingerprints did not match");
             response.setStatus(HttpStatus.BAD_REQUEST.value());
@@ -43,6 +44,6 @@ public class RequestClientFingerprintFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/oauth2");
+        return !path.startsWith("/api/");
     }
 }

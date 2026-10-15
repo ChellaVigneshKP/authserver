@@ -16,7 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
+import org.springframework.core.io.ResourceLoader;
+import java.io.InputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -33,32 +34,30 @@ public class CmsService {
     private static final Logger log = LoggerFactory.getLogger(CmsService.class);
 
     private final ApplicationService applicationService;
+    private final ResourceLoader resourceLoader;
 
-    public CmsService(ApplicationService applicationService) {
+    public CmsService(ApplicationService applicationService, ResourceLoader resourceLoader) {
         this.applicationService = applicationService;
+        this.resourceLoader = resourceLoader;
     }
 
     private String createFileName(String branding, Optional<String> optCmsContext) {
+        if (branding == null || !branding.matches("[A-Za-z0-9_-]+")
+                || optCmsContext.filter(context -> !context.matches("[A-Za-z0-9_-]+")).isPresent()) {
+            throw new IllegalArgumentException("Invalid CMS resource name");
+        }
         return optCmsContext.map(cmsContext -> branding + "." + cmsContext + ".json").orElse(branding + ".json");
     }
 
     private Map<String, String> parse(String fileName) throws CmsFileNotFoundException, IOException {
 
-        File cmsFile = new File(fileLocation + "/" + fileName);
-
-        if (!cmsFile.exists() || !cmsFile.isFile()) {
-            log.error("The file: {}/ {} could not be found", fileLocation, fileName);
-            throw new CmsFileNotFoundException("The file " + fileName + " could not be found");
+        var cmsFile = resourceLoader.getResource(fileLocation.replaceAll("/+$", "") + "/" + fileName);
+        if (!cmsFile.exists() || !cmsFile.isReadable()) {
+            throw new CmsFileNotFoundException("The CMS file " + fileName + " could not be found");
         }
-
         Map<String, String> cmsData;
-
-        try {
-            cmsData = objectMapper.readValue(cmsFile, new TypeReference<>() {
-            });
-        } catch (IOException e) {
-            log.error("Error while reading CMS file");
-            throw e;
+        try (InputStream stream = cmsFile.getInputStream()) {
+            cmsData = objectMapper.readValue(stream, new TypeReference<>() {});
         }
 
         return cmsData;
@@ -108,7 +107,11 @@ public class CmsService {
 
         Optional<String> cmsContext = clientId.map(this::getCmsContext);
 
-        return getCmsInfo((String) brandingSessionInfo, cmsContext);
+        try {
+            return getCmsInfo((String) brandingSessionInfo, cmsContext);
+        } catch (IllegalArgumentException e) {
+            throw new CmsBadRequestException("Invalid CMS resource name");
+        }
     }
 
     public Map<String, String> getCmsInfoFromSession(AuthSession authSession) throws CmsFileNotFoundException, CmsProcessingException {
@@ -117,6 +120,10 @@ public class CmsService {
 
         Optional<String> cmsContext = applicationService.getApplicationDetailById(authSession.getApplicationId()).map(ApplicationDetail::getCmsContext);
 
-        return getCmsInfo(branding, cmsContext);
+        try {
+            return getCmsInfo(branding, cmsContext);
+        } catch (IllegalArgumentException e) {
+            throw new CmsProcessingException("Invalid CMS resource name");
+        }
     }
 }

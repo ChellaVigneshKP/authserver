@@ -25,7 +25,7 @@ public class UserCredentialsWithBranding {
 
         userCredentials.setId(result.getInt("Id"));
         userCredentials.setUsername(result.getString("Username"));
-        userCredentials.setPassword(result.getString("Password"));
+        userCredentials.setPassword(java.util.HexFormat.of().withUpperCase().formatHex(result.getBytes("Password")));
         userCredentials.setBranding(result.getString("Branding"));
         userCredentials.setRowGuid(UUID.fromString(result.getString("RowGuid")));
 

@@ -48,7 +48,7 @@ public class Secret {
                 logger.error("Failed to parse secret", e);
             }
         } catch (SQLException e) {
-            return null;
+            throw e;
         }
         return secret;
     }

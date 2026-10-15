@@ -27,7 +27,7 @@ public class BrandingRequestBodyFilter extends OncePerRequestFilter {
     private final String loginPagePath;
     private final ExternalSourceService externalSourceService;
 
-    public BrandingRequestBodyFilter(@Value("#{environment.getProperty(T(com.chellavignesh.authserver.config.ApplicationConstants).SERVLET_CONTEXT_PATH)}") final String contextPath, @Autowired final ExternalSourceService externalSourceService) {
+    public BrandingRequestBodyFilter(@Value("${server.servlet.context-path:}") final String contextPath, @Autowired final ExternalSourceService externalSourceService) {
 
         this.loginPagePath = contextPath + ApplicationConstants.LOGIN_PAGE_PATH;
         this.externalSourceService = externalSourceService;
@@ -37,7 +37,7 @@ public class BrandingRequestBodyFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NotNull HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain filterChain) throws ServletException, IOException {
 
-        if (!(HttpMethod.POST.matches(request.getMethod()) && StringUtils.endsWith(request.getRequestURI(), loginPagePath))) {
+        if (!(HttpMethod.POST.matches(request.getMethod()) && request.getRequestURI().equals(request.getContextPath() + ApplicationConstants.LOGIN_PAGE_PATH))) {
 
             log.debug("Request not qualify for filtering. URI: {}, METHOD: {}", request.getRequestURI(), request.getMethod());
             filterChain.doFilter(request, response);

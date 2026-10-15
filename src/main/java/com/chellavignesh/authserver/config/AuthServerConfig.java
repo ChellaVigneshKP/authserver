@@ -132,9 +132,10 @@ public class AuthServerConfig {
     // ------------------------------------------------------
     @Bean
     @Order(2)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, TokenIntrospector tokenIntrospector) throws Exception {
 
         http.cors(Customizer.withDefaults());
+        http.oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(token -> token.introspector(tokenIntrospector)));
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 
         http.addFilterBefore(tokenEndpointBodySignatureFilter, CsrfFilter.class);
@@ -192,11 +193,6 @@ public class AuthServerConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
         );
 
-        http.addFilterBefore(
-                new OidcWellKnownOverwriteFilter(),
-                AbstractPreAuthenticatedProcessingFilter.class
-        );
-
         return http.build();
     }
 
@@ -241,7 +237,7 @@ public class AuthServerConfig {
     // ------------------------------------------------------
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
-        String issuer = serverBasePath + "/oauth2";
+        String issuer = serverBasePath.replaceAll("/+$", "");
         log.debug("Configuring AuthorizationServerSettings with issuer: {}", issuer);
 
         return AuthorizationServerSettings.builder().issuer(issuer).build();

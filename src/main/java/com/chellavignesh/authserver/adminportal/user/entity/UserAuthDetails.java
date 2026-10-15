@@ -44,7 +44,7 @@ public class UserAuthDetails {
         userAuthDetails.setId(result.getInt("ProfileId"));
         userAuthDetails.setRowGuid(UUID.fromString(result.getString("RowGuid")));
         userAuthDetails.setUserName(result.getString("UserName"));
-        userAuthDetails.setPassword(result.getString("Password"));
+        userAuthDetails.setPassword(java.util.HexFormat.of().withUpperCase().formatHex(result.getBytes("Password")));
         userAuthDetails.setVersion(result.getInt("Version"));
         userAuthDetails.setUserStatus(result.getInt("Status"));
         userAuthDetails.setCredentialStatus(result.getInt("CredentialStatus"));
@@ -60,7 +60,7 @@ public class UserAuthDetails {
                 result.getString("UserName"), twoFactorEnabled, result.getInt("ProfileId"));
 
         // Convert java.sql.Date to java.util.Date
-        var sqlDate = result.getDate("LastLogin");
+        var sqlDate = result.getTimestamp("LastLogin", java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")));
         Date date = (sqlDate == null ? null : new Date(sqlDate.getTime()));
         userAuthDetails.setLastLogin(date);
 

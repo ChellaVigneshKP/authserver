@@ -28,7 +28,11 @@ public class TokenIntrospector implements OpaqueTokenIntrospector {
         try {
             var maybeToken = tokenService.getByValue(token, TokenTypeEnum.fromOAuth2TokenType(OAuth2TokenType.ACCESS_TOKEN));
 
-            return new OAuth2IntrospectionAuthenticatedPrincipal(tokenService.getClaimsForToken(maybeToken.orElseThrow()), Collections.emptyList());
+            var claims = tokenService.getClaimsForToken(maybeToken.orElseThrow());
+            if (!Boolean.TRUE.equals(claims.get("active"))) {
+                throw new BadOpaqueTokenException("Token is not active");
+            }
+            return new OAuth2IntrospectionAuthenticatedPrincipal(claims, Collections.emptyList());
 
         } catch (Exception _) {
             throw new BadOpaqueTokenException("Token is not active or doesn't exist");

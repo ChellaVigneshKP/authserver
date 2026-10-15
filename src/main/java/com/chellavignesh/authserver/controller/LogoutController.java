@@ -38,10 +38,10 @@ public class LogoutController {
     @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<?> logout(@Valid LogoutRequest requestDto, HttpServletRequest httpRequest, HttpServletResponse httpResponse, Authentication authentication) throws FailedToUpdateSessionException {
 
-        this.logoutHandler.logout(httpRequest, httpResponse, authentication);
 
         var headers = new HttpHeaders();
         logoutService.logoutSession(requestDto.id_token_hint(), requestDto.client_id(), requestDto.post_logout_redirect_uri());
+        this.logoutHandler.logout(httpRequest, httpResponse, authentication);
 
         String redirectUrlWithErrorCode = addErrorCodeToRedirectUrl(requestDto.post_logout_redirect_uri(), requestDto.error_code());
 
@@ -52,13 +52,13 @@ public class LogoutController {
     @GetMapping
     public ResponseEntity<?> logoutGet(@RequestParam String id_token_hint, @RequestParam String client_id, @RequestParam String post_logout_redirect_uri, @RequestParam(required = false) String error_code, HttpServletRequest httpRequest, HttpServletResponse httpResponse, Authentication authentication) throws FailedToUpdateSessionException {
 
-        this.logoutHandler.logout(httpRequest, httpResponse, authentication);
 
-        log.debug("Logout request received with id_token_hint: {}, client_id: {}, post_logout_redirect_uri: {}, error_code: {}", id_token_hint, client_id, post_logout_redirect_uri, error_code != null ? error_code : "N/A");
+        log.debug("Logout request received for client_id: {}", client_id);
 
         var headers = new HttpHeaders();
 
         logoutService.logoutSession(id_token_hint, client_id, post_logout_redirect_uri);
+        this.logoutHandler.logout(httpRequest, httpResponse, authentication);
 
         String redirectUrlWithErrorCode = addErrorCodeToRedirectUrl(post_logout_redirect_uri, error_code);
 

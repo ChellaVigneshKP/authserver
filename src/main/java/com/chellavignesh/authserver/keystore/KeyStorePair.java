@@ -56,7 +56,7 @@ public class KeyStorePair {
             SecretKey secretKey = secretKeyEntry.getSecretKey();
             byte[] secretBytes = secretKey.getEncoded();
             KeyCryptoService keyCryptoService = new KeyCryptoService();
-            return Optional.ofNullable(keyCryptoService.decrypt(secretBytes, passwordKeyStore.getKeyStorePassword().orElseThrow()));
+            return Optional.ofNullable(keyCryptoService.decrypt(secretBytes, passwordKeyStore.getSecureElementPassword().orElseThrow()));
         } catch (Exception e) {
             return Optional.empty();
         }
