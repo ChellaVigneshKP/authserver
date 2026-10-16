@@ -183,6 +183,15 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }
 
+    @ExceptionHandler({org.springframework.dao.DataAccessResourceFailureException.class,
+            org.springframework.dao.QueryTimeoutException.class})
+    protected ResponseEntity<Object> handleUnavailableInfrastructure(Exception ex) {
+        logger.warn("Infrastructure unavailable in request handler: {}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "5").header("Cache-Control", "no-store")
+                .body(com.chellavignesh.authserver.filter.InfrastructureAvailabilityFilter.MESSAGE);
+    }
+
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<Object> handleOtherException(Exception ex) {
         logger.error("Unhandled request exception", ex);

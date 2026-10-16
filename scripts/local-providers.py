@@ -35,7 +35,7 @@ def ready(url,process):
 
 
 def main():
-    if len(sys.argv)!=2 or sys.argv[1]!='start':raise SystemExit('Usage: python3 scripts/local-providers.py start')
+    if len(sys.argv)!=2 or sys.argv[1] not in ('start','resume'):raise SystemExit('Usage: python3 scripts/local-providers.py start|resume')
     jar=ROOT/'target/authserver-0.0.1-SNAPSHOT.jar'
     if not jar.exists():raise SystemExit('Build the application first: ./scripts/local-dev.py test')
     for port in (9082,9191):
@@ -44,17 +44,25 @@ def main():
             try:probe.bind(('127.0.0.1',port))
             except OSError:raise SystemExit('Port '+str(port)+' is already in use; keep the existing lab or stop it first. No configuration changed.')
     LAB.mkdir(mode=0o700,parents=True,exist_ok=True)
-    config=json.loads((ROOT/'.local/dev.json').read_text())
-    database='AGSAuthProviders_'+secrets.token_hex(4)
-    config.update(SERVER_PORT='9082',SERVER_BASE_PATH='http://localhost:9082/services',LOCAL_CALLBACK_URL='http://localhost:3001/',LOCAL_ADMIN_PASSWORD='L8!'+secrets.token_hex(15)+'qZ')
-    config['DB_URL']=re.sub(r'databaseName=[^;]+','databaseName='+database,config['DB_URL'])
-    provider=dict(control_secret=secrets.token_urlsafe(32),mfa_client='local-synthetic-provider',mfa_secret=secrets.token_hex(32))
-    props={'spring.session.redis.namespace':'authserver:providers:'+database+':sessions','spring.cache.redis.key-prefix':'authserver:providers:'+database+':cache:',
-           'secureauth.api.access.1.clientId':provider['mfa_client'],'secureauth.api.access.1.clientSecret':provider['mfa_secret'],
-           'ascensus.url.unite.mobile':'http://localhost:9191','endpoints.web.cors.allowed-origins':'http://localhost:3001'}
-    config['SPRING_APPLICATION_JSON']=json.dumps(props)
-    private(LAB/'dev.json',config);private(LAB/'provider.json',provider)
-    subprocess.run(['docker','compose','exec','-T','sqlserver','bash','-lc','SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b'],input='CREATE DATABASE ['+database+'];\nGO\n',text=True,cwd=ROOT,check=True,capture_output=True)
+    if sys.argv[1]=='resume':
+        config=json.loads((LAB/'dev.json').read_text())
+        provider=json.loads((LAB/'provider.json').read_text())
+        state=json.loads((LAB/'state.json').read_text())
+        database=state['database']
+        if not re.fullmatch(r'AGSAuthProviders_[a-f0-9]{8}',database) or 'databaseName='+database not in config['DB_URL']:
+            raise SystemExit('Existing lab configuration does not identify its isolated database')
+    else:
+        config=json.loads((ROOT/'.local/dev.json').read_text())
+        database='AGSAuthProviders_'+secrets.token_hex(4)
+        config.update(SERVER_PORT='9082',SERVER_BASE_PATH='http://localhost:9082/services',LOCAL_CALLBACK_URL='http://localhost:3001/',LOCAL_ADMIN_PASSWORD='L8!'+secrets.token_hex(15)+'qZ')
+        config['DB_URL']=re.sub(r'databaseName=[^;]+','databaseName='+database,config['DB_URL'])
+        provider=dict(control_secret=secrets.token_urlsafe(32),mfa_client='local-synthetic-provider',mfa_secret=secrets.token_hex(32))
+        props={'spring.session.redis.namespace':'authserver:providers:'+database+':sessions','spring.cache.redis.key-prefix':'authserver:providers:'+database+':cache:',
+               'secureauth.api.access.1.clientId':provider['mfa_client'],'secureauth.api.access.1.clientSecret':provider['mfa_secret'],
+               'ascensus.url.unite.mobile':'http://localhost:9191','endpoints.web.cors.allowed-origins':'http://localhost:3001'}
+        config['SPRING_APPLICATION_JSON']=json.dumps(props)
+        private(LAB/'dev.json',config);private(LAB/'provider.json',provider)
+        subprocess.run(['docker','compose','exec','-T','sqlserver','bash','-lc','SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b'],input='CREATE DATABASE ['+database+'];\nGO\n',text=True,cwd=ROOT,check=True,capture_output=True)
     runtime=LAB/('authserver-'+str(uuid.uuid4())+'.jar');shutil.copy2(jar,runtime)
     children=[]
     def interrupt(*args):raise KeyboardInterrupt()

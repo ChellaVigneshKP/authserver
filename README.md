@@ -112,6 +112,31 @@ Use a separate browser profile/incognito window for the lab when also using the 
 
 The lab verifies signed MFA requests, wrong/expired/replayed codes, recovery/activation/mobile recovery, rejection of pre-MFA resets, synthetic biometric proofs and actual Chrome forms. It does not qualify SecureAuth, real notification delivery, upstream synchronization, legacy crypto or Touch ID. See [local provider validation](docs/recovery/LOCAL-PROVIDER-LAB.md).
 
+## Recovering local sign-in after Docker is unavailable
+
+Login depends on the SQL/Redis containers. If Docker was stopped or became unresponsive during builds, first restore Docker responsiveness, then start this repo's existing services:
+
+```sh
+./scripts/local-dev.py up
+docker compose exec -T redis redis-cli PING
+```
+
+Expect `PONG`. Retry **Sign in** from the sample frontend. If the provider lab process stopped, reuse its existing database, credentials and demo client with:
+
+```sh
+python3 scripts/local-providers.py resume
+```
+
+`resume` requires the lab's existing private configuration and the built JAR; stop an existing lab before invoking it. `start` creates a new lab database, while `resume` reuses the previous one. Neither operation resets the normal database. Docker Desktop itself is shared with other work and is not restarted by these scripts.
+
+A cache/database outage now returns HTTP 503 with a retry message where the response can still be replaced. Unexpected application exceptions remain errors. Verify real outage handling independently:
+
+```sh
+python3 scripts/e2e-infrastructure-recovery.py
+```
+
+That test starts its own small Redis container and app on 16380/9084, pauses only its own Redis, verifies 503, resumes it and verifies recovery without restarting the test app. It cleans up its own container/process and leaves normal development services alone. See [outage validation](docs/recovery/OUTAGE-RECOVERY.md).
+
 ## Configuration
 
 The context root is `/services`; `SERVER_BASE_PATH` must match the externally reachable scheme, host and path. Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `KEY_STORE_PASSWORD`, `AUTH_HASHER_KEYSTORE`, `AUTH_HASHER_PASSWORD` and `AUTH_HASHER_PEPPER`. The pepper alias is a UUID identifying a matching AES secret in the hashing keystore. Preserve this key to preserve existing passwords. OIDC signing uses a persistent PKCS12 file at `AUTH_SIGNING_KEYSTORE` (local default `.local/signing.p12`), alias `AUTH_SIGNING_ALIAS` (default `authserver-signing`), protected by `KEY_STORE_PASSWORD`. Preserve and back up this signing key too; missing or incorrect keys fail startup. Production SQL Server TLS certificate verification is enabled by default; local trust bypass is confined to the local profile.
