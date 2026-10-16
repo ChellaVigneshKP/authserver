@@ -49,7 +49,7 @@ class DatabaseContractTest {
         new JdbcTemplate(admin).execute("CREATE DATABASE [" + database + "]");
         SQLServerDataSource db = source(System.getenv("AUTH_DB_IT_URL") + ";databaseName=" + database);
         Flyway flyway = Flyway.configure().dataSource(db).locations("classpath:db/migration").cleanDisabled(true).load();
-        assertEquals(10, flyway.migrate().migrationsExecuted);
+        assertEquals(11, flyway.migrate().migrationsExecuted);
         flyway.validate();
         assertEquals(0, flyway.migrate().migrationsExecuted, "Second migration must leave the schema unchanged");
         jdbc = new JdbcTemplate(db);
@@ -216,6 +216,21 @@ class DatabaseContractTest {
         assertEquals(Set.of("openid"),loaded.getAuthorizedScopes());
         assertEquals("sql-refresh",loaded.getRefreshToken().getToken().getTokenValue());
         assertEquals(now,loaded.getAccessToken().getToken().getIssuedAt());
+    }
+
+    @Test
+    void signatureLookupCanSeeNewTokenWithoutRoundingIssuanceIntoTheFuture() throws Exception {
+        Application app=application();
+        int session=jdbc.queryForObject("EXEC Token.CreateAuthSession ?,?,?,?,?,?,?",Integer.class,
+                app.getId(),"precision-subject","openid",AuthFlowEnum.PKCE.getValue(),new byte[]{1},app.getClientId(),"idp");
+        String sessionId=jdbc.queryForObject("SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.AuthSession WHERE AuthSessionId=?",String.class,session);
+        var issued=java.time.LocalDateTime.of(2026,1,1,12,0,0,900_000_000);
+        long token=jdbc.queryForObject("EXEC Token.CreateTokenWithHash ?,?,?,?,?,?,?,?,?,?,?,?",Long.class,
+                TokenTypeEnum.ACCESS_TOKEN.getValue(),app.getId(),"precision-subject",sessionId,true,"precision-token-"+UUID.randomUUID(),
+                new byte[32],600,new byte[32],issued,issued.plusMinutes(10),"openid");
+        var visible=jdbc.queryForList("EXEC Token.GetTokensByClientIdAndRequestDateTime ?,?",app.getClientId(),issued.plusNanos(1_000_000));
+        assertTrue(visible.stream().anyMatch(row->((Number)row.get("TokenId")).longValue()==token),
+                "A token issued at .900 seconds must be visible at .901, without waiting for the next whole second");
     }
 
 }

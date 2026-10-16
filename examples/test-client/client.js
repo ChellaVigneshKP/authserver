@@ -25,6 +25,7 @@ const action = fn => async () => {try{await fn();}catch(error){show(error.messag
 try{
   config=await fetch('/config.json').then(r=>{if(!r.ok)throw Error('Start the local sample server first.');return r.json();});
   $('issuer').textContent=config.base;$('client').textContent=config.client_id;
+  if(config.inbox_url){$('provider-description').textContent='Local MFA simulation is configured. Request a code during sign-in and read it from the local inbox. This tests application integration; it does not verify SecureAuth, Touch ID or real email delivery.';$('provider-inbox').href=config.inbox_url;$('provider-inbox').hidden=false;}
   const query=new URLSearchParams(location.search);history.replaceState(null,'',location.pathname);
   if(query.has('code') || query.has('error')){
     const saved=JSON.parse(sessionStorage.getItem('auth-test-pkce') || 'null');sessionStorage.removeItem('auth-test-pkce');

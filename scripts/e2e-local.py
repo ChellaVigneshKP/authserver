@@ -28,7 +28,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 class Acceptance:
     def __init__(self):
-        self.config = json.loads((ROOT/'.local/dev.json').read_text())
+        self.config = json.loads(Path(os.environ.get('AUTH_E2E_CONFIG', ROOT/'.local/dev.json')).read_text())
         self.base = os.environ.get('AUTH_E2E_BASE', 'http://localhost:9080/services')
         if urllib.parse.urlparse(self.base).hostname not in ('localhost', '127.0.0.1'):
             raise SystemExit('This fixture-mutating suite is restricted to a local development app.')
@@ -68,8 +68,11 @@ class Acceptance:
 
     def sql(self, query):
         # Only this repo's explicitly task-owned Compose development database.
+        database = os.environ.get('AUTH_E2E_DB', 'AGSAuth')
+        if not re.fullmatch(r'AGSAuth(?:Providers_[a-f0-9]{8})?', database):
+            raise ValueError('Only task-owned local development databases are supported')
         command=['docker','compose','exec','-T','sqlserver','bash','-lc',
-                 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -d AGSAuth -C -b -h -1 -y 8000 -w 65535']
+                 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -d '+database+' -C -b -h -1 -y 8000 -w 65535']
         # -W and -y cannot be combined with some sqlcmd versions; use -y only.
         command[-1]=command[-1].replace(' -W','')
         result=subprocess.run(command,cwd=ROOT,input='SET NOCOUNT ON;\n'+query+'\nGO\n',text=True,capture_output=True,check=True)

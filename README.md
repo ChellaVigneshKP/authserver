@@ -91,6 +91,27 @@ python3 scripts/check-bouncycastle-alerts.py
 
 This is a targeted advisory-range check; it does not clear all dependencies or establish exploit reachability. See [follow-up validation](docs/recovery/FOLLOW-UP-VALIDATION.md) for the executed results and remaining provider requirements.
 
+## Local provider lab on macOS
+
+The lab runs a separate auth instance, database and Redis namespace, alongside the normal sample app. It uses an explicit synthetic MFA/biometric service; it does not add a production authentication bypass.
+
+```sh
+# SQL/Redis must already be up. Build and verify first:
+./scripts/local-dev.py test
+# Terminal 1: separate auth server on 9082 and local provider on 9191
+python3 scripts/local-providers.py start
+# Terminal 2: automated HTTP/SQL and real Chrome MFA campaign
+python3 scripts/e2e-local-providers.py
+# After the test completes, start the interactive sample on 3001:
+python3 scripts/local-provider-demo.py
+```
+
+Open <http://localhost:3001/>. Read the disposable account from private `.local/providers/sample-account.json`. Sign in, choose the email factor, click **Send code**, and read the newest available code at <http://localhost:9191/inbox>. Codes expire after two minutes and can be used once. This inbox captures synthetic MFA delivery; it does not send real email/SMS or exercise the app's separate notification-service API.
+
+Use a separate browser profile/incognito window for the lab when also using the normal app: localhost cookies are shared across ports. Automated tests use isolated browser contexts. Port 3001 must be free for automated lab browser tests; stop the interactive provider demo with Ctrl-C before running them. The ordinary sample on port 3000 can remain running. Stop the demo before stopping its lab. Lab startup creates a uniquely named `AGSAuthProviders_<suffix>` database; Ctrl-C stops its own processes and retains that disposable database for inspection. It never resets the normal `AGSAuth` database. Repeated starts create additional lab databases. Credentials, logs and runtime JARs remain ignored under `.local/providers/`.
+
+The lab verifies signed MFA requests, wrong/expired/replayed codes, recovery/activation/mobile recovery, rejection of pre-MFA resets, synthetic biometric proofs and actual Chrome forms. It does not qualify SecureAuth, real notification delivery, upstream synchronization, legacy crypto or Touch ID. See [local provider validation](docs/recovery/LOCAL-PROVIDER-LAB.md).
+
 ## Configuration
 
 The context root is `/services`; `SERVER_BASE_PATH` must match the externally reachable scheme, host and path. Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `KEY_STORE_PASSWORD`, `AUTH_HASHER_KEYSTORE`, `AUTH_HASHER_PASSWORD` and `AUTH_HASHER_PEPPER`. The pepper alias is a UUID identifying a matching AES secret in the hashing keystore. Preserve this key to preserve existing passwords. OIDC signing uses a persistent PKCS12 file at `AUTH_SIGNING_KEYSTORE` (local default `.local/signing.p12`), alias `AUTH_SIGNING_ALIAS` (default `authserver-signing`), protected by `KEY_STORE_PASSWORD`. Preserve and back up this signing key too; missing or incorrect keys fail startup. Production SQL Server TLS certificate verification is enabled by default; local trust bypass is confined to the local profile.

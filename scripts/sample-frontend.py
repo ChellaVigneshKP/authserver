@@ -50,7 +50,8 @@ def server(config):
             self.send_header('X-Content-Type-Options','nosniff')
             self.send_header('Cache-Control','no-store')
             super().end_headers()
-    httpd=ThreadingHTTPServer(('127.0.0.1',3000),Handler)
+    port=urllib.parse.urlparse(config['callback']).port or 80
+    httpd=ThreadingHTTPServer(('127.0.0.1',port),Handler)
     thread=threading.Thread(target=httpd.serve_forever,daemon=True)
     thread.start()
     return httpd

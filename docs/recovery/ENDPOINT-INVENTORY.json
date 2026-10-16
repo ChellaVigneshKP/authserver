@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "context_path": "/services",
   "scope": "Explicit application MVC handler variants plus enabled security-filter routes; source-derived, not live runtime mappings.",
   "counts": {
@@ -7,7 +7,8 @@
     "security_filter": 16,
     "mvc": 85,
     "positive_http_observed": 69,
-    "no_positive_http_observed": 28,
+    "simulated_provider_positive_observed": 17,
+    "no_positive_http_observed": 11,
     "controlled_view_verified": 4
   },
   "limitations": [
@@ -16,6 +17,7 @@
     "Static resources, actuator and servlet error fallback are documented separately and excluded from route denominator.",
     "Authored scenarios identify baseline source assertions only; suite execution and DB/log evidence are not inferred.",
     "Passing expected 400/401/403/404 probes do not qualify positive handler behavior.",
+    "Local simulated-provider successes have a separate coverage state and do not certify genuine external providers.",
     "A passing 2xx/3xx report check is only positive HTTP observation; it does not certify all branches or persisted mutations."
   ],
   "excluded_or_conditional": [
@@ -51,9 +53,11 @@
   "evidence_reports": [
     {
       "path": ".local/e2e-report.json",
-      "sha256": "f495710200c94a1674f6605f92490fe853827fb1d8239e2720fe5cc8797700d0",
-      "started_at": "2026-10-16T06:46:26.867362+00:00",
-      "finished_at": "2026-10-16T06:46:33.347422+00:00",
+      "sha256": "eda30fea77758a743d6d92962cde3066604319dc2b9d5261aade801894ee0b64",
+      "started_at": "2026-10-16T07:13:11.892006+00:00",
+      "finished_at": "2026-10-16T07:13:18.748006+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "id": "organization contact links persisted",
@@ -113,9 +117,11 @@
     },
     {
       "path": ".local/e2e-browser-report.json",
-      "sha256": "77c58692a45a1dbcbd45aa69de1ca76cb2dc58ea55aa51009c9a346c601e81dc",
-      "started_at": "2026-10-16T06:46:33.459416+00:00",
-      "finished_at": "2026-10-16T06:46:37.302786+00:00",
+      "sha256": "dfb942d576b15510835e1c0b993dec2064735dd4ea2a3028631e9a19e4c8df03",
+      "started_at": "2026-10-16T07:13:18.892786+00:00",
+      "finished_at": "2026-10-16T07:13:22.914621+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "id": "forms user creation persisted",
@@ -159,7 +165,7 @@
           "id": "local access log confirms GET /oauth2/sso 200",
           "passed": true,
           "count": 4,
-          "source": "/tmp/authserver-recovery/app-provider.log",
+          "source": "/tmp/authserver-recovery/app-local-final.log",
           "source_lines": [
             502,
             507,
@@ -171,7 +177,7 @@
           "id": "local access log confirms GET /user/change-profile 200",
           "passed": true,
           "count": 1,
-          "source": "/tmp/authserver-recovery/app-provider.log",
+          "source": "/tmp/authserver-recovery/app-local-final.log",
           "source_lines": [
             505
           ]
@@ -180,7 +186,7 @@
           "id": "local access log confirms POST /user/change-profile 302",
           "passed": true,
           "count": 2,
-          "source": "/tmp/authserver-recovery/app-provider.log",
+          "source": "/tmp/authserver-recovery/app-local-final.log",
           "source_lines": [
             509,
             517
@@ -190,7 +196,7 @@
           "id": "local access log confirms GET /user/change-password 200",
           "passed": true,
           "count": 3,
-          "source": "/tmp/authserver-recovery/app-provider.log",
+          "source": "/tmp/authserver-recovery/app-local-final.log",
           "source_lines": [
             520,
             526,
@@ -201,7 +207,7 @@
           "id": "local access log confirms POST /user/change-password 302",
           "passed": true,
           "count": 3,
-          "source": "/tmp/authserver-recovery/app-provider.log",
+          "source": "/tmp/authserver-recovery/app-local-final.log",
           "source_lines": [
             523,
             533,
@@ -217,9 +223,11 @@
     },
     {
       "path": ".local/certificate-e2e-report.json",
-      "sha256": "10ef71f1a2022a1bac6bc40d05e74270ea4dac105485fce08957ad70d28044c4",
+      "sha256": "1b58f03fe0bb5b419093f09b2c0ae3fe6faad39846ec0f19cd1ca87acbeaab4b",
       "started_at": null,
       "finished_at": null,
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "operation": "SELECT",
@@ -263,9 +271,11 @@
     },
     {
       "path": ".local/e2e-boundary-report.json",
-      "sha256": "3182dfbead5c0b898633383b78f4baf36f83d1ac2779b228eb0ba217297cc5f5",
-      "started_at": "2026-10-16T06:46:53.374715+00:00",
-      "finished_at": "2026-10-16T06:46:54.199881+00:00",
+      "sha256": "6c84d67f1107eff37305a8a4179c7f3e08f9fdb984bef8fa09905cef237449dd",
+      "started_at": "2026-10-16T07:13:38.936509+00:00",
+      "finished_at": "2026-10-16T07:13:39.703346+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [],
       "log_checks": [],
       "blocked": [],
@@ -276,9 +286,11 @@
     },
     {
       "path": ".local/e2e-smoke-report.json",
-      "sha256": "b0cd21dd93e049554af4f32d24248cf154f33d3be9813cba894b1a2a67ae99a3",
+      "sha256": "03791bc28f47f132499e9362f21753180c78c28080ef42818282418485116150",
       "started_at": null,
       "finished_at": null,
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [],
       "log_checks": [],
       "blocked": [],
@@ -289,9 +301,11 @@
     },
     {
       "path": ".local/e2e-protocol-report.json",
-      "sha256": "4f90576399c6c95fd623c51c743aade404c44e8dcab9f2d52def7c6fcce8a52c",
-      "started_at": "2026-10-16T06:46:43.339006+00:00",
-      "finished_at": "2026-10-16T06:46:48.398352+00:00",
+      "sha256": "18cef498e551ec1252da3cb4799fb3a96becbce1a558b8ee3a0de96fece66956",
+      "started_at": "2026-10-16T07:13:29.220042+00:00",
+      "finished_at": "2026-10-16T07:13:34.237773+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "id": "forms user creation persisted",
@@ -340,9 +354,11 @@
     },
     {
       "path": ".local/e2e-machine-report.json",
-      "sha256": "6bf9752ca146561641765f5b11600ab170498483a20f9a4d7c2b7479d88ff3ef",
-      "started_at": "2026-10-16T06:46:48.515429+00:00",
-      "finished_at": "2026-10-16T06:46:53.305039+00:00",
+      "sha256": "99f49dd82b7443a2fa84ad5ae494899315c3231dc0ecddf0bcea1bc6d37605c3",
+      "started_at": "2026-10-16T07:13:34.317584+00:00",
+      "finished_at": "2026-10-16T07:13:38.868483+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "id": "machine secret encrypted and URL permission persisted",
@@ -376,9 +392,11 @@
     },
     {
       "path": ".local/e2e-browser-engine-report.json",
-      "sha256": "1edd230690a4f4805203ebc634761828ab86a5760339491690cb3396fa1a9a45",
-      "started_at": "2026-10-16T06:46:54.326288+00:00",
-      "finished_at": "2026-10-16T06:46:59.511094+00:00",
+      "sha256": "cb772b255f967f4a34d5f99ab3491ba18877766e5a8074198bc8f7867d6d7dd8",
+      "started_at": "2026-10-16T07:13:39.823023+00:00",
+      "finished_at": "2026-10-16T07:13:45.148989+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "id": "forms user creation persisted",
@@ -406,9 +424,11 @@
     },
     {
       "path": ".local/e2e-provider-unavailable-report.json",
-      "sha256": "626cbc8b763c8e9dcac06d4c22070a5bf44c6ac649d1d5797c0287d7a2a26162",
-      "started_at": "2026-10-16T06:46:59.605575+00:00",
-      "finished_at": "2026-10-16T06:47:01.365372+00:00",
+      "sha256": "2890c4a729a5ac2786d5ce7e4d3a707dcb448ea6239ec0f1e1284ef432451d8b",
+      "started_at": "2026-10-16T07:13:45.245317+00:00",
+      "finished_at": "2026-10-16T07:13:46.940678+00:00",
+      "provider_simulation": false,
+      "qualification": null,
       "database_checks": [
         {
           "id": "forms user creation persisted",
@@ -435,6 +455,58 @@
       "failures": [],
       "failed_assertions": [],
       "failed_scenarios": []
+    },
+    {
+      "path": ".local/e2e-local-providers-report.json",
+      "sha256": "2c1ada2ced05502cb8086ea7d3430dbfcb8aa4227de0f01c529a6249304f5e54",
+      "started_at": "2026-10-16T07:14:12.225344+00:00",
+      "finished_at": "2026-10-16T07:14:23.919578+00:00",
+      "provider_simulation": true,
+      "qualification": "Synthetic local contracts only; no SecureAuth, production biometric, legacy crypto or Touch ID certification",
+      "database_checks": [
+        {
+          "id": "forms user creation persisted",
+          "passed": true
+        },
+        {
+          "id": "recovery cannot change SQL password before MFA",
+          "passed": true
+        },
+        {
+          "id": "verified password recovery persisted hash",
+          "passed": true
+        },
+        {
+          "id": "recovery cannot change SQL password before MFA",
+          "passed": true
+        },
+        {
+          "id": "verified password recovery persisted hash",
+          "passed": true
+        },
+        {
+          "id": "recovery cannot change SQL password before MFA",
+          "passed": true
+        },
+        {
+          "id": "verified password recovery persisted hash",
+          "passed": true
+        },
+        {
+          "id": "Chrome MFA profile/password persisted",
+          "passed": true
+        },
+        {
+          "id": "forms fixture organization revoked",
+          "passed": true
+        }
+      ],
+      "log_checks": [],
+      "blocked": [],
+      "not_enabled": [],
+      "failures": [],
+      "failed_assertions": [],
+      "failed_scenarios": []
     }
   ],
   "endpoints": [
@@ -457,6 +529,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -465,6 +538,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -494,6 +568,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -502,6 +577,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -510,6 +586,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -525,7 +602,7 @@
       "controller": "AccountAccessController",
       "handler": "getAccountAccessHomeScreen",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 120,
+      "line": 123,
       "mapping_attributes": {},
       "required_fixtures": "SQL/Redis; branded OAuth client and CMS templates; eligible local user; CSRF and recovery session; configured MFA delivery/verification for completed recovery; external source fixture for mobile aliases",
       "id": "GET /activate-account",
@@ -537,12 +614,31 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/activate-account",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/activate-account",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -552,7 +648,7 @@
       "controller": "AccountAccessController",
       "handler": "postAccountAccessIdentifyYourself",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 150,
+      "line": 153,
       "mapping_attributes": {
         "value": "\"/identify-yourself\""
       },
@@ -566,12 +662,31 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/activate-account/identify-yourself",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/activate-account/identify-yourself",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -581,7 +696,7 @@
       "controller": "AccountAccessController",
       "handler": "getAccountAccessUpdatePassword",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 210,
+      "line": 213,
       "mapping_attributes": {
         "value": "\"/update-password\""
       },
@@ -595,12 +710,31 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "recovery reset form cannot authorize a password change before MFA",
+          "status": 200,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/activate-account/update-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -610,7 +744,7 @@
       "controller": "AccountAccessController",
       "handler": "postAccountAccessUpdatePassword",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 279,
+      "line": 282,
       "mapping_attributes": {
         "value": "\"/update-password\""
       },
@@ -624,12 +758,31 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "direct password reset before MFA rejected without SQL mutation",
+          "status": 403,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/activate-account/update-password",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -651,6 +804,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -659,6 +813,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -667,6 +822,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -694,6 +850,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -702,6 +859,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -727,10 +885,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/endpoints/e57a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/endpoints/8d93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -739,6 +898,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -764,10 +924,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/endpoints/e57a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/endpoints/8d93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -776,6 +937,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -805,6 +967,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -813,6 +976,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -821,6 +985,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -829,6 +994,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -837,6 +1003,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -845,6 +1012,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -853,6 +1021,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -882,6 +1051,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -890,6 +1060,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -898,6 +1069,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -906,6 +1078,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -914,6 +1087,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -922,6 +1096,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -930,6 +1105,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -938,6 +1114,16 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/api/v1/organizations",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -965,18 +1151,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -985,6 +1173,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -993,6 +1182,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1020,10 +1210,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1032,6 +1223,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1040,6 +1232,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1048,6 +1241,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1056,6 +1250,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1064,6 +1259,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1072,6 +1268,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1080,6 +1277,16 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "revoke disposable forms organization",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -1105,10 +1312,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1117,6 +1325,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1125,6 +1334,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1148,18 +1358,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1168,6 +1380,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1176,30 +1389,43 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "POST /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/aa94433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "POST /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-browser-engine-report.json",
-          "check_id": "POST /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/9a96433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/api/v1/organizations/689a433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -1225,18 +1451,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/9693433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1245,30 +1473,43 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications/567d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/aa94433e-f36b-1410-8ed2-00fc9a23848b/applications/4b95433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-browser-engine-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/9a96433e-f36b-1410-8ed2-00fc9a23848b/applications/b097433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "DELETE /services/api/v1/organizations/689a433e-f36b-1410-8ed2-00fc9a23848b/applications/4d9b433e-f36b-1410-8ed2-00fc9a23848b",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -1294,18 +1535,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1314,30 +1557,43 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "GET /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications/567d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/aa94433e-f36b-1410-8ed2-00fc9a23848b/applications/4b95433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "GET /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-browser-engine-report.json",
-          "check_id": "GET /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/9a96433e-f36b-1410-8ed2-00fc9a23848b/applications/b097433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/api/v1/organizations/689a433e-f36b-1410-8ed2-00fc9a23848b/applications/4d9b433e-f36b-1410-8ed2-00fc9a23848b",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -1363,10 +1619,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1375,6 +1632,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1398,10 +1656,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/9693433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1410,6 +1669,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1433,18 +1693,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "POST /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/9693433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1453,22 +1715,25 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "POST /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications/567d433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "POST /services/api/v1/organizations/aa94433e-f36b-1410-8ed2-00fc9a23848b/applications/4b95433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "POST /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "POST /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1498,14 +1763,16 @@
           "status": 204,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1514,14 +1781,16 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/credentials/df7d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b/credentials/6296433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1547,58 +1816,65 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b/credentials/fb7a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/9693433e-f36b-1410-8ed2-00fc9a23848b/credentials/ae93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/7194433e-f36b-1410-8ed2-00fc9a23848b/credentials/7b94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1607,14 +1883,16 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "PUT /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/credentials/df7d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b/credentials/6296433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1640,18 +1918,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1660,6 +1940,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1685,10 +1966,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "POST /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1697,14 +1979,16 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "POST /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "POST /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1730,10 +2014,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints/e57a433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/endpoints/8d93433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1742,6 +2027,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1767,18 +2053,20 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1787,22 +2075,34 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "PUT /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/7c95433e-f36b-1410-8ed2-00fc9a23848b/applications/4896433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-browser-engine-report.json",
-          "check_id": "PUT /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/9a96433e-f36b-1410-8ed2-00fc9a23848b/applications/b097433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "PUT /services/api/v1/organizations/689a433e-f36b-1410-8ed2-00fc9a23848b/applications/4d9b433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -1828,10 +2128,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/urls",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1840,6 +2141,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1865,10 +2167,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/applications/7e93433e-f36b-1410-8ed2-00fc9a23848b/urls",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1877,14 +2180,25 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-browser-engine-report.json",
-          "check_id": "PUT /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "check_id": "PUT /services/api/v1/organizations/9a96433e-f36b-1410-8ed2-00fc9a23848b/applications/b097433e-f36b-1410-8ed2-00fc9a23848b/urls",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "PUT /services/api/v1/organizations/689a433e-f36b-1410-8ed2-00fc9a23848b/applications/4d9b433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -1912,10 +2226,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/groups",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1924,6 +2239,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1932,6 +2248,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -1957,26 +2274,29 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups/467a433e-f36b-1410-8ed2-00fc9a23848b/permissions",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/groups/3a93433e-f36b-1410-8ed2-00fc9a23848b/permissions",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups/4a7a433e-f36b-1410-8ed2-00fc9a23848b/permissions",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/groups/3c93433e-f36b-1410-8ed2-00fc9a23848b/permissions",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups/4e7a433e-f36b-1410-8ed2-00fc9a23848b/permissions",
+          "check_id": "GET /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/groups/3e93433e-f36b-1410-8ed2-00fc9a23848b/permissions",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -1985,6 +2305,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2010,10 +2331,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/primary-contact",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/primary-contact",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2022,6 +2344,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2047,10 +2370,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/secondary-contact",
+          "check_id": "PUT /services/api/v1/organizations/3893433e-f36b-1410-8ed2-00fc9a23848b/secondary-contact",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2059,6 +2383,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2086,6 +2411,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2094,6 +2420,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2121,6 +2448,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2129,6 +2457,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2137,6 +2466,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2145,6 +2475,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2153,6 +2484,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2178,26 +2510,29 @@
       "observations": [
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6394433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6394433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4d7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6f94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2206,6 +2541,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2231,26 +2567,29 @@
       "observations": [
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6394433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4d7c433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6f94433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4a3044ae-fe42-4670-8bda-7372b5837c5c",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/9f02c63c-6c3e-40b5-9760-a1dece3d3734",
           "status": 404,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2259,6 +2598,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2285,18 +2625,20 @@
       "observations": [
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b/download",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6394433e-f36b-1410-8ed2-00fc9a23848b/download",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4d7c433e-f36b-1410-8ed2-00fc9a23848b/download",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/6f94433e-f36b-1410-8ed2-00fc9a23848b/download",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2305,6 +2647,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2332,6 +2675,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2340,6 +2684,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2367,6 +2712,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2375,6 +2721,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2383,6 +2730,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2391,6 +2739,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2399,6 +2748,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2407,6 +2757,7 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2415,6 +2766,16 @@
           "status": 201,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "create disposable forms user",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -2444,6 +2805,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2452,6 +2814,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2460,6 +2823,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2489,6 +2853,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2497,6 +2862,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2505,6 +2871,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2513,6 +2880,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2521,6 +2889,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2529,6 +2898,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2537,6 +2907,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2545,6 +2916,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2570,10 +2942,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2582,6 +2955,7 @@
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2590,6 +2964,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2598,14 +2973,16 @@
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "DELETE /services/api/v1/users/eb7d433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/users/6d96433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2614,6 +2991,7 @@
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2622,6 +3000,16 @@
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "delete disposable forms user",
+          "status": 204,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -2647,10 +3035,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2659,6 +3048,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2684,10 +3074,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/email",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/email",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2696,6 +3087,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2721,10 +3113,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/metadata",
+          "check_id": "GET /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/metadata",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2733,6 +3126,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2758,10 +3152,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/metadata",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/metadata",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2770,6 +3165,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2795,10 +3191,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/password",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/password",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2807,6 +3204,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2832,10 +3230,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/profile",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/profile",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2844,6 +3243,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2869,10 +3269,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2881,6 +3282,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2889,6 +3291,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2897,6 +3300,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2905,6 +3309,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2913,14 +3318,34 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-provider-unavailable-report.json",
-          "check_id": "PUT /services/api/v1/users/277f433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
+          "check_id": "PUT /services/api/v1/users/ed98433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "disable MFA only for disposable forms user",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "PUT /services/api/v1/users/119b433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -2946,10 +3371,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/status",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/status",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2958,6 +3384,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -2983,10 +3410,11 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/username",
+          "check_id": "PUT /services/api/v1/users/b593433e-f36b-1410-8ed2-00fc9a23848b/username",
           "status": 204,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -2995,6 +3423,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3010,7 +3439,7 @@
       "controller": "AccountAccessController",
       "handler": "getAccountAccessHomeScreen",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 120,
+      "line": 123,
       "mapping_attributes": {},
       "required_fixtures": "SQL/Redis; branded OAuth client and CMS templates; eligible local user; CSRF and recovery session; configured MFA delivery/verification for completed recovery; external source fixture for mobile aliases",
       "id": "GET /forgot-password",
@@ -3022,12 +3451,31 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/forgot-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/forgot-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3037,7 +3485,7 @@
       "controller": "AccountAccessController",
       "handler": "postAccountAccessIdentifyYourself",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 150,
+      "line": 153,
       "mapping_attributes": {
         "value": "\"/identify-yourself\""
       },
@@ -3051,12 +3499,31 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/forgot-password/identify-yourself",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/forgot-password/identify-yourself",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3066,7 +3533,7 @@
       "controller": "AccountAccessController",
       "handler": "getAccountAccessUpdatePassword",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 210,
+      "line": 213,
       "mapping_attributes": {
         "value": "\"/update-password\""
       },
@@ -3080,12 +3547,31 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "recovery reset form cannot authorize a password change before MFA",
+          "status": 200,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/forgot-password/update-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3095,7 +3581,7 @@
       "controller": "AccountAccessController",
       "handler": "postAccountAccessUpdatePassword",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 279,
+      "line": 282,
       "mapping_attributes": {
         "value": "\"/update-password\""
       },
@@ -3109,12 +3595,31 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "direct password reset before MFA rejected without SQL mutation",
+          "status": 403,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/forgot-password/update-password",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3138,6 +3643,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3167,6 +3673,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3199,6 +3706,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3207,6 +3715,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3215,6 +3724,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3223,6 +3733,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3231,6 +3742,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3239,6 +3751,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3247,6 +3760,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3255,6 +3769,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3263,6 +3778,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3271,6 +3787,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3279,6 +3796,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3287,6 +3805,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3295,6 +3814,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3303,6 +3823,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3311,6 +3832,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3319,6 +3841,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3327,6 +3850,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3335,6 +3859,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3343,6 +3868,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3351,6 +3877,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3359,6 +3886,124 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -3391,6 +4036,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3399,6 +4045,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": true
         }
       ],
@@ -3431,6 +4078,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3439,6 +4087,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": true
         }
       ],
@@ -3468,6 +4117,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3476,6 +4126,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3484,6 +4135,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3492,6 +4144,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3500,6 +4153,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3508,6 +4162,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3516,6 +4171,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3524,6 +4180,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3532,6 +4189,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3540,6 +4198,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3548,6 +4207,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3556,6 +4216,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3564,6 +4225,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3572,6 +4234,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3580,6 +4243,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3588,6 +4252,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3596,6 +4261,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3604,6 +4270,34 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -3630,6 +4324,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3638,12 +4333,49 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/login-biometric",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/login-biometric",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "synthetic biometric expired proof rejected",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "synthetic biometric wrong device rejected",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_biometric_provider_not_configured",
-      "remaining": "Local biometric integration is disabled; real UniteMSC token/device verification is not configured or simulated."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "security_filter",
@@ -3664,6 +4396,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3672,6 +4405,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3687,7 +4421,7 @@
       "controller": "MFAController",
       "handler": "initMfaAuth",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 99,
+      "line": 102,
       "mapping_attributes": {
         "value": "MFA_URL"
       },
@@ -3701,6 +4435,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3718,7 +4453,7 @@
       "controller": "MFAController",
       "handler": "mfaAuthWithError",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 109,
+      "line": 112,
       "mapping_attributes": {
         "value": "MFA_URL",
         "params": "\"error\""
@@ -3733,6 +4468,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3748,7 +4484,7 @@
       "controller": "MFAController",
       "handler": "verifyMfaCode",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 125,
+      "line": 128,
       "mapping_attributes": {
         "value": "MFA_URL"
       },
@@ -3762,6 +4498,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -3777,7 +4514,7 @@
       "controller": "MFAController",
       "handler": "initMfaAuth",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 137,
+      "line": 140,
       "mapping_attributes": {
         "value": "MFA_URL + \"/{flow}/request-pin\""
       },
@@ -3791,6 +4528,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3799,12 +4537,58 @@
           "status": 503,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/login/request-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/login/request-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/forgot-password/request-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/activate-account/request-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/mobile-forgot-password/request-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3814,7 +4598,7 @@
       "controller": "MFAController",
       "handler": "requestPin",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 238,
+      "line": 241,
       "mapping_attributes": {
         "value": "MFA_URL + \"/{flow}/request-pin\""
       },
@@ -3828,6 +4612,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3836,12 +4621,58 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/login/request-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/login/request-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/forgot-password/request-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/activate-account/request-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/mobile-forgot-password/request-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3851,7 +4682,7 @@
       "controller": "MFAController",
       "handler": "promptForPin",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 271,
+      "line": 274,
       "mapping_attributes": {
         "value": "MFA_URL + \"/{flow}/verify-pin\""
       },
@@ -3865,12 +4696,58 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/login/verify-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/login/verify-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/forgot-password/verify-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/activate-account/verify-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mfa/mobile-forgot-password/verify-pin",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3880,7 +4757,7 @@
       "controller": "MFAController",
       "handler": "verifyMfaCode",
       "source": "src/main/java/com/chellavignesh/authserver/controller/MFAController.java",
-      "line": 406,
+      "line": 409,
       "mapping_attributes": {
         "value": "MFA_URL + \"/{flow}/verify-pin\""
       },
@@ -3894,6 +4771,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -3902,12 +4780,76 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/login/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/login/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/login/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/login/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/forgot-password/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/activate-account/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mfa/mobile-forgot-password/verify-pin",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3917,7 +4859,7 @@
       "controller": "AccountAccessController",
       "handler": "getAccountAccessHomeScreen",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 120,
+      "line": 123,
       "mapping_attributes": {},
       "required_fixtures": "SQL/Redis; branded OAuth client and CMS templates; eligible local user; CSRF and recovery session; configured MFA delivery/verification for completed recovery; external source fixture for mobile aliases",
       "id": "GET /mobile-forgot-password",
@@ -3929,12 +4871,31 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mobile-forgot-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mobile-forgot-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3944,7 +4905,7 @@
       "controller": "AccountAccessController",
       "handler": "postAccountAccessIdentifyYourself",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 150,
+      "line": 153,
       "mapping_attributes": {
         "value": "\"/identify-yourself\""
       },
@@ -3958,12 +4919,31 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mobile-forgot-password/identify-yourself",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mobile-forgot-password/identify-yourself",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -3973,7 +4953,7 @@
       "controller": "AccountAccessController",
       "handler": "getAccountAccessUpdatePassword",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 210,
+      "line": 213,
       "mapping_attributes": {
         "value": "\"/update-password\""
       },
@@ -3987,12 +4967,31 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "recovery reset form cannot authorize a password change before MFA",
+          "status": 200,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/mobile-forgot-password/update-password",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -4002,7 +5001,7 @@
       "controller": "AccountAccessController",
       "handler": "postAccountAccessUpdatePassword",
       "source": "src/main/java/com/chellavignesh/authserver/adminportal/controller/AccountAccessController.java",
-      "line": 279,
+      "line": 282,
       "mapping_attributes": {
         "value": "\"/update-password\""
       },
@@ -4016,12 +5015,31 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "direct password reset before MFA rejected without SQL mutation",
+          "status": 403,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/mobile-forgot-password/update-password",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
-      "coverage": "no_positive_http_observed",
-      "qualification": "blocked_external_flow_fixture_not_configured",
-      "remaining": "Complete eligible recovery/MFA flow requires a real configured delivery/verification provider and flow session; mobile aliases additionally need external-source metadata. Boundary responses do not complete those flows."
+      "coverage": "simulated_provider_positive_observed",
+      "qualification": "local_simulated_provider_contract_only",
+      "remaining": "Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified."
     },
     {
       "kind": "mvc",
@@ -4045,6 +5063,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4074,6 +5093,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4105,6 +5125,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4113,6 +5134,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4142,14 +5164,16 @@
           "status": 406,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/openid-configuration",
+          "check_id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/aa94433e-f36b-1410-8ed2-00fc9a23848b/openid-configuration",
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4181,6 +5205,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4189,6 +5214,7 @@
           "status": 406,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4218,6 +5244,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4226,6 +5253,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4234,6 +5262,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4242,6 +5271,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4250,6 +5280,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4258,6 +5289,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4266,6 +5298,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4274,6 +5307,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4282,6 +5316,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4290,6 +5325,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4298,6 +5334,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4306,6 +5343,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4314,6 +5352,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4322,6 +5361,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4330,6 +5370,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4338,6 +5379,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4346,6 +5388,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4354,6 +5397,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4362,6 +5406,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4370,6 +5415,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4378,6 +5424,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4386,6 +5433,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4394,6 +5442,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4402,6 +5451,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4410,6 +5460,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4418,6 +5469,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4426,6 +5478,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4434,6 +5487,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4442,6 +5496,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4450,6 +5505,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4458,6 +5514,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4466,6 +5523,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4474,6 +5532,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4482,6 +5541,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4490,6 +5550,160 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -4516,6 +5730,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4524,6 +5739,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4532,6 +5748,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4561,6 +5778,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4569,6 +5787,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4598,6 +5817,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4606,6 +5826,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4632,6 +5853,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4658,6 +5880,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4684,6 +5907,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4710,6 +5934,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4718,6 +5943,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4747,6 +5973,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4755,6 +5982,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4781,6 +6009,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4789,6 +6018,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4819,6 +6049,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4827,6 +6058,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -4858,6 +6090,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4866,6 +6099,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4874,6 +6108,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4882,6 +6117,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4890,6 +6126,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4898,6 +6135,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4906,6 +6144,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4914,6 +6153,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4922,6 +6162,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4930,6 +6171,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4938,6 +6180,43 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "SSO cookie returns active token and signing key",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/sso",
+          "status": 401,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/sso",
+          "status": 401,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/oauth2/sso",
+          "status": 401,
+          "passed": true,
+          "positive_http": false,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -4967,6 +6246,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4975,6 +6255,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4983,6 +6264,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4991,6 +6273,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -4999,6 +6282,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5007,6 +6291,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5015,6 +6300,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5023,6 +6309,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5031,6 +6318,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5039,6 +6327,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5047,6 +6336,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5055,6 +6345,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5063,6 +6354,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5071,6 +6363,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5079,6 +6372,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5087,6 +6381,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5095,6 +6390,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5103,6 +6399,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5111,6 +6408,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5119,6 +6417,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5127,6 +6426,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5135,6 +6435,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5143,6 +6444,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5151,6 +6453,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5159,6 +6462,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5167,6 +6471,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5175,6 +6480,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5183,6 +6489,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5191,6 +6498,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5199,6 +6507,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5207,6 +6516,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5215,6 +6525,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5223,6 +6534,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5231,6 +6543,43 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -5260,6 +6609,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5268,6 +6618,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": true
         }
       ],
@@ -5299,6 +6650,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5307,6 +6659,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5315,6 +6668,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5323,6 +6677,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -5354,6 +6709,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5362,6 +6718,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5370,6 +6727,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5378,6 +6736,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5386,6 +6745,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -5417,6 +6777,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5425,6 +6786,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -5457,6 +6819,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5465,6 +6828,7 @@
           "status": 200,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": true
         }
       ],
@@ -5496,6 +6860,7 @@
           "status": 302,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5504,6 +6869,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5512,6 +6878,7 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5520,6 +6887,7 @@
           "status": 403,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],
@@ -5548,6 +6916,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5556,6 +6925,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5564,6 +6934,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5572,6 +6943,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5580,6 +6952,7 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5588,6 +6961,25 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/userinfo",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-local-providers-report.json",
+          "check_id": "GET /services/userinfo",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "provider_simulation": true,
           "semantic_view_verified": false
         }
       ],
@@ -5614,6 +7006,7 @@
           "status": 200,
           "passed": true,
           "positive_http": true,
+          "provider_simulation": false,
           "semantic_view_verified": false
         },
         {
@@ -5622,6 +7015,7 @@
           "status": 400,
           "passed": true,
           "positive_http": false,
+          "provider_simulation": false,
           "semantic_view_verified": false
         }
       ],

@@ -19,7 +19,18 @@ try{
   const login=async password=>{
     await ready();await page.getByRole('button',{name:'Sign in',exact:true}).click();
     await page.locator('#username').fill(config.username);await page.locator('#password').fill(password);
-    await page.getByRole('button',{name:'Sign in',exact:true}).click();await signedIn();
+    await page.getByRole('button',{name:'Sign in',exact:true}).click();
+    if(config.provider){
+      await page.locator('input[name="option"][value="Email1-email"]').check();
+      await page.getByRole('button',{name:'Send code',exact:true}).click();
+      await page.locator('input[name="pin"]').waitFor();
+      const inbox=await fetch(config.provider.base+'/control/state',{headers:{Authorization:'Bearer '+config.provider.secret}}).then(r=>{if(!r.ok)throw Error('Local inbox unavailable');return r.json();});
+      const code=inbox.inbox.at(-1)?.code;
+      verify('actual browser MFA code is delivered by signed local provider request',!!code);
+      await page.locator('input[name="pin"]').fill(code);
+      await page.locator('form button[type="submit"]').click();
+    }
+    await signedIn();
     verify('frontend browser login completes PKCE exchange and userinfo',await page.locator('#activity').innerText().then(t=>t.includes('/oauth2/token')&&t.includes('/userinfo')));
     verify('frontend removes authorization code from address bar',!new URL(page.url()).searchParams.has('code'));
   };

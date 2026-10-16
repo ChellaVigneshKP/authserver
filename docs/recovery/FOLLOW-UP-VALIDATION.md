@@ -1,5 +1,7 @@
 # Follow-up validation — 16 October 2026
 
+Subsequent results: [the isolated local-provider lab](LOCAL-PROVIDER-LAB.md) adds 17 simulated-provider route variants and three reproduced fixes. Counts below describe the earlier campaign.
+
 This campaign addresses the remaining verification work and the reported dependency alerts on branch `fix/authserver-recovery`. The user confirmed that no provider test environment is available. Genuine external-provider success paths therefore remain unqualified.
 
 ## Actual browser and sample frontend

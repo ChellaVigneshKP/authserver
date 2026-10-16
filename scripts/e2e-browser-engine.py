@@ -22,7 +22,7 @@ def main():
     try:
         suite.create_fixture()
         before = suite.user_state()
-        public, client_path = Sample['register'](suite.admin,suite.org)
+        public, client_path = Sample['register'](suite.admin,suite.org,callback=os.environ.get('AUTH_E2E_FRONTEND_CALLBACK','http://localhost:3000/'))
         httpd = Sample['server'](public)
         profile = dict(firstName='Chloé',lastName='Browser',email=suite.user['username']+'.browser@example.test',
                        confirmEmail=suite.user['username']+'.browser@example.test',phoneNumber='(202) 555-0198',secondaryPhoneNumber='(202) 555-0199')

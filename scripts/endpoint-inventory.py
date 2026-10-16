@@ -308,13 +308,18 @@ def main():
                                 200 <= status < 400 and check.get('positive', True) is not False)
                     row['observations'].append(dict(report=path, check_id=check.get('id'),
                                                     status=status, passed=check.get('passed'), positive_http=positive,
+                                                    provider_simulation=bool(report.get('provider_simulation') or report.get('qualification','').startswith('Synthetic local')),
                                                     semantic_view_verified=check.get('semantic_view_verified') is True and check.get('passed') is True))
-        positive = any(item['positive_http'] for item in row['observations'])
+        positive = any(item['positive_http'] and not item['provider_simulation'] for item in row['observations'])
+        simulated = any(item['positive_http'] and item['provider_simulation'] for item in row['observations'])
         view = any(item['semantic_view_verified'] for item in row['observations'])
-        row['coverage'] = 'positive_http_observed' if positive else ('controlled_view_verified' if view else ('no_positive_http_observed' if row['observations'] else 'not_yet_qualified'))
+        row['coverage'] = 'positive_http_observed' if positive else ('simulated_provider_positive_observed' if simulated else ('controlled_view_verified' if view else ('no_positive_http_observed' if row['observations'] else 'not_yet_qualified')))
         if positive:
             row['qualification'] = 'imported_positive_scenario_observed'
             row['remaining'] = 'Imported positive scenario observed; this does not certify every input or conditional branch.'
+        elif simulated:
+            row['qualification'] = 'local_simulated_provider_contract_only'
+            row['remaining'] = 'Positive flow observed against an explicit local provider simulation; genuine external-provider compatibility remains unverified.'
         elif view:
             row['qualification'] = 'intentional_error_view_verified'
             row['remaining'] = 'HTTP 200 and expected form/message explicitly verified; intentional error view is not counted as a business success path.'
@@ -332,7 +337,7 @@ def main():
             row['remaining'] = 'No positive HTTP result imported for this mapping. Required: ' + row['required_fixtures']
     counts = dict(Counter(row['kind'] for row in rows))
     coverage = dict(Counter(row['coverage'] for row in rows))
-    output = dict(schema_version=1, context_path='/services',
+    output = dict(schema_version=2, context_path='/services',
                   scope='Explicit application MVC handler variants plus enabled security-filter routes; source-derived, not live runtime mappings.',
                   counts=dict(total=len(rows), **counts, **coverage),
                   limitations=[
@@ -341,6 +346,7 @@ def main():
                       'Static resources, actuator and servlet error fallback are documented separately and excluded from route denominator.',
                       'Authored scenarios identify baseline source assertions only; suite execution and DB/log evidence are not inferred.',
                       'Passing expected 400/401/403/404 probes do not qualify positive handler behavior.',
+                      'Local simulated-provider successes have a separate coverage state and do not certify genuine external providers.',
                       'A passing 2xx/3xx report check is only positive HTTP observation; it does not certify all branches or persisted mutations.',
                   ],
                   excluded_or_conditional=[
@@ -354,6 +360,8 @@ def main():
                   ],
                   evidence_reports=[dict(path=path, sha256=hashlib.sha256(Path(path).read_bytes()).hexdigest(),
                                          started_at=report.get('started_at'), finished_at=report.get('finished_at'),
+                                         provider_simulation=bool(report.get('provider_simulation') or report.get('qualification','').startswith('Synthetic local')),
+                                         qualification=report.get('qualification'),
                                          database_checks=report.get('database_checks', []),
                                          log_checks=report.get('log_checks', []),
                                          blocked=report.get('blocked', []),
@@ -366,7 +374,7 @@ def main():
     destination.write_text(json.dumps(output, indent=2) + '\n')
     lines = ['# Endpoint coverage inventory', '',
              f"Source inventory: **{len(rows)} mapping rows** ({counts.get('mvc', 0)} MVC handler variants; {counts.get('security_filter', 0)} security-filter routes). Paths are relative to `/services`.", '',
-             f"Imported results: **{coverage.get('positive_http_observed', 0)} positive HTTP observations**, **{coverage.get('controlled_view_verified', 0)} intentional error views semantically verified**, **{coverage.get('no_positive_http_observed', 0)} exercised without a completed positive flow**, **{coverage.get('not_yet_qualified', 0)} unobserved**. Observations qualify the imported scenarios and do not certify every conditional branch. Per-row qualification records distinguish controlled views from concrete integration/client-model blockers.", '',
+             f"Imported results: **{coverage.get('positive_http_observed', 0)} mapping variants with positive HTTP observations outside the provider simulation**, **{coverage.get('simulated_provider_positive_observed', 0)} additional variants verified only with simulated providers**, **{coverage.get('controlled_view_verified', 0)} intentional error views semantically verified**, **{coverage.get('no_positive_http_observed', 0)} exercised without a completed positive flow**, **{coverage.get('not_yet_qualified', 0)} unobserved**. Observations qualify the imported scenarios and do not certify every conditional branch. Per-row qualification records distinguish controlled views from concrete integration/client-model blockers.", '',
              'Regenerate with `python3 scripts/endpoint-inventory.py` and repeatable `--results .local/e2e-report.json`. No network or runtime requests occur. The JSON records report hashes and database-check summaries; reports can contain sensitive runtime data and stay local.', '',
              'Baseline `smoke-local.py` authors public discovery/JWKS, login/CSRF, PKCE authorization-code exchange, admin organization reads/create/update/revoke, userinfo and custom GET logout. `ConfidentialOAuthIntegrationTest` authors real HTTP login/code exchange and refresh rotation using `client_secret_jwt`, plus ID-token cryptographic verification and replay rejection. It creates application/credential fixtures directly through services/repositories; this does **not** cover application/credential creation HTTP endpoints. `e2e-browser-flows.py` authors real cookie/CSRF/SSO/HMAC profile/password changes on a disposable user, SQL persistence and new-password login checks, plus HMAC/CSRF/encoding rejection checks. Error responses alone never count as positive coverage.', '',
              'MVC rows expand recovery aliases and `params` variants. Implicit HEAD/OPTIONS/CORS, static assets, actuator links/health selectors, and servlet `/error` are excluded from this denominator; their presence and exposure require separate runtime checks. Built-in OAuth routes follow local SAS 1.5.3 defaults plus explicit repository overrides. OIDC logout is configured at the custom `/oauth2/connect/logout` route; `/connect/logout` is not enabled. Device flows have default filters but no supported registered device-grant client. PAR and dynamic client registration are not enabled.', '',
@@ -374,7 +382,7 @@ def main():
              '|---|---|---|---|---|']
     # Keep remaining coverage gaps explicit even when a boundary probe passed.
     gap_groups = Counter(row['controller'] for row in rows if row['coverage'] not in ('positive_http_observed', 'controlled_view_verified'))
-    gap_lines = ['Mappings without imported positive HTTP evidence (rejection/boundary probes do not qualify):', '']
+    gap_lines = ['Mappings still lacking positive evidence from genuine external providers, including simulated-only successes:', '']
     for controller, count in sorted(gap_groups.items()):
         example = next(row for row in rows if row['controller'] == controller and row['coverage'] not in ('positive_http_observed', 'controlled_view_verified'))
         gap_lines.append(f"- **{controller}: {count} mappings.** {example['required_fixtures']}")
@@ -385,7 +393,7 @@ def main():
     for row in rows:
         condition = ('; params=' + ','.join(row['params'])) if row['params'] else ''
         scenarios = ', '.join(Path(path).name for path in row['authored_positive_scenarios']) or 'none in baseline'
-        observed = '; '.join(f"{item['check_id']} ({item['status']}, {'pass' if item['passed'] else 'FAIL'})" for item in row['observations'])
+        observed = '; '.join(f"{item['check_id']} ({item['status']}, {'pass' if item['passed'] else 'FAIL'}{', simulation' if item['provider_simulation'] else ''})" for item in row['observations'])
         if observed:
             scenarios += '; observed: ' + observed
         lines.append(f"| {row['method']} | `{row['path']}{condition}` | {row['controller']}.{row['handler']} | {scenarios.replace('|', '/')} | {row['coverage']}; {row['qualification']} |")

@@ -24,6 +24,7 @@ import com.chellavignesh.authserver.mfa.dto.OtpReceiverDto;
 import com.chellavignesh.authserver.mfa.dto.OtpValidationRequestDto;
 import com.chellavignesh.authserver.mfa.exception.*;
 import com.chellavignesh.authserver.session.AuthSessionService;
+import com.chellavignesh.authserver.session.RecoveryVerificationService;
 import com.chellavignesh.authserver.session.entity.AuthSession;
 import com.chellavignesh.authserver.session.exception.AuthSessionNotFoundException;
 import com.chellavignesh.authserver.session.exception.MfaExpirySessionException;
@@ -70,6 +71,7 @@ public class MFAController {
 
     private final HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
 
+    private final RecoveryVerificationService recoveryVerification;
     private final MFAService otpService;
     private final UserService userService;
     private final CmsService cmsService;
@@ -81,7 +83,8 @@ public class MFAController {
     private final MfaExpiryPinTimeService mfaExpiryPinTimeService;
 
     @Autowired
-    public MFAController(MFAService otpService, UserService userService, CmsService cmsService, ApplicationService applicationService, AuthSessionService authSessionService, @Value("${toggles.updated-login.enabled}") boolean userUpdatedLogin, BrandUrlMappingService brandUrlMappingService, GlobalConfigCache globalConfigCache, MfaExpiryPinTimeService mfaExpiryPinTimeService) {
+    public MFAController(RecoveryVerificationService recoveryVerification, MFAService otpService, UserService userService, CmsService cmsService, ApplicationService applicationService, AuthSessionService authSessionService, @Value("${toggles.updated-login.enabled}") boolean userUpdatedLogin, BrandUrlMappingService brandUrlMappingService, GlobalConfigCache globalConfigCache, MfaExpiryPinTimeService mfaExpiryPinTimeService) {
+        this.recoveryVerification = recoveryVerification;
         this.otpService = otpService;
         this.userService = userService;
         this.cmsService = cmsService;
@@ -446,6 +449,10 @@ public class MFAController {
             request.getSession().setAttribute("error", cmsData.getOrDefault("invalidPinError", "Invalid Pin"));
 
             return "redirect:%s/mfa/%s/verify-pin".formatted(brandUrlMappingService.getUrlByBrand(brand), flow);
+        }
+
+        if (!LOGIN_FLOW.equals(flow)) {
+            recoveryVerification.verified(request.getSession().getId(), sessionId, flow);
         }
 
         switch (flow) {

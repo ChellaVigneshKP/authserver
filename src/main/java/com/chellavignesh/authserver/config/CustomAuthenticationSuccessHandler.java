@@ -137,6 +137,15 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             log.info("2FA Enabled. Redirecting to {}", targetUrl);
             response.sendRedirect(targetUrl);
         } else {
+            if (authentication instanceof BiometricAuthenticationToken) {
+                // The proof has already been verified. Persist the standard Spring token,
+                // excluding the one-use provider credential and custom token type.
+                Authentication established = UsernamePasswordAuthenticationToken.authenticated(
+                        userDetails, null, authentication.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(established);
+                new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                        .saveContext(SecurityContextHolder.getContext(), request, response);
+            }
             userService.updateAccessFailedCountWithExternalSourceCode(userDetails.getUsername(), branding, 1);
 
             String targetUrl = spliceBrandedUrl(session, savedRequest.getRedirectUrl());
