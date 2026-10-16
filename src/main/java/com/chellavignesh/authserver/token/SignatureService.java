@@ -88,6 +88,7 @@ public class SignatureService {
      * Extracts access token from Authorization header and signs the body.
      */
     public byte[] signBody(String authorizationHeader, byte[] body) throws SignatureFailedException {
+        if (!org.springframework.util.StringUtils.hasText(authorizationHeader)) return new byte[0];
         var pattern = Pattern.compile("^Bearer\\s+(.*)$");
         var matcher = pattern.matcher(authorizationHeader);
         if (matcher.matches()) {

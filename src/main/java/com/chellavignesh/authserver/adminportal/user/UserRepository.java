@@ -125,11 +125,11 @@ public class UserRepository {
 
         log.debug("Updating user in the database with userGuid: {}", userGuid);
 
-        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("email", dto.getEmail()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber()).addValue("modifiedBy", securityUtil.getTokenUserGuid());
+        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("email", dto.getEmail()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName());
 
         log.debug("Updating user in the database with parameters: {}", parameters);
 
-        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfileForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy" + ")}",
+        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfileForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy," + ":firstName," + ":lastName" + ")}",
                 parameters,
                 (rs, _) -> rs.getInt("ID")).stream().findFirst();
 

@@ -101,7 +101,7 @@ public class OrganizationCertificateService {
             certFileString.append(certificateString, i, i + MAX_FILE_WIDTH).append("\n");
             i += MAX_FILE_WIDTH;
         }
-        certFileString.append(certFileString.substring(i)).append("\n");
+        certFileString.append(certificateString.substring(i)).append("\n");
 
         String fileText = "-----BEGIN CERTIFICATE-----\n" + certFileString + "-----END CERTIFICATE-----";
         return fileText.getBytes();

@@ -27,6 +27,11 @@ public class JWKSetController {
         this.jwkService = jwkService;
     }
 
+    @GetMapping("/oauth2/.well-known/{clientId}/jwks.json")
+    public ResponseEntity<Map<String, Object>> getClientJwks(@PathVariable String clientId) {
+        return ResponseEntity.ok(new JWKSet(jwkService.get(clientId)).toPublicJWKSet().toJSONObject());
+    }
+
     @GetMapping("/oauth2/.well-known/organizations/{orgId}/jwks.json")
     public ResponseEntity<Map<String, Object>> getOrgJwks(@PathVariable UUID orgId) throws OrgNotFoundException {
 

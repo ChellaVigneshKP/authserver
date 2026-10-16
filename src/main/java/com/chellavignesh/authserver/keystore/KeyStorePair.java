@@ -36,7 +36,7 @@ public class KeyStorePair {
 
     public Optional<PrivateKey> getPrivateKey() {
         try {
-            return Optional.ofNullable((PrivateKey) mainKeyStore.getKey(ALIAS, passwordKeyStore.getKeyStorePassword().orElseThrow().toCharArray()));
+            return Optional.ofNullable((PrivateKey) mainKeyStore.getKey(ALIAS, passwordKeyStore.getSecureElementPassword().orElseThrow().toCharArray()));
         } catch (Exception e) {
             return Optional.empty();
         }

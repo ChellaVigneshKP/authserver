@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 @Component
 public class ChangePasswordDtoValidator implements Validator {
 
@@ -44,10 +47,16 @@ public class ChangePasswordDtoValidator implements Validator {
                 errors.rejectValue("confirmPassword", "Missing", REQUIRED_PASSWORD);
             }
 
-            try {
-                passwordValidatorService.validatePassword(dto.getNewPassword());
-            } catch (PasswordValidationException e) {
-                errors.rejectValue("newPassword", "Invalid", e.getMessage());
+            // Validate decoded content without changing the signed DTO wire representation.
+            decodePassword(dto.getCurrentPassword(), "currentPassword", errors);
+            decodePassword(dto.getConfirmPassword(), "confirmPassword", errors);
+            String password = decodePassword(dto.getNewPassword(), "newPassword", errors);
+            if (password != null) {
+                try {
+                    passwordValidatorService.validatePassword(password);
+                } catch (PasswordValidationException e) {
+                    errors.rejectValue("newPassword", "Invalid", e.getMessage());
+                }
             }
 
             if (!StringUtils.isEmpty(dto.getNewPassword())
@@ -58,4 +67,16 @@ public class ChangePasswordDtoValidator implements Validator {
             }
         }
     }
+    private String decodePassword(String value, String field, Errors errors) {
+        if (StringUtils.isEmpty(value)) {
+            return null;
+        }
+        try {
+            return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            errors.rejectValue(field, "Invalid", "Password encoding is invalid.");
+            return null;
+        }
+    }
+
 }

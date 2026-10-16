@@ -128,6 +128,10 @@ public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationServic
             authorizations.save(state.build());
         } catch (OAuth2AuthenticationException e) {
             throw e;
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // A browser continuation/session represents a single authorization grant.
+            // Replaying it must roll back the partial grant and return an OAuth error.
+            throw invalidGrant();
         } catch (Exception e) {
             throw new IllegalStateException("Could not persist OAuth authorization", e);
         }

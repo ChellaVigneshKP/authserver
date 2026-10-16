@@ -28,6 +28,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 jar = http.cookiejar.CookieJar()
 client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar), NoRedirect())
 headers = {'User-Agent': 'AuthserverSmoke/1.0', 'Accept-Language': 'en-US,en;q=0.9'}
+checks = []
+report_path = ROOT/'.local/e2e-smoke-report.json'
+report_path.unlink(missing_ok=True)
 
 def request(path, data=None, token=None, json_body=None, datetime_value=True, method=None):
     extra = headers | {'x-request-datetime': datetime.now(timezone.utc).isoformat()}
@@ -48,6 +51,10 @@ def request(path, data=None, token=None, json_body=None, datetime_value=True, me
         response = client.open(req, timeout=20)
     except urllib.error.HTTPError as error:
         response = error
+    checks.append(dict(id=method or ('POST' if data is not None else 'GET'),
+                       method=method or ('POST' if data is not None else 'GET'),
+                       path=urllib.parse.urlparse(req.full_url).path.removeprefix('/services'),
+                       status=response.status, positive=response.status < 400))
     return response.status, response.headers, response.read().decode()
 
 
@@ -129,3 +136,9 @@ require(status == 401, f'Logged-out access token must be rejected; got {status}'
 status, _, _ = request('/oauth2/token',exchange)
 require(status == 400, f'Authorization-code replay must be rejected; got {status}')
 print('PASS logout, inactive-token rejection and authorization-code replay rejection')
+
+# Publish observations only after every assertion in this smoke has passed.
+for check in checks:
+    check["passed"] = True
+report_path.write_text(json.dumps(dict(checks=checks, database_checks=[], failures=[], scenario_passed=True), indent=2))
+report_path.chmod(0o600)

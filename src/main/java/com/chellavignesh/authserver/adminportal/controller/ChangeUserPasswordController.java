@@ -327,7 +327,7 @@ public class ChangeUserPasswordController {
 
         var newRequestDateTime = Instant.now().atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-        String p = "surl=%s&mt=%s&request-datetime=%s".formatted(surl, metadata, newRequestDateTime);
+        String p = "surl=%s&mt=%s&x-request-datetime=%s".formatted(surl, metadata, newRequestDateTime);
 
         var redirectRootUrl = brandUrlMappingService.getUrlByBrand(brand);
 

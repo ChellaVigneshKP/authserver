@@ -25,6 +25,7 @@ import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.security.PasswordValidatorService;
 import com.chellavignesh.authserver.security.exception.PasswordValidationException;
 import com.chellavignesh.libcrypto.dto.BaseRequestObject;
+import com.chellavignesh.libcrypto.exception.BadRequestException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -412,6 +413,11 @@ public class UserController {
             }
         }
         return null;
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<String> handleInvalidProfilePayload(BadRequestException e) {
+        return ResponseEntity.badRequest().body("Invalid profile request payload");
     }
 
     @ExceptionHandler(InvalidBrandingException.class)

@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import subprocess
 import sys
 import uuid
@@ -88,7 +89,11 @@ def main():
         cache = os.environ.get('MAVEN_REPO_LOCAL', str(LOCAL/'m2'))
         command = [str(ROOT/'mvnw'), '-B', '-ntp', '-Dmaven.repo.local='+cache]
         if action == 'start':
-            run(command+['spring-boot:run'], env)
+            run(command+['-DskipTests', 'package'], env)
+            runtime = LOCAL/'runs'/('authserver-'+str(uuid.uuid4())+'.jar')
+            runtime.parent.mkdir(exist_ok=True)
+            shutil.copy2(ROOT/'target/authserver-0.0.1-SNAPSHOT.jar', runtime)
+            run(['java', '-jar', str(runtime)], env)
         else:
             env.update(AUTH_DB_IT_URL='jdbc:sqlserver://127.0.0.1:15433;encrypt=true;trustServerCertificate=true',
                        AUTH_DB_IT_USER=values['DB_USERNAME'], AUTH_DB_IT_PASSWORD=values['DB_PASSWORD'],

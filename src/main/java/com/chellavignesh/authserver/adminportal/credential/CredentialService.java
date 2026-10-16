@@ -24,15 +24,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
 public class CredentialService {
     private static final Logger log = LoggerFactory.getLogger(CredentialService.class);
-
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final CredentialRepository credentialRepository;
     private final SecretService secretService;
@@ -96,8 +98,8 @@ public class CredentialService {
                 throw new NoActiveCertificateException("No active certificate found for organization");
             }
             try {
-                LocalDate date = LocalDate.parse(certificate.get().getValidTo(), DATE_FORMATTER);
-                dto.setExpireOn(java.sql.Date.valueOf(date));
+                // SQL datetime2 values represent UTC and include the certificate expiry time.
+                dto.setExpireOn(Date.from(parseExpiration(certificate.get().getValidTo())));
             } catch (Exception e) {
                 log.error("Failed to parse certificate valid to date", e);
                 throw new CredentialCreationFailedException("Failed to parse certificate valid to date", e);
@@ -177,14 +179,26 @@ public class CredentialService {
         }
     }
 
+    private static Instant parseExpiration(String value) {
+        String normalized = value.replace(' ', 'T');
+        try {
+            return OffsetDateTime.parse(normalized).toInstant();
+        } catch (DateTimeParseException ignored) {
+            try {
+                return LocalDateTime.parse(normalized).toInstant(ZoneOffset.UTC);
+            } catch (DateTimeParseException dateOnly) {
+                return LocalDate.parse(normalized).atStartOfDay(ZoneOffset.UTC).toInstant();
+            }
+        }
+    }
+
     public boolean isCredentialExpired(Credential credential) {
         if (credential.getExpireOn() == null) {
             return false;
         }
 
         try {
-            LocalDate date = LocalDate.parse(credential.getExpireOn().toString(), DATE_FORMATTER);
-            return LocalDate.now().isAfter(date);
+            return !parseExpiration(credential.getExpireOn()).isAfter(Instant.now());
         } catch (Exception e) {
             log.error("Failed to parse credential expire on date for credential Id {}: {}", credential.getId(), credential.getExpireOn(), e);
             return true;
@@ -199,17 +213,8 @@ public class CredentialService {
             if (active && (credential.get().getCredentialStatus() == CredentialStatus.Active)) {
                 throw new CredentialUpdateFailedException("Credential is already active");
             }
-            if (credential.get().getExpireOn() != null) {
-                try {
-                    LocalDate date = LocalDate.parse(credential.get().getExpireOn(), DATE_FORMATTER);
-                    if (active && LocalDate.now().isAfter(date)) {
-                        throw new CredentialExpiredException("Credential has expired");
-                    }
-                } catch (CredentialExpiredException e) {
-                    throw e;
-                } catch (Exception e) {
-                    log.error("Failed to parse credential expire on date for credential Id {}: {}", credential.get().getId(), credential.get().getExpireOn(), e);
-                }
+            if (active && isCredentialExpired(credential.get())) {
+                throw new CredentialExpiredException("Credential has expired");
             }
         } else {
             throw new CredentialNotFoundException("Credential not found");
@@ -237,18 +242,7 @@ public class CredentialService {
         if (cred.getCredentialStatus().equals(CredentialStatus.Inactive)) {
             return true;
         }
-        boolean expired = true;
-        if (cred.getExpireOn() != null) {
-            try {
-                LocalDate date = LocalDate.parse(cred.getExpireOn(), DATE_FORMATTER);
-                if (date.isAfter(LocalDate.now())) {
-                    expired = false;
-                }
-            } catch (Exception e) {
-                log.error("Failed to parse credential expire on date for credential Id {}: {}", cred.getId(), cred.getExpireOn(), e);
-                expired = false;
-            }
-        }
+        boolean expired = isCredentialExpired(cred);
         if (cred.getCredentialStatus().equals(CredentialStatus.Disabled) || expired) {
             Credential deletedCredential = credentialRepository.updateStatus(CredentialStatus.Inactive.getValue(), orgId, appId, credentialGuid);
             return deletedCredential != null;

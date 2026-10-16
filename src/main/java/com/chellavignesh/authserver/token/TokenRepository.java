@@ -150,7 +150,7 @@ public class TokenRepository {
                 "{call Token.GetTokensByClientIdAndRequestDateTime(:clientId, :requestDateTime)}",
                 new MapSqlParameterSource()
                         .addValue("clientId", clientId)
-                        .addValue("requestDateTime", requestDateTime),
+                        .addValue("requestDateTime", java.time.LocalDateTime.ofInstant(requestDateTime.toInstant(), java.time.ZoneOffset.UTC)),
                 new TokenRowMapper()
         ).stream().toList();
     }

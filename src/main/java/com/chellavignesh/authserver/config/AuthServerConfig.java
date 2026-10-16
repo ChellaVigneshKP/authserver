@@ -152,6 +152,10 @@ public class AuthServerConfig {
                                 .userInfoResponseHandler(new UserInfoSuccessHandler())
                 ))
                 .clientAuthentication(clientAuth -> clientAuth.authenticationProviders(providers -> {
+                    // Our JWT providers re-read live SQL credentials. The default remote-JWKS
+                    // provider caches revoked keys and can otherwise succeed before these run.
+                    providers.removeIf(provider -> provider instanceof
+                            org.springframework.security.oauth2.server.authorization.authentication.JwtClientAssertionAuthenticationProvider);
                     providers.add(authenticationProvider);
                     providers.add(privateJWTAuthenticationProvider);
                     providers.add(clientSecretJWTAuthenticationProvider);
@@ -240,7 +244,8 @@ public class AuthServerConfig {
         String issuer = serverBasePath.replaceAll("/+$", "");
         log.debug("Configuring AuthorizationServerSettings with issuer: {}", issuer);
 
-        return AuthorizationServerSettings.builder().issuer(issuer).build();
+        return AuthorizationServerSettings.builder().issuer(issuer)
+                .oidcLogoutEndpoint("/oauth2/connect/logout").build();
     }
 
     // ------------------------------------------------------

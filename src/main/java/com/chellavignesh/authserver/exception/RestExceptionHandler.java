@@ -166,6 +166,23 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
     }
 
+    @ExceptionHandler({org.springframework.web.bind.ServletRequestBindingException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    protected ResponseEntity<Object> handleMalformedRequest(Exception ex) {
+        return ResponseEntity.badRequest().body("Missing or invalid request parameters");
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    protected ResponseEntity<Object> handleMissingRoute(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Not found");
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    protected ResponseEntity<Object> handleUnsupportedResponseType(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+    }
+
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<Object> handleOtherException(Exception ex) {
         logger.error("Unhandled request exception", ex);

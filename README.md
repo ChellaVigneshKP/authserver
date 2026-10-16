@@ -38,6 +38,26 @@ The smoke check performs CSRF-protected login, code+PKCE exchange, OIDC tokens, 
 
 `up` only creates AGSAuth if absent. Neither `up`, `init` nor `stop` deletes a database or Docker volume. Run `./mvnw -Dmaven.repo.local=.local/m2 test` for unit tests without external infrastructure; database tests run only when `AUTH_DB_IT_URL/USER/PASSWORD` are set, and the application context check requires `AUTH_APP_IT=true`.
 
+## Real end-to-end tests
+
+With the local app running and Docker Compose services healthy, run:
+
+```sh
+python3 scripts/e2e-local.py          # Admin CRUD, users, protocol helpers and SQL assertions
+python3 scripts/e2e-browser-flows.py  # Real HTML forms, CSRF, SSO/HMAC, profile/password persistence
+python3 scripts/e2e-certificates.py   # Real generated RSA certificates, JWKS and client assertions
+python3 scripts/e2e-protocol-variants.py # Authorization continuation, revocation, logout and metadata
+python3 scripts/e2e-machine-users.py # Machine-token password policy and invalid sync payloads
+python3 scripts/e2e-boundaries.py     # Every inventoried route, without credentials
+python3 scripts/smoke-local.py
+```
+
+These tests send real HTTP requests and inspect the local SQL Server. The form suite submits actual server-rendered forms over HTTP; it does not run a browser engine. Certificate tests require OpenSSL. They create uniquely named local fixtures, revoke/deactivate them where supported, and keep sanitized reports in ignored `.local/`. Some audit/resource fixture rows remain for inspection; no existing data is deleted. Provider-dependent MFA/recovery, notifications, biometric and legacy-crypto success paths need real provider configuration.
+
+`start` runs an immutable copy of the packaged application under `.local/runs/`, so a concurrent clean build cannot replace its loaded JAR or classes. Restart the app to load changes. Stop that foreground process before starting another instance on the same port.
+
+See [end-to-end validation](docs/recovery/E2E-VALIDATION.md) and the [endpoint coverage matrix](docs/recovery/ENDPOINT-COVERAGE.md). Boundary rejection is recorded separately from successful business-flow coverage.
+
 ## Configuration
 
 The context root is `/services`; `SERVER_BASE_PATH` must match the externally reachable scheme, host and path. Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `KEY_STORE_PASSWORD`, `AUTH_HASHER_KEYSTORE`, `AUTH_HASHER_PASSWORD` and `AUTH_HASHER_PEPPER`. The pepper alias is a UUID identifying a matching AES secret in the hashing keystore. Preserve this key to preserve existing passwords. OIDC signing uses a persistent PKCS12 file at `AUTH_SIGNING_KEYSTORE` (local default `.local/signing.p12`), alias `AUTH_SIGNING_ALIAS` (default `authserver-signing`), protected by `KEY_STORE_PASSWORD`. Preserve and back up this signing key too; missing or incorrect keys fail startup. Production SQL Server TLS certificate verification is enabled by default; local trust bypass is confined to the local profile.

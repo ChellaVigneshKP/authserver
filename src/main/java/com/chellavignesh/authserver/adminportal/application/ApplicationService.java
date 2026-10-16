@@ -82,7 +82,7 @@ public class ApplicationService {
             }
             forgotUsernameSetting = new ForgotUsernameSetting(criteria);
         } else {
-            dto.setAllowForgotUsername(null);
+            dto.setAllowForgotUsername(false);
             dto.setUsernameType(null);
             List<UsernameLookupCriteria> criteria = new ArrayList<>();
             forgotUsernameSetting = new ForgotUsernameSetting(criteria);
@@ -106,7 +106,7 @@ public class ApplicationService {
 
         ForgotUsernameSetting forgotUsernameSetting;
         if (application.getType().equals(ApplicationTypeEnum.SERVER)) {
-            dto.setAllowForgotUsername(null);
+            dto.setAllowForgotUsername(false);
             dto.setUsernameType(null);
             List<UsernameLookupCriteria> criteria = new ArrayList<>();
             forgotUsernameSetting = new ForgotUsernameSetting(criteria);

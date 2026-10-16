@@ -9,6 +9,7 @@ import com.chellavignesh.authserver.adminportal.certificate.exception.Certificat
 import com.chellavignesh.authserver.adminportal.certificate.exception.FailedToCreateFingerprintException;
 import com.chellavignesh.authserver.adminportal.certificate.exception.FailedToStoreCertificateException;
 import com.chellavignesh.authserver.adminportal.certificate.exception.InvalidFileException;
+import com.chellavignesh.authserver.adminportal.certificate.exception.InvalidPemException;
 import com.chellavignesh.authserver.adminportal.organization.exception.OrgNotFoundException;
 import com.chellavignesh.authserver.adminportal.util.EntityValidator;
 import com.chellavignesh.authserver.cms.BrandUrlMappingService;
@@ -70,11 +71,11 @@ public class OrganizationCertificateController {
 
     @GetMapping("/{certId}")
     @PreAuthorize("@permissionsService.isOrgMember(authentication, #orgGuid) and (hasPermission('idp-admin-org-cert','read') or hasPermission('idp-admin-cred-cert','read'))")
-    public ResponseEntity<CertificateResponseDto> getCertificate(@Valid @PathVariable("orgId") UUID orgGuid, @Valid @PathVariable("certId") UUID certId) throws OrgNotFoundException {
+    public ResponseEntity<CertificateResponseDto> getCertificate(@Valid @PathVariable("orgId") UUID orgGuid, @Valid @PathVariable("certId") UUID certId) throws OrgNotFoundException, CertificateNotFoundException {
 
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
 
-        return ResponseEntity.ok(CertificateResponseDto.fromCertificateEntityExtended(organizationCertificateService.get(orgId, certId).get()));
+        return ResponseEntity.ok(CertificateResponseDto.fromCertificateEntityExtended(organizationCertificateService.get(orgId, certId).orElseThrow(() -> new CertificateNotFoundException("Certificate not found"))));
     }
 
     @GetMapping(value = "/{certId}/download", produces = MediaType.TEXT_PLAIN_VALUE)
@@ -107,7 +108,12 @@ public class OrganizationCertificateController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @ExceptionHandler(InvalidFileException.class)
+    @ExceptionHandler(CertificateNotFoundException.class)
+    public ResponseEntity<Void> handleCertificateNotFound(CertificateNotFoundException e) {
+        return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler({InvalidFileException.class, InvalidPemException.class})
     public ResponseEntity<String> handleInvalidFileException(Exception e) {
         return ResponseEntity.badRequest().body(e.getMessage());
     }
