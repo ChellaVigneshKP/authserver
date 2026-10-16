@@ -51,9 +51,9 @@
   "evidence_reports": [
     {
       "path": ".local/e2e-report.json",
-      "sha256": "7a793e7bdc9e375f9ba806bc9ff4cca105d78130b796bb35cd6dbb80744fa35b",
-      "started_at": "2026-10-15T18:28:49.717614+00:00",
-      "finished_at": "2026-10-15T18:28:55.942187+00:00",
+      "sha256": "f495710200c94a1674f6605f92490fe853827fb1d8239e2720fe5cc8797700d0",
+      "started_at": "2026-10-16T06:46:26.867362+00:00",
+      "finished_at": "2026-10-16T06:46:33.347422+00:00",
       "database_checks": [
         {
           "id": "organization contact links persisted",
@@ -113,9 +113,9 @@
     },
     {
       "path": ".local/e2e-browser-report.json",
-      "sha256": "8519eb2bf3e6dfc7ec3efed49b3499cc0053db7be3e9517899538ff032b1b56c",
-      "started_at": "2026-10-15T18:28:56.034198+00:00",
-      "finished_at": "2026-10-15T18:28:59.642543+00:00",
+      "sha256": "77c58692a45a1dbcbd45aa69de1ca76cb2dc58ea55aa51009c9a346c601e81dc",
+      "started_at": "2026-10-16T06:46:33.459416+00:00",
+      "finished_at": "2026-10-16T06:46:37.302786+00:00",
       "database_checks": [
         {
           "id": "forms user creation persisted",
@@ -159,53 +159,53 @@
           "id": "local access log confirms GET /oauth2/sso 200",
           "passed": true,
           "count": 4,
-          "source": "/tmp/authserver-recovery/app-e2e.log",
+          "source": "/tmp/authserver-recovery/app-provider.log",
           "source_lines": [
-            848,
-            853,
-            890,
-            899
+            502,
+            507,
+            522,
+            531
           ]
         },
         {
           "id": "local access log confirms GET /user/change-profile 200",
           "passed": true,
           "count": 1,
-          "source": "/tmp/authserver-recovery/app-e2e.log",
+          "source": "/tmp/authserver-recovery/app-provider.log",
           "source_lines": [
-            851
+            505
           ]
         },
         {
           "id": "local access log confirms POST /user/change-profile 302",
           "passed": true,
           "count": 2,
-          "source": "/tmp/authserver-recovery/app-e2e.log",
+          "source": "/tmp/authserver-recovery/app-provider.log",
           "source_lines": [
-            857,
-            868
+            509,
+            517
           ]
         },
         {
           "id": "local access log confirms GET /user/change-password 200",
           "passed": true,
           "count": 3,
-          "source": "/tmp/authserver-recovery/app-e2e.log",
+          "source": "/tmp/authserver-recovery/app-provider.log",
           "source_lines": [
-            873,
-            894,
-            897
+            520,
+            526,
+            529
           ]
         },
         {
           "id": "local access log confirms POST /user/change-password 302",
           "passed": true,
           "count": 3,
-          "source": "/tmp/authserver-recovery/app-e2e.log",
+          "source": "/tmp/authserver-recovery/app-provider.log",
           "source_lines": [
-            891,
-            901,
-            906
+            523,
+            533,
+            538
           ]
         }
       ],
@@ -217,7 +217,7 @@
     },
     {
       "path": ".local/certificate-e2e-report.json",
-      "sha256": "55ca9a93dc5e1c54a20100b21015d60ad7d005487cb5ab7c19d7014e09cc4608",
+      "sha256": "10ef71f1a2022a1bac6bc40d05e74270ea4dac105485fce08957ad70d28044c4",
       "started_at": null,
       "finished_at": null,
       "database_checks": [
@@ -263,9 +263,9 @@
     },
     {
       "path": ".local/e2e-boundary-report.json",
-      "sha256": "475b34d31315d33170c5576f572c43b41dbf3e137edbee6ce5b4997b16271dcf",
-      "started_at": "2026-10-15T18:29:05.495945+00:00",
-      "finished_at": "2026-10-15T18:29:06.358874+00:00",
+      "sha256": "3182dfbead5c0b898633383b78f4baf36f83d1ac2779b228eb0ba217297cc5f5",
+      "started_at": "2026-10-16T06:46:53.374715+00:00",
+      "finished_at": "2026-10-16T06:46:54.199881+00:00",
       "database_checks": [],
       "log_checks": [],
       "blocked": [],
@@ -276,7 +276,7 @@
     },
     {
       "path": ".local/e2e-smoke-report.json",
-      "sha256": "ff8f9fdd8797d1bae09982faafc95d3107e2b176d864c2e2054ab264187b9f7f",
+      "sha256": "b0cd21dd93e049554af4f32d24248cf154f33d3be9813cba894b1a2a67ae99a3",
       "started_at": null,
       "finished_at": null,
       "database_checks": [],
@@ -289,9 +289,9 @@
     },
     {
       "path": ".local/e2e-protocol-report.json",
-      "sha256": "5d6e3babe825cdb3a2a6b06a60422d160c9447c9467dfa6df1090cd8fa437286",
-      "started_at": "2026-10-15T18:28:50.116136+00:00",
-      "finished_at": "2026-10-15T18:28:56.027164+00:00",
+      "sha256": "4f90576399c6c95fd623c51c743aade404c44e8dcab9f2d52def7c6fcce8a52c",
+      "started_at": "2026-10-16T06:46:43.339006+00:00",
+      "finished_at": "2026-10-16T06:46:48.398352+00:00",
       "database_checks": [
         {
           "id": "forms user creation persisted",
@@ -340,9 +340,9 @@
     },
     {
       "path": ".local/e2e-machine-report.json",
-      "sha256": "8f5eace9cb78aad6e2896d30e833fb7a4890ca53d73c9d780951d4e64671dd4f",
-      "started_at": "2026-10-15T18:28:52.968205+00:00",
-      "finished_at": "2026-10-15T18:28:57.733326+00:00",
+      "sha256": "6bf9752ca146561641765f5b11600ab170498483a20f9a4d7c2b7479d88ff3ef",
+      "started_at": "2026-10-16T06:46:48.515429+00:00",
+      "finished_at": "2026-10-16T06:46:53.305039+00:00",
       "database_checks": [
         {
           "id": "machine secret encrypted and URL permission persisted",
@@ -368,6 +368,68 @@
           "scenario": "genuine upstream synchronized profile creation",
           "prerequisite": "Configured external branding with matching SyncUserSchema, genuine legacy version-0 passwordHash/cIndex and crypto provider; real notification integration where required. Local idp SyncUserSchema is NULL. No upstream hash fabricated."
         }
+      ],
+      "not_enabled": [],
+      "failures": [],
+      "failed_assertions": [],
+      "failed_scenarios": []
+    },
+    {
+      "path": ".local/e2e-browser-engine-report.json",
+      "sha256": "1edd230690a4f4805203ebc634761828ab86a5760339491690cb3396fa1a9a45",
+      "started_at": "2026-10-16T06:46:54.326288+00:00",
+      "finished_at": "2026-10-16T06:46:59.511094+00:00",
+      "database_checks": [
+        {
+          "id": "forms user creation persisted",
+          "passed": true
+        },
+        {
+          "id": "browser profile fields persisted in SQL",
+          "passed": true
+        },
+        {
+          "id": "browser password hash changed in SQL",
+          "passed": true
+        },
+        {
+          "id": "forms fixture organization revoked",
+          "passed": true
+        }
+      ],
+      "log_checks": [],
+      "blocked": [],
+      "not_enabled": [],
+      "failures": [],
+      "failed_assertions": [],
+      "failed_scenarios": []
+    },
+    {
+      "path": ".local/e2e-provider-unavailable-report.json",
+      "sha256": "626cbc8b763c8e9dcac06d4c22070a5bf44c6ac649d1d5797c0287d7a2a26162",
+      "started_at": "2026-10-16T06:46:59.605575+00:00",
+      "finished_at": "2026-10-16T06:47:01.365372+00:00",
+      "database_checks": [
+        {
+          "id": "forms user creation persisted",
+          "passed": true
+        },
+        {
+          "id": "failed MFA attempts add no SQL access tokens",
+          "passed": true
+        },
+        {
+          "id": "biometric failure adds no SQL access tokens",
+          "passed": true
+        },
+        {
+          "id": "forms fixture organization revoked",
+          "passed": true
+        }
+      ],
+      "log_checks": [],
+      "blocked": [
+        "Real MFA delivery/verification, notifications, biometric approval and synchronized profile success: no provider environment available."
       ],
       "not_enabled": [],
       "failures": [],
@@ -665,7 +727,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/endpoints/3473433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/endpoints/e57a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -702,7 +764,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/endpoints/3473433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/endpoints/e57a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -861,6 +923,22 @@
           "passed": true,
           "positive_http": true,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "POST /services/api/v1/organizations",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "POST /services/api/v1/organizations",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "positive_http_observed",
@@ -887,7 +965,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -895,7 +973,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -942,7 +1020,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -987,6 +1065,22 @@
           "passed": true,
           "positive_http": true,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "revoke disposable forms organization",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "revoke disposable forms organization",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "positive_http_observed",
@@ -1011,7 +1105,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1054,7 +1148,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1062,7 +1156,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1086,7 +1180,7 @@
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "POST /services/api/v1/organizations/5672433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1094,7 +1188,15 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "POST /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "check_id": "POST /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "POST /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1123,7 +1225,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1131,7 +1233,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/5273433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1147,7 +1249,7 @@
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/5672433e-f36b-1410-8ed2-00fc9a23848b/applications/4273433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications/567d433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1155,7 +1257,15 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "DELETE /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1184,7 +1294,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1192,7 +1302,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1208,7 +1318,7 @@
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "GET /services/api/v1/organizations/5672433e-f36b-1410-8ed2-00fc9a23848b/applications/4273433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications/567d433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1216,7 +1326,15 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "GET /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1245,7 +1363,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1280,7 +1398,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/5273433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1315,7 +1433,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/5273433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1323,7 +1441,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1339,7 +1457,7 @@
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "POST /services/api/v1/organizations/5672433e-f36b-1410-8ed2-00fc9a23848b/applications/4273433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "POST /services/api/v1/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/applications/567d433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1347,7 +1465,7 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "POST /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b/credentials",
+          "check_id": "POST /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/credentials",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1384,7 +1502,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -1400,7 +1518,7 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b/credentials/b873433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/credentials/df7d433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -1429,7 +1547,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/5273433e-f36b-1410-8ed2-00fc9a23848b/credentials/b373433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/eb7a433e-f36b-1410-8ed2-00fc9a23848b/credentials/fb7a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1437,7 +1555,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1445,7 +1563,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1453,7 +1571,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1461,7 +1579,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 400,
           "passed": true,
           "positive_http": false,
@@ -1469,7 +1587,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1477,7 +1595,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/af74433e-f36b-1410-8ed2-00fc9a23848b/credentials/b574433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/applications/507c433e-f36b-1410-8ed2-00fc9a23848b/credentials/5b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1493,7 +1611,7 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "PUT /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b/credentials/b873433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "PUT /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/credentials/df7d433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1522,7 +1640,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1530,7 +1648,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1567,7 +1685,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "POST /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "POST /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1583,7 +1701,7 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "POST /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
+          "check_id": "POST /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/endpoints",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -1612,7 +1730,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/endpoints/3473433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/endpoints/e57a433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -1649,7 +1767,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1657,7 +1775,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 400,
           "passed": true,
           "positive_http": false,
@@ -1673,7 +1791,15 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "PUT /services/api/v1/organizations/5873433e-f36b-1410-8ed2-00fc9a23848b/applications/9c73433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "check_id": "PUT /services/api/v1/organizations/807d433e-f36b-1410-8ed2-00fc9a23848b/applications/c47d433e-f36b-1410-8ed2-00fc9a23848b/settings",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "PUT /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b/settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1702,7 +1828,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/urls",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1739,7 +1865,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/applications/e972433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/applications/cb7a433e-f36b-1410-8ed2-00fc9a23848b/urls",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1751,6 +1877,14 @@
           "status": 401,
           "passed": true,
           "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "PUT /services/api/v1/organizations/fe7d433e-f36b-1410-8ed2-00fc9a23848b/applications/377e433e-f36b-1410-8ed2-00fc9a23848b/urls",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
           "semantic_view_verified": false
         }
       ],
@@ -1778,7 +1912,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/groups",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1823,7 +1957,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/groups/d271433e-f36b-1410-8ed2-00fc9a23848b/permissions",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups/467a433e-f36b-1410-8ed2-00fc9a23848b/permissions",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1831,7 +1965,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/groups/d671433e-f36b-1410-8ed2-00fc9a23848b/permissions",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups/4a7a433e-f36b-1410-8ed2-00fc9a23848b/permissions",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1839,7 +1973,7 @@
         },
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/groups/da71433e-f36b-1410-8ed2-00fc9a23848b/permissions",
+          "check_id": "GET /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/groups/4e7a433e-f36b-1410-8ed2-00fc9a23848b/permissions",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1876,7 +2010,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/primary-contact",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/primary-contact",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -1913,7 +2047,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/organizations/ce71433e-f36b-1410-8ed2-00fc9a23848b/secondary-contact",
+          "check_id": "PUT /services/api/v1/organizations/427a433e-f36b-1410-8ed2-00fc9a23848b/secondary-contact",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2044,7 +2178,7 @@
       "observations": [
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ab74433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2052,7 +2186,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ab74433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2060,7 +2194,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ad74433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4d7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2097,7 +2231,7 @@
       "observations": [
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ab74433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2105,7 +2239,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ad74433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4d7c433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2113,7 +2247,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/8a6609a7-5d69-4ec2-8bde-10c55ff9829e",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4a3044ae-fe42-4670-8bda-7372b5837c5c",
           "status": 404,
           "passed": true,
           "positive_http": false,
@@ -2151,7 +2285,7 @@
       "observations": [
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ab74433e-f36b-1410-8ed2-00fc9a23848b/download",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4b7c433e-f36b-1410-8ed2-00fc9a23848b/download",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2159,7 +2293,7 @@
         },
         {
           "report": ".local/certificate-e2e-report.json",
-          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/ad74433e-f36b-1410-8ed2-00fc9a23848b/download",
+          "check_id": "/api/v1/organizations/ba49433e-f36b-1410-8ed2-00fc9a23848b/certificates/4d7c433e-f36b-1410-8ed2-00fc9a23848b/download",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2262,6 +2396,22 @@
         {
           "report": ".local/e2e-machine-report.json",
           "check_id": "POST /services/api/v1/users",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "create disposable forms user",
+          "status": 201,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "create disposable forms user",
           "status": 201,
           "passed": true,
           "positive_http": true,
@@ -2420,7 +2570,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "DELETE /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2452,7 +2602,23 @@
         },
         {
           "report": ".local/e2e-machine-report.json",
-          "check_id": "DELETE /services/api/v1/users/e273433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "DELETE /services/api/v1/users/eb7d433e-f36b-1410-8ed2-00fc9a23848b",
+          "status": 204,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "delete disposable forms user",
+          "status": 204,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "delete disposable forms user",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2481,7 +2647,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b",
+          "check_id": "GET /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2518,7 +2684,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/email",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/email",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2555,7 +2721,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "GET /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/metadata",
+          "check_id": "GET /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/metadata",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2592,7 +2758,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/metadata",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/metadata",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2629,7 +2795,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/password",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/password",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2666,7 +2832,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/profile",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/profile",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2703,7 +2869,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -2732,6 +2898,30 @@
           "passed": true,
           "positive_http": true,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "disable MFA only for disposable forms user",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "disable MFA only for disposable forms user",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "PUT /services/api/v1/users/277f433e-f36b-1410-8ed2-00fc9a23848b/security-settings",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "positive_http_observed",
@@ -2756,7 +2946,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/status",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/status",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -2793,7 +2983,7 @@
       "observations": [
         {
           "report": ".local/e2e-report.json",
-          "check_id": "PUT /services/api/v1/users/c173433e-f36b-1410-8ed2-00fc9a23848b/username",
+          "check_id": "PUT /services/api/v1/users/007b433e-f36b-1410-8ed2-00fc9a23848b/username",
           "status": 204,
           "passed": true,
           "positive_http": true,
@@ -3114,6 +3304,62 @@
           "passed": true,
           "positive_http": true,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/login",
+          "status": 200,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "positive_http_observed",
@@ -3319,6 +3565,46 @@
           "passed": true,
           "positive_http": true,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "POST /services/login",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "correct password requires enrolled MFA before grant",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "positive_http_observed",
@@ -3342,6 +3628,14 @@
           "report": ".local/e2e-boundary-report.json",
           "check_id": "unauthenticated POST /login-biometric",
           "status": 403,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "unconfigured biometric provider rejects synthetic proof",
+          "status": 302,
           "passed": true,
           "positive_http": false,
           "semantic_view_verified": false
@@ -3498,6 +3792,14 @@
           "passed": true,
           "positive_http": false,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "missing MFA factor provider gives controlled 503",
+          "status": 503,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "no_positive_http_observed",
@@ -3524,6 +3826,14 @@
           "report": ".local/e2e-boundary-report.json",
           "check_id": "unauthenticated POST /mfa/{flow}/request-pin",
           "status": 403,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "unavailable OTP generation cannot complete MFA",
+          "status": 302,
           "passed": true,
           "positive_http": false,
           "semantic_view_verified": false
@@ -3582,6 +3892,14 @@
           "report": ".local/e2e-boundary-report.json",
           "check_id": "unauthenticated POST /mfa/{flow}/verify-pin",
           "status": 403,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "synthetic OTP cannot authenticate with missing provider",
+          "status": 200,
           "passed": true,
           "positive_http": false,
           "semantic_view_verified": false
@@ -3828,7 +4146,7 @@
         },
         {
           "report": ".local/e2e-protocol-report.json",
-          "check_id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/5672433e-f36b-1410-8ed2-00fc9a23848b/openid-configuration",
+          "check_id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/837c433e-f36b-1410-8ed2-00fc9a23848b/openid-configuration",
           "status": 200,
           "passed": true,
           "positive_http": true,
@@ -4084,6 +4402,94 @@
           "status": 302,
           "passed": true,
           "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "PRE_AUTH cannot bypass MFA at authorization endpoint",
+          "status": 400,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "GET /services/oauth2/authorize",
+          "status": 302,
+          "passed": true,
+          "positive_http": false,
           "semantic_view_verified": false
         }
       ],
@@ -4501,6 +4907,38 @@
           "passed": true,
           "positive_http": true,
           "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "SSO cookie returns active token and signing key",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "SSO cookie returns active token and signing key",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "incomplete MFA receives no SSO access token",
+          "status": 401,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "biometric rejection receives no SSO access token",
+          "status": 401,
+          "passed": true,
+          "positive_http": false,
+          "semantic_view_verified": false
         }
       ],
       "coverage": "positive_http_observed",
@@ -4758,6 +5196,38 @@
         {
           "report": ".local/e2e-machine-report.json",
           "check_id": "real HS256 machine token with URL permissions",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-browser-engine-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "POST /services/oauth2/token",
+          "status": 200,
+          "passed": true,
+          "positive_http": true,
+          "semantic_view_verified": false
+        },
+        {
+          "report": ".local/e2e-provider-unavailable-report.json",
+          "check_id": "POST /services/oauth2/token",
           "status": 200,
           "passed": true,
           "positive_http": true,

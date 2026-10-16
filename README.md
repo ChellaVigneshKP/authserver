@@ -58,6 +58,39 @@ These tests send real HTTP requests and inspect the local SQL Server. The form s
 
 See [end-to-end validation](docs/recovery/E2E-VALIDATION.md) and the [endpoint coverage matrix](docs/recovery/ENDPOINT-COVERAGE.md). Boundary rejection is recorded separately from successful business-flow coverage.
 
+## Sample frontend and real Chrome tests
+
+Start the auth server, then run:
+
+```sh
+python3 scripts/sample-frontend.py
+```
+
+Open <http://localhost:3000/>. The server registers a disposable public PKCE client through the real admin API and creates a test user. Credentials are in private, ignored `.local/sample-frontend-account.json`; no administrator secret is served to the browser. Use the buttons to sign in, inspect userinfo, change profile/password and sign out. Ctrl-C deletes its test user and deactivates its client and organization. Abrupt termination can leave disposable fixture rows.
+
+The frontend uses real cross-origin token/userinfo requests, browser session storage and actual auth-server forms/WebCrypto. No endpoint responses are mocked. It is a local testing sample, not a production client or an admin portal. Provider-dependent flows remain explicitly unavailable.
+
+To run the automated browser campaign, stop the sample server first so port 3000 is free. Install the pinned runner in ignored tooling; Google Chrome must be installed:
+
+```sh
+npm install --prefix .local/browser --save-exact playwright@1.56.1
+python3 scripts/e2e-browser-engine.py
+python3 scripts/e2e-provider-unavailable.py
+```
+
+The browser campaign starts its own sample frontend and disposable client/user, executes the real JavaScript, checks SQL and cleans up. Its report and synthetic-account screenshot stay under `.local/`. The provider-unavailable campaign enables MFA only on its own test user and verifies that missing MFA/biometric providers cannot issue authorization codes or tokens. Those rejection checks do not qualify real provider success.
+
+Bouncy Castle modules are pinned together at 1.85. To recheck the repository's current open Bouncy Castle alerts against resolved Maven versions (requires authenticated `gh`):
+
+```sh
+MAVEN_USER_HOME="$PWD/.local/maven" ./mvnw -B -ntp \
+  -Dmaven.repo.local="$PWD/.local/m2" dependency:tree \
+  -Dincludes=org.bouncycastle -DoutputFile="$PWD/.local/bouncycastle-tree.txt"
+python3 scripts/check-bouncycastle-alerts.py
+```
+
+This is a targeted advisory-range check; it does not clear all dependencies or establish exploit reachability. See [follow-up validation](docs/recovery/FOLLOW-UP-VALIDATION.md) for the executed results and remaining provider requirements.
+
 ## Configuration
 
 The context root is `/services`; `SERVER_BASE_PATH` must match the externally reachable scheme, host and path. Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `KEY_STORE_PASSWORD`, `AUTH_HASHER_KEYSTORE`, `AUTH_HASHER_PASSWORD` and `AUTH_HASHER_PEPPER`. The pepper alias is a UUID identifying a matching AES secret in the hashing keystore. Preserve this key to preserve existing passwords. OIDC signing uses a persistent PKCS12 file at `AUTH_SIGNING_KEYSTORE` (local default `.local/signing.p12`), alias `AUTH_SIGNING_ALIAS` (default `authserver-signing`), protected by `KEY_STORE_PASSWORD`. Preserve and back up this signing key too; missing or incorrect keys fail startup. Production SQL Server TLS certificate verification is enabled by default; local trust bypass is confined to the local profile.

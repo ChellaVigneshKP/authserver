@@ -1,5 +1,7 @@
 # Real end-to-end validation
 
+Update, 16 October: the [follow-up campaign](FOLLOW-UP-VALIDATION.md) adds actual Chrome testing through a sample frontend, missing-provider rejection tests and Bouncy Castle remediation. The original results below remain historical evidence.
+
 Executed against the packaged recovery application on 15 October 2026, with local SQL Server 2022 and Redis. The final campaign completed at 23:59 IST. An additional restart and the 21-request smoke passed on 16 October after the overnight session ended. The committed inventory includes that refreshed smoke evidence. The final clean Maven/Node gate passed before this campaign: **43 Java tests, zero failures/errors/skips, and five Node tests**. The Java gate includes actual SQL contracts, a running application context, confidential-client HTTP authorization/refresh rotation, and ID-token signature verification.
 
 ## Final HTTP and database campaign

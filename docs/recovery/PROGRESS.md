@@ -65,3 +65,5 @@ Final execution evidence: `./scripts/local-dev.py test` passed **43 Java tests (
 ## Follow-up end-to-end campaign
 
 The recovery branch was pushed to `origin/fix/authserver-recovery` at the user's request. The expanded live test campaign, reproduced defects, exact coverage counts and remaining flow gaps are recorded in [E2E-VALIDATION.md](E2E-VALIDATION.md) and [ENDPOINT-COVERAGE.md](ENDPOINT-COVERAGE.md). New migrations V9/V10 repair active certificate selection and editable profile-name persistence without changing already-applied migrations.
+
+The [16 October follow-up](FOLLOW-UP-VALIDATION.md) adds the sample frontend, actual Chrome execution, missing-provider failure checks and a patched Bouncy Castle dependency tree. All nine acceptance runners passed on that build; genuine external-provider success remains unqualified because no provider test environment is available.
