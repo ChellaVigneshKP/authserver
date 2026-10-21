@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local-only real HTTP/SQL policy campaign. Never uses the configured application DB."""
+"""Local-only real HTTP/SQL management campaigns. Never uses the configured application DB."""
 import argparse
 import json
 import os
@@ -14,7 +14,7 @@ LOCAL = ROOT / '.local'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=['policy'], required=True)
+    parser.add_argument('--phase', choices=['policy', 'credentials'], required=True)
     args = parser.parse_args()
     values = json.loads((LOCAL / 'dev.json').read_text())
     url = values['DB_URL']
@@ -26,11 +26,13 @@ def main():
         'AUTH_DB_IT_USER': values['DB_USERNAME'], 'AUTH_DB_IT_PASSWORD': values['DB_PASSWORD'],
         'AUTH_APP_IT': 'true',
     }
+    test_class = ('com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest' if args.phase == 'policy'
+                  else 'com.chellavignesh.authserver.recovery.CredentialMetadataIntegrationTest')
     command = [str(ROOT / 'mvnw'), '-B', '-ntp', '-Dmaven.repo.local=' + str(LOCAL / 'm2'),
-               '-Dtest=ManagementPolicyHttpIntegrationTest', 'test']
-    xml = ROOT / 'target/surefire-reports/TEST-com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest.xml'
+               '-Dtest=' + test_class, 'test']
+    xml = ROOT / ('target/surefire-reports/TEST-' + test_class + '.xml')
     xml.unlink(missing_ok=True)
-    log = LOCAL / 'e2e-admin-management-policy.log'
+    log = LOCAL / ('e2e-admin-management-' + args.phase + '.log')
     with log.open('w') as output:
         os.chmod(log, 0o600)
         result = subprocess.run(command, cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT)
@@ -40,12 +42,13 @@ def main():
     if xml.exists():
         for test in ET.parse(xml).getroot().findall('testcase'):
             report['tests'].append({'name': test.attrib['name'],
-                                    'passed': test.find('failure') is None and test.find('error') is None})
+                                    'passed': test.find('failure') is None and test.find('error') is None and test.find('skipped') is None})
+    report['passed'] = report['passed'] and bool(report['tests']) and all(test['passed'] for test in report['tests'])
     target = LOCAL / 'e2e-admin-management-report.json'
     target.write_text(json.dumps(report, indent=2) + '\n')
     os.chmod(target, 0o600)
     print(json.dumps(report, indent=2))
-    raise SystemExit(result.returncode)
+    raise SystemExit(0 if report['passed'] else (result.returncode or 1))
 
 
 if __name__ == '__main__':

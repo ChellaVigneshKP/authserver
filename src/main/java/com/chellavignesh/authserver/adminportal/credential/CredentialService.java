@@ -7,6 +7,9 @@ import com.chellavignesh.authserver.adminportal.certificate.CertificateEntity;
 import com.chellavignesh.authserver.adminportal.certificate.CertificateStatus;
 import com.chellavignesh.authserver.adminportal.certificate.OrganizationCertificateService;
 import com.chellavignesh.authserver.adminportal.credential.dto.CreateCredentialRequestDto;
+import com.chellavignesh.authserver.adminportal.credential.dto.CredentialMetadataDto;
+import com.chellavignesh.authserver.adminportal.organization.OrganizationRepository;
+import com.chellavignesh.authserver.adminportal.organization.exception.OrgNotFoundException;
 import com.chellavignesh.authserver.adminportal.credential.dto.UpdateCredentialRequestDto;
 import com.chellavignesh.authserver.adminportal.credential.entity.Credential;
 import com.chellavignesh.authserver.adminportal.credential.entity.CredentialDao;
@@ -21,15 +24,9 @@ import com.chellavignesh.authserver.enums.entity.AuthFlowEnum;
 import com.chellavignesh.authserver.keystore.exception.FailedToCreateKeyStorePairException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
+import java.time.Clock;
 import java.util.*;
 
 @Service
@@ -40,12 +37,16 @@ public class CredentialService {
     private final SecretService secretService;
     private final OrganizationCertificateService organizationCertificateService;
     private final ApplicationRepository applicationRepository;
+    private final OrganizationRepository organizationRepository;
+    private final Clock clock;
 
-    public CredentialService(CredentialRepository credentialRepository, SecretService secretService, OrganizationCertificateService organizationCertificateService, ApplicationRepository applicationRepository) {
+    public CredentialService(CredentialRepository credentialRepository, SecretService secretService, OrganizationCertificateService organizationCertificateService, ApplicationRepository applicationRepository, OrganizationRepository organizationRepository, Clock clock) {
         this.credentialRepository = credentialRepository;
         this.secretService = secretService;
         this.organizationCertificateService = organizationCertificateService;
         this.applicationRepository = applicationRepository;
+        this.organizationRepository = organizationRepository;
+        this.clock = clock;
     }
 
     public CredentialDao createSharedSecretCredential(CreateCredentialRequestDto dto) throws CredentialCreationFailedException, TooManyCredentialsException, CredentialDuplicateNameException {
@@ -99,7 +100,7 @@ public class CredentialService {
             }
             try {
                 // SQL datetime2 values represent UTC and include the certificate expiry time.
-                dto.setExpireOn(Date.from(parseExpiration(certificate.get().getValidTo())));
+                dto.setExpireOn(Date.from(CredentialExpiration.parse(certificate.get().getValidTo())));
             } catch (Exception e) {
                 log.error("Failed to parse certificate valid to date", e);
                 throw new CredentialCreationFailedException("Failed to parse certificate valid to date", e);
@@ -140,23 +141,16 @@ public class CredentialService {
     }
 
     public List<Credential> getAll(Integer orgId, Integer appId) {
-        List<Credential> credentials = credentialRepository.getAll(orgId, appId);
-        for (Credential credential : credentials) {
-            if (credential.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT) {
-                Optional<Secret> secret = secretService.getById(credential.getSecretId());
-                if (secret.isPresent()) {
-                    credential.setValue(secret.get().getSecretKey());
-                    credential.setExpireOn(secret.get().getExpiration());
-                }
-            } else if (credential.getAuthFlow() == AuthFlowEnum.PRIVATE_KEY_JWT) {
-                Optional<CertificateEntity> cert = organizationCertificateService.getById(orgId, credential.getCertificateId());
-                if (cert.isPresent()) {
-                    credential.setValue(cert.get().getCertificate());
-                    credential.setExpireOn(cert.get().getValidTo());
-                }
-            }
-        }
-        return credentials;
+        // Public reads use the credential projection only; never load or decrypt secret stores.
+        return credentialRepository.getAll(orgId, appId);
+    }
+
+    public List<CredentialMetadataDto> listMetadata(UUID org, UUID app) throws OrgNotFoundException, AppNotFoundException {
+        var organization = organizationRepository.get(org).orElseThrow(() -> new OrgNotFoundException("Organization not found"));
+        var application = applicationRepository.get(app).filter(value -> organization.getId().equals(value.getOrgId()) && value.getActive())
+                .orElseThrow(() -> new AppNotFoundException("Application not found"));
+        return getAll(organization.getId(), application.getId()).stream()
+                .map(credential -> CredentialMetadataDto.fromCredential(credential, isCredentialExpired(credential))).toList();
     }
 
     public List<Credential> getAllClientSecretJwt(Integer orgId, Integer appId) {
@@ -179,30 +173,8 @@ public class CredentialService {
         }
     }
 
-    private static Instant parseExpiration(String value) {
-        String normalized = value.replace(' ', 'T');
-        try {
-            return OffsetDateTime.parse(normalized).toInstant();
-        } catch (DateTimeParseException ignored) {
-            try {
-                return LocalDateTime.parse(normalized).toInstant(ZoneOffset.UTC);
-            } catch (DateTimeParseException dateOnly) {
-                return LocalDate.parse(normalized).atStartOfDay(ZoneOffset.UTC).toInstant();
-            }
-        }
-    }
-
     public boolean isCredentialExpired(Credential credential) {
-        if (credential.getExpireOn() == null) {
-            return false;
-        }
-
-        try {
-            return !parseExpiration(credential.getExpireOn()).isAfter(Instant.now());
-        } catch (Exception e) {
-            log.error("Failed to parse credential expire on date for credential Id {}: {}", credential.getId(), credential.getExpireOn(), e);
-            return true;
-        }
+        return CredentialExpiration.isExpired(credential, clock);
     }
 
     public Credential updateCredential(UpdateCredentialRequestDto dto, Integer orgId, Integer appId, UUID credentialGuid) throws CredentialUpdateFailedException, CredentialExpiredException, TooManyCredentialsException, CredentialNotFoundException, CredentialDuplicateNameException {

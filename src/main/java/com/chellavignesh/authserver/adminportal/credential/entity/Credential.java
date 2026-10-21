@@ -1,7 +1,6 @@
 package com.chellavignesh.authserver.adminportal.credential.entity;
 
 import com.chellavignesh.authserver.adminportal.credential.CredentialStatus;
-import com.chellavignesh.authserver.adminportal.util.DateUtil;
 import com.chellavignesh.authserver.enums.entity.AlgorithmEnum;
 import com.chellavignesh.authserver.enums.entity.AuthFlowEnum;
 import lombok.AllArgsConstructor;
@@ -10,6 +9,8 @@ import lombok.NoArgsConstructor;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Data
@@ -44,7 +45,8 @@ public class Credential {
             secret.setCredentialStatus(CredentialStatus.fromInt(result.getInt("CredentialStatus")));
             secret.setFingerprint(result.getString("Fingerprint"));
             secret.setTokenAlgorithm(AlgorithmEnum.fromInt(result.getInt("TokenAlgorithmId")));
-            secret.setExpireOn(DateUtil.getISO8601Date(result.getDate("ExpireOn")));
+            var expiration = result.getObject("ExpireOn", LocalDateTime.class);
+            secret.setExpireOn(expiration == null ? null : expiration.toInstant(ZoneOffset.UTC).toString());
             return secret;
         } catch (SQLException e) {
             throw e;
