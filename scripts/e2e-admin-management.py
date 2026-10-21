@@ -14,7 +14,7 @@ LOCAL = ROOT / '.local'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=['policy', 'credentials', 'context'], required=True)
+    parser.add_argument('--phase', choices=['policy', 'credentials', 'context', 'roles'], required=True)
     args = parser.parse_args()
     values = json.loads((LOCAL / 'dev.json').read_text())
     url = values['DB_URL']
@@ -30,19 +30,23 @@ def main():
         'policy': 'com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest',
         'credentials': 'com.chellavignesh.authserver.recovery.CredentialMetadataIntegrationTest',
         'context': 'com.chellavignesh.authserver.adminportal.portal.PortalContextIntegrationTest',
+        'roles': 'com.chellavignesh.authserver.database.RoleContractTest,com.chellavignesh.authserver.database.RoleMigrationContractTest',
     }[args.phase]
     command = [str(ROOT / 'mvnw'), '-B', '-ntp', '-Dmaven.repo.local=' + str(LOCAL / 'm2'),
                '-Dtest=' + test_class, 'test']
-    xml = ROOT / ('target/surefire-reports/TEST-' + test_class + '.xml')
-    xml.unlink(missing_ok=True)
+    reports = [ROOT / ('target/surefire-reports/TEST-' + name + '.xml') for name in test_class.split(',')]
+    for xml in reports:
+        xml.unlink(missing_ok=True)
     log = LOCAL / ('e2e-admin-management-' + args.phase + '.log')
     with log.open('w') as output:
         os.chmod(log, 0o600)
         result = subprocess.run(command, cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT)
-    report = {'phase': args.phase, 'passed': result.returncode == 0,
+    report = {'phase': args.phase, 'passed': result.returncode == 0 and all(xml.exists() for xml in reports),
               'transport': 'real HTTP', 'database': 'owned UUID disposable SQL Server database',
               'provider': 'not exercised', 'tests': []}
-    if xml.exists():
+    for xml in reports:
+        if not xml.exists():
+            continue
         for test in ET.parse(xml).getroot().findall('testcase'):
             report['tests'].append({'name': test.attrib['name'],
                                     'passed': test.find('failure') is None and test.find('error') is None and test.find('skipped') is None})

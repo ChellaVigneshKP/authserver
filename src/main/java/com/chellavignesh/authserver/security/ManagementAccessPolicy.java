@@ -200,7 +200,7 @@ public class ManagementAccessPolicy {
     private static boolean platformReserved(String key) {
         return Set.of("idp-admin-org:create", "idp-admin-org:list", "idp-admin-org:switch", "idp-admin-org:deactivate",
                         "idp-admin-group:create", "idp-admin-group:update", "idp-admin-group:delete", "idp-admin-permission:read",
-                        "idp-admin-resource:create", "idp-admin-resource:update", "idp-admin-resource:delete", "idp-admin-app:assign-resource",
+                        "idp-admin-resource:read", "idp-admin-resource:create", "idp-admin-resource:update", "idp-admin-resource:delete", "idp-admin-app:assign-resource",
                         "idp-admin-org-cert:create", "idp-admin-org-cert:update", "idp-admin-org-cert:delete").contains(key);
     }
 

@@ -45,7 +45,7 @@ public class ResourceLibraryController {
     // ----------------------------------------------------------------------
 
     @PostMapping
-    @PreAuthorize("hasPermission('idp-admin-resource','create')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-resource:create')")
     public ResponseEntity<?> createResourceLibraryItem(@Valid @RequestBody ResourceLibraryDto createResourceLibraryDto) throws ResourceLibraryCreationFailedException {
 
         ResourceLibrary resourceLibrary = resourceLibraryService.create(createResourceLibraryDto);
@@ -58,7 +58,7 @@ public class ResourceLibraryController {
     // ----------------------------------------------------------------------
 
     @GetMapping
-    @PreAuthorize("hasPermission('idp-admin-resource','read')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-resource:read')")
     public ResponseEntity<List<ResourceLibraryResponseDto>> getResourceLibraryItems() {
 
         return ResponseEntity.ok(resourceLibraryService.getAll().stream().map(ResourceLibraryResponseDto::fromResourceLibrary).collect(Collectors.toList()));
@@ -69,7 +69,7 @@ public class ResourceLibraryController {
     // ----------------------------------------------------------------------
 
     @GetMapping("/{resourceGuid}")
-    @PreAuthorize("hasPermission('idp-admin-resource','read')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-resource:read')")
     public ResponseEntity<ResourceLibraryResponseDto> getResourceLibrary(@Valid @PathVariable UUID resourceGuid) throws ResourceLibraryNotFoundException {
 
         Optional<ResourceLibrary> resourceLibrary = resourceLibraryService.get(resourceGuid);
@@ -86,7 +86,7 @@ public class ResourceLibraryController {
     // ----------------------------------------------------------------------
 
     @PutMapping("/{resourceGuid}")
-    @PreAuthorize("hasPermission('idp-admin-resource','update')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-resource:update')")
     public ResponseEntity<?> updateResourceLibrary(@Valid @RequestBody ResourceLibraryDto updateResourceLibraryDto, @Valid @PathVariable UUID resourceGuid) throws ResourceLibraryNotFoundException, ResourceLibraryDataAccessException {
 
         Integer resourceId = entityValidator.validateResourceLibraryId(resourceGuid);
