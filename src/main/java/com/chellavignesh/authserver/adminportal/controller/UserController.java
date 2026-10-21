@@ -23,6 +23,9 @@ import com.chellavignesh.authserver.adminportal.util.SkipInitBinder;
 import com.chellavignesh.authserver.cms.BrandUrlMappingService;
 import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.security.PasswordValidatorService;
+import com.chellavignesh.authserver.security.ManagementAccessPolicy;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.chellavignesh.authserver.security.exception.PasswordValidationException;
 import com.chellavignesh.libcrypto.dto.BaseRequestObject;
 import com.chellavignesh.libcrypto.exception.BadRequestException;
@@ -52,6 +55,7 @@ import java.util.*;
 public class UserController {
 
     private final UserService userService;
+    private final ManagementAccessPolicy managementAccessPolicy;
     private final EntityValidator entityValidator;
     private final UserDtoValidator userDtoValidator;
     private final AccountSyncType accountSyncType;
@@ -66,8 +70,9 @@ public class UserController {
     private static final Integer MAX_LIMIT = 10;
 
     @Autowired
-    public UserController(UserService userService, EntityValidator entityValidator, UserDtoValidator userDtoValidator, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, OnPremAccountServiceClient onPremAccountService, BrandUrlMappingService brandUrlMappingService, ExternalSourceService externalSourceService, PasswordValidatorService passwordValidatorService, MetadataService metadataService) {
+    public UserController(UserService userService, EntityValidator entityValidator, UserDtoValidator userDtoValidator, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, OnPremAccountServiceClient onPremAccountService, BrandUrlMappingService brandUrlMappingService, ExternalSourceService externalSourceService, PasswordValidatorService passwordValidatorService, MetadataService metadataService, ManagementAccessPolicy managementAccessPolicy) {
         this.userService = userService;
+        this.managementAccessPolicy = managementAccessPolicy;
         this.entityValidator = entityValidator;
         this.userDtoValidator = userDtoValidator;
         this.accountSyncType = accountSyncType;
@@ -104,9 +109,10 @@ public class UserController {
 
     @PostMapping
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','create') and @permissionsService.canCreateUser(authentication, " + "#createUserDto.orgGuid, #createUserDto.groupGuid) or hasPermission('url-permissions', 'http://user POST')")
+    @PreAuthorize("@managementAccessPolicy.canCreateUser(authentication, #createUserDto.orgGuid, #createUserDto.groupGuid)")
     public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDto createUserDto, @SessionAttribute(value = ApplicationConstants.BRANDING_INFO, required = false) String brand) throws OrgNotFoundException, OrgGroupNotFoundException, UserCreationFailedException, InvalidBrandingException {
 
+        managementAccessPolicy.requireUserCreationTarget(SecurityContextHolder.getContext().getAuthentication(), createUserDto.getOrgGuid(), createUserDto.getMemberId());
         createUserDto.setOrgId(entityValidator.validateOrganizationId(createUserDto.getOrgGuid()));
 
         int groupId = 0;
@@ -133,12 +139,17 @@ public class UserController {
     // ----------------------------------------------------------------------
 
     @PostMapping("/profile")
-    @PreAuthorize("hasPermission('idp-admin-admin','create') or hasPermission('url-permissions','http://user POST')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createUserProfile(@RequestBody String jsonPayload, @RequestHeader Map<String, String> headers) throws UserCreationBadRequestException, OrgNotFoundException, UserCreationFailedException, InvalidBrandingException, UserSyncFailedException {
 
         BaseRequestObject baseRequestObject = BaseRequestPayloadParser.parsePayload(jsonPayload, CreateUserProfileDto.class);
 
         CreateUserProfileDto createUserProfileDto = (CreateUserProfileDto) baseRequestObject.getPayload();
+
+        Authentication actor = SecurityContextHolder.getContext().getAuthentication();
+        managementAccessPolicy.requireUserCreation(actor, createUserProfileDto.getOrgId(), null);
+        managementAccessPolicy.requireUserCreationTarget(actor, createUserProfileDto.getOrgId(),
+                createUserProfileDto.getProfile() == null ? null : createUserProfileDto.getProfile().getMemberId());
 
         BindException bindingResult = new BindException(createUserProfileDto, "createUserProfileDto");
 
@@ -175,7 +186,7 @@ public class UserController {
 
     @PutMapping("/{userGuid}/profile")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or @permissionsService.isSelf(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT')")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
     public ResponseEntity<?> updateUser(@Valid @RequestBody UpdateUserDto updateUserDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers, HttpServletRequest request) throws UserCreationBadRequestException, InvalidBrandingException, UserUpdateFailedException, UserNotFoundException, AccountSyncException, UserSyncFailedException {
 
         BindException bindingResult = new BindException(updateUserDto, "updateUserDto");
@@ -212,7 +223,7 @@ public class UserController {
 
     @PutMapping("/{userGuid}/email")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT') or @permissionsService.isSelf(authentication, #userGuid)")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
     public ResponseEntity<?> updateUserEmail(@Valid @RequestBody UpdateUserEmailDto updateUserEmailDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers, HttpServletRequest request) throws UserUpdateFailedException, InvalidBrandingException, UserNotFoundException, AccountSyncException, UserSyncFailedException {
 
         final var oExternalSource = externalSourceService.findBySourceCode(updateUserEmailDto.getBranding());
@@ -240,7 +251,7 @@ public class UserController {
 
     @PutMapping("/{userGuid}/password")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT') or @permissionsService.isSelf(authentication, #userGuid)")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
     public ResponseEntity<?> updateUserPassword(@Valid @RequestBody NotifiableUpdateUserPasswordDto updateUserPasswordDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, PasswordValidationException, UserNotFoundException, AccountSyncException {
 
         final var oExternalSource = externalSourceService.findBySourceCode(updateUserPasswordDto.getBranding());
@@ -277,7 +288,7 @@ public class UserController {
 
     @PutMapping("/{userGuid}/username")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT')")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
     public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameDto dto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, UsernameExistsException, UserNotFoundException {
 
         final var oExternalSource = externalSourceService.findBySourceCode(dto.getBranding());
@@ -306,7 +317,7 @@ public class UserController {
 // ----------------------------------------------------------------------
 
     @PutMapping("/{userGuid}/security-settings")
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or @permissionsService.isSelf(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT')")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
     public ResponseEntity<?> updateUserSecuritySettings(@Valid @RequestBody UpdateUserSecuritySettingsDto updateUserSecuritySettingsDto, @Valid @PathVariable UUID userGuid, BindingResult bindingResult) throws UserCreationBadRequestException, UserUpdateFailedException {
 
         if (bindingResult.hasErrors()) {
@@ -321,7 +332,7 @@ public class UserController {
     }
 
     @PutMapping("/{userGuid}/metadata")
-    @PreAuthorize("hasPermission('idp-admin-admin', 'update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions', 'http://user PUT')")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
     public ResponseEntity<?> updateUserMetadata(@Valid @RequestBody UpdateUserMetadataDto updateUserMetadataDto, @Valid @PathVariable UUID userGuid, BindingResult bindingResult) throws UserCreationBadRequestException, UserUpdateFailedException, UserNotFoundException {
 
         if (bindingResult.hasErrors()) {
@@ -334,13 +345,13 @@ public class UserController {
     }
 
     @GetMapping("/{userGuid}/metadata")
-    @PreAuthorize("(hasPermission('idp-admin-admin', 'read') and @permissionsService.isOrgMemberByUserId(authentication, #userGuid)) or (hasPermission('idp-admin-user', 'read') and @permissionsService.isSubjectNonAdminUser(authentication, #userGuid)) or hasPermission('url-permissions', 'http://user GET')")
+    @PreAuthorize("@managementAccessPolicy.canReadUser(authentication, #userGuid)")
     public ResponseEntity<?> getUserMetadata(@Valid @PathVariable UUID userGuid) throws UserNotFoundException {
         return ResponseEntity.ok(userService.getMetadata(userGuid));
     }
 
     @GetMapping("/{userGuid}")
-    @PreAuthorize("(hasPermission('idp-admin-admin', 'read') and @permissionsService.isOrgMemberByUserId(authentication, #userGuid)) or (hasPermission('idp-admin-user', 'read') and @permissionsService.isSubjectNonAdminUser(authentication, #userGuid)) or hasPermission('url-permissions', 'http://user GET') or @permissionsService.isSelf(authentication, #userGuid)")
+    @PreAuthorize("@managementAccessPolicy.canReadUser(authentication, #userGuid)")
     public ResponseEntity<?> getUserByGuid(@PathVariable UUID userGuid) {
 
         Optional<UserDetails> userDetails = userService.getByGuid(userGuid);
@@ -352,7 +363,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{userGuid}")
-    @PreAuthorize("hasPermission('idp-admin-admin', 'delete') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions', 'http://user DELETE')")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'delete')")
     public ResponseEntity<?> deleteUserByGuid(@PathVariable UUID userGuid) throws UserDeleteFailedException {
 
         User user = userService.deleteByGuid(userGuid);
@@ -364,15 +375,14 @@ public class UserController {
     }
 
     @PutMapping("/{userGuid}/status")
-    @PreAuthorize("hasPermission('idp-admin-admin', 'delete') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions', 'http://user DELETE')")
+    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'delete')")
     public ResponseEntity<?> updateUserStatusByGuid(@Valid @RequestBody UpdateUserStatusDto updateUserStatusDto, @PathVariable UUID userGuid) throws UserDeleteFailedException {
 
         return userService.updateUserStatusByGuid(updateUserStatusDto.status(), userGuid).map(user -> ResponseEntity.noContent().build()).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or user does not have permissions."));
     }
 
     @GetMapping
-    @PreAuthorize("hasPermission('idp-admin-admin', 'read') or hasPermission('idp-admin-user', 'read') or hasPermission('url-permissions', 'http://user GET')")
-    @AdminOnlyFilter
+    @PreAuthorize("@managementAccessPolicy.canListUsers(authentication)")
     public ResponseEntity<?> getUsers(@RequestParam(required = false) Optional<Integer> resultsPerPage, @RequestParam(required = false) Optional<Integer> offset, @RequestParam(required = false) Optional<String> type, @RequestParam(required = false) Optional<String> search, @RequestParam(required = false) Optional<UUID> organizationId, @RequestParam(required = false) Optional<String> status, @Valid @RequestBody(required = false) Optional<BrandingDto> brandingDto, HttpServletRequest request) {
 
         Optional<Integer> rpp = resultsPerPage.isEmpty() ? Optional.of(MAX_LIMIT) : resultsPerPage;
@@ -381,12 +391,9 @@ public class UserController {
 
         Optional<Integer> s = Optional.ofNullable(getStatus(status));
 
-        var applyAdminOnlyFilter = request.getAttribute(AdminOnlyFilterAspect.APPLY_ADMIN_ONLY_FILTER);
-
-        if (applyAdminOnlyFilter != null && ((Boolean) applyAdminOnlyFilter)) {
-            type = Optional.of("Administrator");
-            organizationId = Optional.of((UUID) request.getAttribute(AdminOnlyFilterAspect.ADMIN_ORG_ID));
-        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        organizationId = Optional.of(managementAccessPolicy.requireOrganizationScope(authentication, organizationId.orElse(null)));
+        type = managementAccessPolicy.requireUserListType(authentication, type);
 
         final var brandings = brandingDto.map(BrandingDto::getBrandingIds).orElseGet(List::of);
 
@@ -399,7 +406,7 @@ public class UserController {
 
     @PostMapping("/validate-password")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('url-permissions', 'http://user POST')")
+    @PreAuthorize("@managementAccessPolicy.canValidatePassword(authentication, #validateUserPasswordDto.userGuid)")
     public ResponseEntity<?> validateUserPassword(@Valid @RequestBody ValidateUserPasswordDto validateUserPasswordDto, @Valid UUID userGuid) {
         return ResponseEntity.ok(validateUserPasswordDto);
     }

@@ -9,6 +9,8 @@ import com.chellavignesh.authserver.adminportal.organization.exception.OrgGroupN
 import com.chellavignesh.authserver.adminportal.organization.exception.OrgNotFoundException;
 import com.chellavignesh.authserver.adminportal.util.EntityValidator;
 import com.chellavignesh.authserver.security.PermissionsService;
+import com.chellavignesh.authserver.security.ManagementAccessPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,13 +43,15 @@ public class OrganizationController {
     private final CreateOrganizationDtoValidator orgDtoValidator;
     private final EntityValidator entityValidator;
     private final PermissionsService permissionsService;
+    private final ManagementAccessPolicy managementAccessPolicy;
 
     @Autowired
-    public OrganizationController(OrganizationService organizationService, CreateOrganizationDtoValidator orgDtoValidator, EntityValidator entityValidator, PermissionsService permissionsService) {
+    public OrganizationController(OrganizationService organizationService, CreateOrganizationDtoValidator orgDtoValidator, EntityValidator entityValidator, PermissionsService permissionsService, ManagementAccessPolicy managementAccessPolicy) {
         this.organizationService = organizationService;
         this.orgDtoValidator = orgDtoValidator;
         this.entityValidator = entityValidator;
         this.permissionsService = permissionsService;
+        this.managementAccessPolicy = managementAccessPolicy;
     }
 
     @InitBinder("createOrganizationDto")
@@ -60,7 +64,7 @@ public class OrganizationController {
     // ----------------------------------------------------------------------
 
     @PostMapping
-    @PreAuthorize("hasPermission('idp-admin-org','create')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-org:create')")
     public ResponseEntity<?> createOrganization(@Valid @RequestBody CreateOrganizationDto createOrganizationDto, BindingResult bindingResult) throws OrgCreationBadRequestException, OrgCreationFailedException {
 
         if (bindingResult.hasErrors()) {
@@ -79,7 +83,7 @@ public class OrganizationController {
     // ----------------------------------------------------------------------
 
     @GetMapping
-    @PreAuthorize("hasPermission('idp-admin-org','list')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-org:list')")
     public ResponseEntity<List<OrganizationResponseDto>> getOrganizations() {
 
         return ResponseEntity.ok(organizationService.getAll().stream().map(OrganizationResponseDto::fromOrganization).collect(Collectors.toList()));
@@ -141,6 +145,7 @@ public class OrganizationController {
 
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
 
+        managementAccessPolicy.requireOrganizationUpdate(SecurityContextHolder.getContext().getAuthentication(), orgGuid, updateOrganizationDto.getStatus());
         organizationService.update(orgId, updateOrganizationDto);
 
         return ResponseEntity.ok(OrganizationResponseDto.fromOrganization(organizationService.get(orgGuid).get()));
