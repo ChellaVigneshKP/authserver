@@ -21,6 +21,8 @@ import static org.assertj.core.api.Assertions.*;
 class RoleContractTest extends ManagementHttpTestSupport {
     static final OwnedDatabase database=new OwnedDatabase();
     @DynamicPropertySource static void isolate(DynamicPropertyRegistry registry) { database.register(registry); }
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    com.chellavignesh.authserver.security.ManagementMutationLock mutationLock;
     Fixture platform,tenant;
     String path;
     @BeforeAll void fixtures() throws Exception {
@@ -187,6 +189,114 @@ class RoleContractTest extends ManagementHttpTestSupport {
             } finally { statement.execute("ROLLBACK TRANSACTION"); }
         }
     }
+    @Test void queuedRoleWriteDeniesRevokedActionAfterAuthentication() throws Exception {
+        queuedRevocation(false);
+    }
+
+    @Test void queuedRoleWriteDeniesRevokedPlatformAuthorityAfterAuthentication() throws Exception {
+        queuedRevocation(true);
+    }
+
+    private void queuedRevocation(boolean revokePlatform) throws Exception {
+        for (String method : List.of("POST", "PUT", "DELETE")) {
+            String suffix = UUID.randomUUID().toString().replace("-", "");
+            var target = create("Queued target " + suffix, List.of("idp-admin-user:read"));
+            String action = switch (method) { case "POST" -> "create"; case "PUT" -> "update"; default -> "delete"; };
+            var platformOrg = organizations.getById(1).orElseThrow();
+            int group = group(platformOrg, "Queued writer " + suffix, List.of("idp-admin-org:switch",
+                    "idp-admin-group:read", "idp-admin-group:" + action));
+            var bearer = token(user(platformOrg, group, "queued-" + suffix));
+            var authenticated = new CountDownLatch(1);
+            var resume = new CountDownLatch(1);
+            var firstAcquire = new java.util.concurrent.atomic.AtomicBoolean(true);
+            String requestedName = "Queued write " + suffix;
+            String requestPath = method.equals("POST") ? path : path + "/" + target.path("id").asText();
+            String payload = method.equals("DELETE") ? null : body(requestedName, List.of("idp-admin-app:read"), method.equals("PUT") ? 1 : null);
+            try (var connection = sql.getDataSource().getConnection(); var statement = connection.createStatement();
+                 var executor = Executors.newSingleThreadExecutor()) {
+                statement.execute("BEGIN TRANSACTION; EXEC sys.sp_getapplock @Resource='authserver:identity-management:v1',@LockMode='Exclusive',@LockOwner='Transaction';");
+                boolean committed = false;
+                org.mockito.Mockito.doAnswer(invocation -> {
+                    if (firstAcquire.compareAndSet(true, false)) {
+                        authenticated.countDown();
+                        if (!resume.await(10, TimeUnit.SECONDS)) throw new AssertionError("Queued request was not resumed");
+                    }
+                    return invocation.callRealMethod();
+                }).when(mutationLock).acquire();
+                try {
+                    var pending = executor.submit(() -> call(bearer, method, requestPath, payload));
+                    // Controller entry follows real bearer introspection, fingerprint and proof checks.
+                    assertThat(authenticated.await(10, TimeUnit.SECONDS)).isTrue();
+                    try (var revoke = connection.prepareStatement("UPDATE Partner.OrganizationGroupPermission SET Status=0 WHERE OrganizationGroupId=? AND PermissionKey=?")) {
+                        revoke.setInt(1, group);
+                        revoke.setString(2, revokePlatform ? "idp-admin-org:switch" : "idp-admin-group:" + action);
+                        assertThat(revoke.executeUpdate()).isEqualTo(1);
+                    }
+                    statement.execute("COMMIT TRANSACTION");
+                    committed = true;
+                    resume.countDown();
+                    var response = pending.get(20, TimeUnit.SECONDS);
+                    assertThat(response.statusCode()).as(method + " " + response.body()).isEqualTo(403);
+                    signature(bearer, response);
+                    assertThat(mapper.readTree(response.body()).path("code").asText()).isEqualTo("ACCESS_DENIED");
+                    assertThat(mapper.readTree(call(platform, "GET", path + "/" + target.path("id").asText(), null).body())).isEqualTo(target);
+                    assertThat(sql.queryForObject("SELECT COUNT(*) FROM Partner.OrganizationGroup WHERE GroupName=?", Integer.class, requestedName)).isZero();
+                } finally {
+                    resume.countDown();
+                    if (!committed) statement.execute("ROLLBACK TRANSACTION");
+                    org.mockito.Mockito.reset(mutationLock);
+                }
+            }
+        }
+    }
+
+    @Test void openidOnlyTokenDoesNotAcquireDatabaseAdministrationGrants() throws Exception {
+        var actor = user(organizations.getById(1).orElseThrow(), 1, "openid-only-platform");
+        var bearer = token(app, users.getByGuid(actor.getRowGuid()).orElseThrow().username(), "openid");
+        var response = call(bearer, "POST", path, body("Scope must deny", List.of("idp-admin-user:read"), null));
+        assertThat(response.statusCode()).isEqualTo(403);
+        signature(bearer, response);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Partner.OrganizationGroup WHERE GroupName='Scope must deny'", Integer.class)).isZero();
+    }
+
+    @Test void legacyPlatformRoleUpdateCannotRemoveSoleAdministrator() throws Exception {
+        var platformOrg = organizations.getById(1).orElseThrow();
+        int group = group(platformOrg, "Legacy sole platform administrator", List.of("idp-admin-org:switch",
+                "idp-admin-group:read", "idp-admin-group:update", "idp-admin-group:delete"));
+        var actor = user(platformOrg, group, "legacy-sole-platform");
+        var bearer = token(actor);
+        String id = sql.queryForObject("SELECT CONVERT(VARCHAR(36),RowGuid) FROM Partner.OrganizationGroup WHERE OrganizationGroupId=?", String.class, group);
+        String item = "/api/v1/organizations/" + platformOrg.getRowGuid() + "/groups/" + id;
+        var otherAdministrators = sql.queryForList("SELECT DISTINCT p.ProfileId FROM Person.Profile p JOIN Person.ProfileGroup pg ON pg.ProfileId=p.ProfileId JOIN Partner.OrganizationGroupPermission grantRow ON grantRow.OrganizationGroupId=pg.OrganizationGroupId WHERE p.Status=1 AND p.ProfileId<>? AND grantRow.Status=1 AND grantRow.PermissionKey='idp-admin-org:switch'", Integer.class, actor.getId());
+        try {
+            for (int profile : otherAdministrators) sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?", profile);
+            assertThat(sql.queryForObject("SELECT COUNT(DISTINCT p.ProfileId) FROM Person.Profile p JOIN Person.ProfileGroup pg ON pg.ProfileId=p.ProfileId JOIN Partner.OrganizationGroupPermission grantRow ON grantRow.OrganizationGroupId=pg.OrganizationGroupId WHERE p.Status=1 AND grantRow.Status=1 AND grantRow.PermissionKey='idp-admin-org:switch'", Integer.class)).isEqualTo(1);
+            var before = mapper.readTree(call(bearer, "GET", item, null).body());
+            var response = call(bearer, "PUT", item, body("Authority removed", List.of("idp-admin-user:read"), 1));
+            assertThat(response.statusCode()).as(response.body()).isEqualTo(409);
+            signature(bearer, response);
+            assertThat(mapper.readTree(response.body()).path("code").asText()).isEqualTo("ROLE_REQUIRES_REVIEW");
+            assertThat(mapper.readTree(call(bearer, "GET", item, null).body())).isEqualTo(before);
+            var deleted = call(bearer, "DELETE", item, null);
+            assertThat(deleted.statusCode()).isEqualTo(409);
+            assertThat(mapper.readTree(deleted.body()).path("code").asText()).isEqualTo("ROLE_REQUIRES_REVIEW");
+            assertThat(sql.queryForObject("SELECT COUNT(*) FROM Partner.OrganizationGroupPermission WHERE OrganizationGroupId=? AND PermissionKey='idp-admin-org:switch' AND Status=1", Integer.class, group)).isEqualTo(1);
+        } finally {
+            for (int profile : otherAdministrators) sql.update("UPDATE Person.Profile SET Status=1 WHERE ProfileId=?", profile);
+        }
+    }
+
+    @Test void unassignedLegacyPlatformRoleCannotBeDeactivated() throws Exception {
+        int group = group(orgA, "Unassigned legacy platform grant", List.of("idp-admin-resource:read"));
+        String id = sql.queryForObject("SELECT CONVERT(VARCHAR(36),RowGuid) FROM Partner.OrganizationGroup WHERE OrganizationGroupId=?", String.class, group);
+        var response = call(platform, "DELETE", path + "/" + id, null);
+        problem(response, 409);
+        assertThat(mapper.readTree(response.body()).path("code").asText()).isEqualTo("ROLE_REQUIRES_REVIEW");
+        assertThat(sql.queryForObject("SELECT Status FROM Partner.OrganizationGroup WHERE OrganizationGroupId=?", Integer.class, group)).isEqualTo(1);
+        // Legacy grants freeze only the affected definition, not unrelated role mutations.
+        create("Unrelated role remains writable", List.of("idp-admin-user:read"));
+    }
+
     @Test void missingBearerHasSafeUnauthorizedContract() throws Exception {
         for(String method:List.of("GET","POST")) {
             var response=call(null,method,method.equals("GET")?path+"/"+UUID.randomUUID():path,method.equals("GET")?null:body("Denied",List.of("idp-admin-user:read"),null));

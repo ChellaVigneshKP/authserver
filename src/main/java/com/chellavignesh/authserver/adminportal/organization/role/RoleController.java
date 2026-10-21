@@ -32,7 +32,7 @@ public class RoleController {
     public ResponseEntity<RoleDto> create(@PathVariable UUID org, @RequestBody CreateRoleDto body,
                                           Authentication authentication) {
         mutations.acquire();
-        return ResponseEntity.status(201).body(roles.create(org, body, access.requireHumanActor(authentication)));
+        return ResponseEntity.status(201).body(roles.create(org, body, access.requireHumanActorForMutation(authentication)));
     }
 
     @PutMapping("/{group}")
@@ -40,7 +40,7 @@ public class RoleController {
     public RoleDto update(@PathVariable UUID org, @PathVariable UUID group, @RequestBody UpdateRoleDto body,
                           Authentication authentication) {
         mutations.acquire();
-        return roles.update(org, group, body, access.requireHumanActor(authentication));
+        return roles.update(org, group, body, access.requireHumanActorForMutation(authentication));
     }
 
     @GetMapping("/{group}")
@@ -53,7 +53,7 @@ public class RoleController {
     public ResponseEntity<Void> deactivate(@PathVariable UUID org, @PathVariable UUID group,
                                            Authentication authentication) {
         mutations.acquire();
-        roles.deactivate(org, group, access.requireHumanActor(authentication));
+        roles.deactivate(org, group, access.requireHumanActorForMutation(authentication));
         return ResponseEntity.noContent().build();
     }
 

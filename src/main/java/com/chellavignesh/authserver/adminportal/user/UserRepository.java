@@ -18,8 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Types;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -488,6 +490,24 @@ public class UserRepository {
                 MapSqlParameterBuilder.of("profileId", profileId),
                 ProfileOrganization.MAPPER
         ).stream().findFirst();
+    }
+
+    /** Live organization-scoped grants for authorization after the shared mutation lock. */
+    public Set<String> getCurrentManagementPermissions(UUID userGuid, UUID organizationGuid) {
+        var parameters = new MapSqlParameterSource("userGuid", userGuid.toString())
+                .addValue("organizationGuid", organizationGuid.toString());
+        return new HashSet<>(namedParameterJdbcTemplate.query("""
+                SELECT DISTINCT permission.PermissionKey
+                FROM Person.Profile actor
+                JOIN Person.ProfileOrganization membership ON membership.ProfileId=actor.ProfileId AND membership.Status=1
+                JOIN Partner.Organization organization ON organization.OrganizationId=membership.OrganizationId AND organization.Status=1
+                JOIN Person.ProfileGroup assignment ON assignment.ProfileId=actor.ProfileId
+                JOIN Partner.OrganizationGroup role ON role.OrganizationGroupId=assignment.OrganizationGroupId
+                    AND role.OrganizationId=organization.OrganizationId AND role.Status=1
+                JOIN Partner.OrganizationGroupPermission permission ON permission.OrganizationGroupId=role.OrganizationGroupId
+                    AND permission.OrganizationId=organization.OrganizationId AND permission.Status=1
+                WHERE actor.RowGuid=:userGuid AND actor.Status=1 AND organization.RowGuid=:organizationGuid
+                """, parameters, (row, _) -> row.getString(1)));
     }
 
     public List<OrganizationGroupPermission> getUserPermissions(Integer userId) {

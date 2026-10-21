@@ -18,6 +18,11 @@ public class RoleFailure extends RuntimeException {
                 + " assigned members. Remove assignments before deactivating.");
     }
 
+    public static RoleFailure legacyPlatformRole() {
+        return new RoleFailure(409, "ROLE_REQUIRES_REVIEW",
+                "Legacy role contains platform-reserved permissions and requires review before modification.");
+    }
+
     public String code() { return code; }
     public int status() { return status; }
 }

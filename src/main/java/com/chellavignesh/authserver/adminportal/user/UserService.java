@@ -507,6 +507,10 @@ public class UserService {
         return this.userRepository.getUserAuthDetailsByUsernameAndExternalSourceCode(username, externalSourceCode);
     }
 
+    public Set<String> getCurrentManagementPermissions(UUID userGuid, UUID organizationGuid) {
+        return userRepository.getCurrentManagementPermissions(userGuid, organizationGuid);
+    }
+
     public Map<String, List<String>> getUserPermissions(Integer userId) {
         List<OrganizationGroupPermission> groupPermissionList = this.userRepository.getUserPermissions(userId);
         return PermissionsMap.getPermissionsMap(groupPermissionList);

@@ -4,6 +4,7 @@ import com.chellavignesh.authserver.adminportal.organization.role.dto.CreateRole
 import com.chellavignesh.authserver.adminportal.organization.role.dto.RoleDto;
 import com.chellavignesh.authserver.adminportal.organization.role.dto.UpdateRoleDto;
 import com.chellavignesh.authserver.security.ActorContext;
+import com.chellavignesh.authserver.security.ManagementAccessPolicy;
 import com.chellavignesh.authserver.security.ManagementMutationLock;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -75,6 +76,9 @@ public class RoleService {
 
     private void mutable(RoleRepository.Row role) {
         if (role.builtin()) throw new RoleFailure(409);
+        if (role.dto().permissionKeys().stream().anyMatch(ManagementAccessPolicy::platformReserved)) {
+            throw RoleFailure.legacyPlatformRole();
+        }
     }
 
     private void require(ActorContext actor, UUID org, String action) {

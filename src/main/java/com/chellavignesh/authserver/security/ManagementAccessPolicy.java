@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
 import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionAuthenticatedPrincipal;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.function.BooleanSupplier;
@@ -43,6 +44,25 @@ public class ManagementAccessPolicy {
             throw denied();
         Set<String> permissions = permissions(principal);
         return new ActorContext(userId, org, permissions.contains("idp-admin-org:switch"), permissions);
+    }
+
+    /**
+     * Call only after ManagementMutationLock.acquire(), in the same transaction. Authentication
+     * claims precede the lock, so intersect their authority with current active SQL grants.
+     * The original token's idp-admin scope and claim ceiling can never be widened by this reload.
+     */
+    public ActorContext requireHumanActorForMutation(Authentication authentication) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("Mutation authorization requires the shared locked transaction");
+        }
+        var actor = requireHumanActor(authentication);
+        Set<String> permissions = new HashSet<>(actor.permissions());
+        if (!values(principal(authentication).getAttribute("scope")).contains("idp-admin")) {
+            permissions.clear();
+        } else {
+            permissions.retainAll(users.getCurrentManagementPermissions(actor.userId(), actor.organizationId()));
+        }
+        return new ActorContext(actor.userId(), actor.organizationId(), permissions.contains("idp-admin-org:switch"), permissions);
     }
 
     public UUID requireOrganizationScope(Authentication authentication, UUID requested) {
@@ -197,7 +217,7 @@ public class ManagementAccessPolicy {
         return result;
     }
 
-    private static boolean platformReserved(String key) {
+    public static boolean platformReserved(String key) {
         return Set.of("idp-admin-org:create", "idp-admin-org:list", "idp-admin-org:switch", "idp-admin-org:deactivate",
                         "idp-admin-group:create", "idp-admin-group:update", "idp-admin-group:delete", "idp-admin-permission:read",
                         "idp-admin-resource:read", "idp-admin-resource:create", "idp-admin-resource:update", "idp-admin-resource:delete", "idp-admin-app:assign-resource",
