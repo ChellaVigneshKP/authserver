@@ -1,5 +1,6 @@
 package com.chellavignesh.authserver.filter;
 
+import com.chellavignesh.authserver.adminportal.util.PortalResponses;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +41,10 @@ public class InfrastructureAvailabilityFilter extends OncePerRequestFilter {
                 return;
             }
             response.reset();
+            if (PortalResponses.isPortalRequest(request)) {
+                PortalResponses.writeProblem(request, response, 503);
+                return;
+            }
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.setHeader("Retry-After", "5");
             response.setHeader("Cache-Control", "no-store");
@@ -48,7 +53,7 @@ public class InfrastructureAvailabilityFilter extends OncePerRequestFilter {
         }
     }
 
-    static boolean isDependencyUnavailable(Throwable failure) {
+    public static boolean isDependencyUnavailable(Throwable failure) {
         Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Throwable cause = failure; cause != null && visited.add(cause); cause = cause.getCause()) {
             if (cause instanceof DataAccessResourceFailureException || cause instanceof QueryTimeoutException

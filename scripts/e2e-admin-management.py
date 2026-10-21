@@ -14,7 +14,7 @@ LOCAL = ROOT / '.local'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=['policy', 'credentials'], required=True)
+    parser.add_argument('--phase', choices=['policy', 'credentials', 'context'], required=True)
     args = parser.parse_args()
     values = json.loads((LOCAL / 'dev.json').read_text())
     url = values['DB_URL']
@@ -26,8 +26,11 @@ def main():
         'AUTH_DB_IT_USER': values['DB_USERNAME'], 'AUTH_DB_IT_PASSWORD': values['DB_PASSWORD'],
         'AUTH_APP_IT': 'true',
     }
-    test_class = ('com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest' if args.phase == 'policy'
-                  else 'com.chellavignesh.authserver.recovery.CredentialMetadataIntegrationTest')
+    test_class = {
+        'policy': 'com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest',
+        'credentials': 'com.chellavignesh.authserver.recovery.CredentialMetadataIntegrationTest',
+        'context': 'com.chellavignesh.authserver.adminportal.portal.PortalContextIntegrationTest',
+    }[args.phase]
     command = [str(ROOT / 'mvnw'), '-B', '-ntp', '-Dmaven.repo.local=' + str(LOCAL / 'm2'),
                '-Dtest=' + test_class, 'test']
     xml = ROOT / ('target/surefire-reports/TEST-' + test_class + '.xml')

@@ -36,6 +36,10 @@ public class OrganizationService {
         return organizationRepository.getAll();
     }
 
+    public List<Organization> getForMember(UUID userGuid) {
+        return organizationRepository.getForMember(userGuid);
+    }
+
     public Optional<Organization> get(UUID orgGuid) {
         return organizationRepository.get(orgGuid);
     }

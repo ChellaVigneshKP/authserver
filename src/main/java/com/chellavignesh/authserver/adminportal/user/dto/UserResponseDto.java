@@ -1,11 +1,13 @@
 package com.chellavignesh.authserver.adminportal.user.dto;
 
+import com.chellavignesh.authserver.adminportal.toggle.AccountSyncType;
 import com.chellavignesh.authserver.adminportal.user.UserStatus;
 import com.chellavignesh.authserver.adminportal.user.entity.UserDetails;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 import java.util.UUID;
+import java.util.Locale;
 
 @JsonInclude(Include.NON_NULL)
 public record UserResponseDto(
@@ -24,10 +26,21 @@ public record UserResponseDto(
         UUID loginId,
         UserStatus status,
         String branding,
-        String secondaryPhoneNumber
+        String secondaryPhoneNumber,
+        UUID organizationId,
+        @JsonInclude(Include.ALWAYS) UUID groupId,
+        String syncMode
 ) {
 
     public static UserResponseDto fromUser(UserDetails userDetails) {
+        return fromUser(userDetails, AccountSyncType.NONE);
+    }
+
+    public static UserResponseDto fromUser(UserDetails userDetails,
+            AccountSyncType syncType) {
+        boolean synced = Boolean.TRUE.equals(userDetails.profileSyncFlag()) || Boolean.TRUE.equals(userDetails.credSyncFlag());
+        String mode = synced && syncType != AccountSyncType.NONE
+                ? syncType.name().toLowerCase(Locale.ROOT) : "local";
         return new UserResponseDto(
                 userDetails.rowGuid(),
                 userDetails.email(),
@@ -44,7 +57,10 @@ public record UserResponseDto(
                 userDetails.loginId(),
                 userDetails.status(),
                 userDetails.branding(),
-                userDetails.secondaryPhoneNumber()
+                userDetails.secondaryPhoneNumber(),
+                userDetails.orgId(),
+                userDetails.groupId(),
+                mode
         );
     }
 }

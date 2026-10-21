@@ -36,4 +36,20 @@ class InfrastructureAvailabilityFilterTest {
                 (request, reply) -> {throw new org.springframework.dao.QueryTimeoutException("Redis command timed out");});
         assertThat(response.getStatus()).isEqualTo(503);
     }
+    @Test void portalOutageHasSafeRetryableProblem() throws Exception {
+        var request=new MockHttpServletRequest("GET","/services/api/v1/portal/context");
+        request.setServletPath("/api/v1/portal/context");request.addHeader("x-request-id","outage-request-123");
+        var response=new MockHttpServletResponse();
+        new InfrastructureAvailabilityFilter().doFilter(request,response,(req,res)-> {
+            throw new ServletException("wrapper",new RedisConnectionFailureException("private host and credentials"));
+        });
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getContentType()).contains("application/json");
+        var body=new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.getContentAsString());
+        assertThat(body.path("code").asText()).isEqualTo("SERVICE_UNAVAILABLE");
+        assertThat(body.path("retryable").asBoolean()).isTrue();
+        assertThat(body.path("requestId").asText()).isEqualTo("outage-request-123");
+        assertThat(response.getContentAsString()).doesNotContain("private host","credentials","Exception");
+    }
+
 }

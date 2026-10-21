@@ -359,7 +359,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or user does not have permissions.");
         }
 
-        return ResponseEntity.ok(UserResponseDto.fromUser(userDetails.get()));
+        return ResponseEntity.ok(userService.toResponse(userDetails.get()));
     }
 
     @DeleteMapping("/{userGuid}")
@@ -399,7 +399,7 @@ public class UserController {
 
         List<UserDetails> usersDetails = userService.getAll(rpp, os, type, search, organizationId, s, brandings);
 
-        List<UserResponseDto> users = usersDetails.stream().map(UserResponseDto::fromUser).toList();
+        List<UserResponseDto> users = usersDetails.stream().map(userService::toResponse).toList();
 
         return ResponseEntity.ok(UsersResponseDto.from(os.get(), rpp.get(), !usersDetails.isEmpty() ? usersDetails.get(0).results() : 0, users));
     }

@@ -58,6 +58,10 @@ public class UserService {
         this.accountSyncType = accountSyncType;
     }
 
+    public UserResponseDto toResponse(UserDetails user) {
+        return UserResponseDto.fromUser(user, accountSyncType);
+    }
+
     public User create(CreateUserDto dto, int groupId, boolean hashedPassword) throws UserCreationFailedException, InvalidBrandingException {
         return create(dto, groupId, hashedPassword, "", Map.of(), CreateUserNotificationConfig.getDefault());
     }

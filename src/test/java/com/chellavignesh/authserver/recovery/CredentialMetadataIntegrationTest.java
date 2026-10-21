@@ -1,6 +1,5 @@
 package com.chellavignesh.authserver.recovery;
 
-import com.chellavignesh.authserver.adminportal.application.*;
 import com.chellavignesh.authserver.adminportal.application.dto.*;
 import com.chellavignesh.authserver.adminportal.application.entity.Application;
 import com.chellavignesh.authserver.adminportal.forgotusername.ForgotUsernameSetting;
@@ -15,31 +14,18 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 import com.chellavignesh.authserver.adminportal.credential.CredentialStatus;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.redis.core.RedisTemplate;
 import com.chellavignesh.authserver.adminportal.organization.*;
-import com.chellavignesh.authserver.adminportal.organization.dto.CreateOrganizationDto;
-import com.chellavignesh.authserver.adminportal.organization.entity.Organization;
-import com.chellavignesh.authserver.adminportal.user.*;
-import com.chellavignesh.authserver.adminportal.user.dto.CreateUserDto;
 import com.chellavignesh.authserver.adminportal.user.entity.User;
 import com.chellavignesh.authserver.enums.entity.*;
-import com.chellavignesh.authserver.session.fingerprint.ClientFingerprint;
 import com.fasterxml.jackson.databind.*;
-import com.microsoft.sqlserver.jdbc.SQLServerDataSource;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.*;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.*;
 import java.util.*;
 import static org.assertj.core.api.Assertions.*;
@@ -52,50 +38,16 @@ import static org.assertj.core.api.Assertions.*;
         "app.local.bootstrap.enabled=false", "toggles.signature.required=true",
         "logging.level.root=WARN", "logback.access.enabled=false"})
 @ExtendWith(OutputCaptureExtension.class)
-class CredentialMetadataIntegrationTest {
+class CredentialMetadataIntegrationTest extends com.chellavignesh.authserver.support.ManagementHttpTestSupport {
     @org.springframework.beans.factory.annotation.Value("${server.base-path}") String issuer;
-    static final String database="AuthserverCredentials_"+UUID.randomUUID().toString().replace("-","");
-    static final String namespace="authserver:credentials:"+UUID.randomUUID()+":";
-    static JdbcTemplate admin;
-    static boolean owned;
-    @DynamicPropertySource static void isolate(DynamicPropertyRegistry registry) {
-        String url=System.getenv("AUTH_DB_IT_URL");
-        if (url==null || !url.matches("jdbc:sqlserver://(?:127\\.0\\.0\\.1|localhost):15433;encrypt=true;trustServerCertificate=true"))
-            throw new IllegalStateException("Credential tests require the approved loopback SQL Server");
-        SQLServerDataSource ds=new SQLServerDataSource(); ds.setURL(url);
-        ds.setUser(System.getenv("AUTH_DB_IT_USER")); ds.setPassword(System.getenv("AUTH_DB_IT_PASSWORD"));
-        admin=new JdbcTemplate(ds); admin.execute("CREATE DATABASE ["+database+"]"); owned=true;
-        Runtime.getRuntime().addShutdownHook(new Thread(CredentialMetadataIntegrationTest::dropOwnedDatabase));
-        registry.add("spring.datasource.url",()->url+";databaseName="+database);
-        registry.add("spring.session.redis.namespace",()->namespace+"session");
-        registry.add("spring.cache.redis.key-prefix",()->namespace+"cache:");
-    }
-    static synchronized void dropOwnedDatabase() {
-        if (owned) {
-            admin.execute("ALTER DATABASE ["+database+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
-            admin.execute("DROP DATABASE ["+database+"]"); owned=false;
-        }
-    }
-    @Autowired JdbcTemplate sql;
-    @Autowired OrganizationService organizations;
-    @Autowired ApplicationRepository applications;
-    @Autowired UserRepository users;
-    @Autowired RedirectUriRepository redirects;
-    @Autowired ObjectMapper mapper;
+    static final OwnedDatabase database=new OwnedDatabase();
+    @DynamicPropertySource static void isolate(DynamicPropertyRegistry registry) { database.register(registry); }
     @Autowired CredentialService credentials;
     @Autowired CredentialRepository credentialRepository;
     @Autowired SecretService secretService;
     @Autowired OrganizationCertificateService certificateService;
     @Autowired OrganizationRepository organizationRepository;
-    @Autowired @Qualifier("redisTemplate") RedisTemplate<String,Object> sessionRedis;
-    @Autowired @Qualifier("cacheRedisTemplate") RedisTemplate<String,Object> cacheRedis;
-    @LocalServerPort int port;
-    Organization orgA,orgB;
-
-    Application app;
     Fixture adminToken,viewerToken;
-    final HttpClient http=HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
-    record Fixture(String value,byte[] key) {}
     @BeforeAll void fixtures() throws Exception {
         orgA=organization("Credentials A"); orgB=organization("Credentials B");
         int adminGroup=group(orgA,"Credential administrator",List.of("idp-admin-app:read","idp-admin-app:update"));
@@ -106,51 +58,7 @@ class CredentialMetadataIntegrationTest {
         redirects.createRedirectUris(orgA.getId(),app.getId(),List.of("http://localhost/callback"));
         adminToken=token(admin);viewerToken=token(viewer);
     }
-    @AfterAll void cleanup() {
-        for (RedisTemplate<String,Object> redis:List.of(sessionRedis,cacheRedis)) {
-            // The literal UUID namespace owns every key selected here; never flush a Redis DB.
-            Set<String> keys=redis.keys(namespace+"*");
-            if(keys!=null && !keys.isEmpty()) redis.delete(keys);
-        }
-        dropOwnedDatabase();
-    }
-    Organization organization(String name) throws Exception {var dto=new CreateOrganizationDto();dto.setName(name);dto.setDescription("Disposable credential fixture");return organizations.create(dto);}
-    int group(Organization org,String name,List<String> permissions) {
-        int id=sql.queryForObject("INSERT Partner.OrganizationGroup(OrganizationId,GroupName) OUTPUT INSERTED.OrganizationGroupId VALUES(?,?)",Integer.class,org.getId(),name);
-        for (String key:permissions) sql.update("INSERT Partner.OrganizationGroupPermission(OrganizationGroupId,OrganizationId,PermissionName,PermissionKey) VALUES(?,?,?,?)",id,org.getId(),key,key);
-        return id;
-    }
-    User user(Organization org,int group,String name) throws Exception {
-        var dto=new CreateUserDto(); dto.setOrgId(org.getId());dto.setFirstName("Policy");dto.setLastName(name);
-        dto.setUsername(name);dto.setEmail(name+"@example.test");dto.setPhoneNumber("+19999999999");dto.setSyncFlag(false);
-        dto.setMetaData(Map.of("marker",name));
-        return users.create(dto,"0011223344556677",1,group,UUID.fromString("11111111-1111-1111-1111-111111111111"),12);
-    }
-    Application application(Organization org) throws Exception {
-        var dto=new CreateApplicationDto();dto.setName("Policy app");dto.setDescription("Fixture");dto.setType(ApplicationTypeEnum.WEB);dto.setAuthMethod(AuthFlowEnum.PKCE);dto.setUsernameType(UsernameTypeEnum.USERNAME);dto.setAllowForgotUsername(false);
-        var settings=new UpdateTokenSettingsDto();settings.setAuthCodeTimeToLive(120);settings.setAccessTokenTimeToLive(600);settings.setRefreshTokenTimeToLive(3600);settings.setDeviceCodeTimeToLive(120);settings.setMaxRequestTransitTime(30);settings.setReuseRefreshTokens(false);
-        return applications.create(org.getId(),dto,settings,new ForgotUsernameSetting(List.of()),AccessTokenFormatEnum.REFERENCE);
-    }
-    Fixture token(User user) throws Exception {
-        String username=users.getByGuid(user.getRowGuid()).orElseThrow().username();
-        return token(app,username,"openid metadata idp-admin");
-    }
-    Fixture token(Application client,String subject,String scope) throws Exception {
-        byte[] fingerprint=new ClientFingerprint(ZoneOffset.UTC,"en-US","PolicyIntegration/1.0",null).getBytes();
-        int session=sql.queryForObject("EXEC Token.CreateAuthSession ?,?,?,?,?,?,?",Integer.class,client.getId(),subject,scope,client.getAuthFlow().getValue(),fingerprint,client.getClientId(),"idp");
-        String sessionId=sql.queryForObject("SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.AuthSession WHERE AuthSessionId=?",String.class,session);
-        String value="policy-"+UUID.randomUUID();byte[] key=new byte[32];new java.security.SecureRandom().nextBytes(key);
-        sql.queryForObject("EXEC Token.CreateTokenWithHash ?,?,?,?,?,?,?,?,?",Integer.class,TokenTypeEnum.ACCESS_TOKEN.getValue(),client.getId(),subject,sessionId,true,value,key,600,MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
-        return new Fixture(value,key);
-    }
-    HttpResponse<String> call(Fixture token,String method,String path,String body) throws Exception {
-        var b=HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services"+path)).timeout(Duration.ofSeconds(20))
-                .header("User-Agent","PolicyIntegration/1.0").header("Accept-Language","en-US")
-                .header("x-request-datetime",OffsetDateTime.now(ZoneOffset.UTC).toString());
-        if(token!=null) {var mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(token.key(),"HmacSHA256"));b.header("Authorization","Bearer "+token.value()).header("x-signature",Base64.getEncoder().encodeToString(mac.doFinal((body==null?"":body).getBytes(StandardCharsets.UTF_8))));}
-        if(body!=null)b.header("Content-Type","application/json");
-        return http.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofString());
-    }
+    @AfterAll void cleanup() { cleanup(database); }
 
     Application confidentialApplication() throws Exception {
         var dto=new CreateApplicationDto();dto.setName("Credential "+UUID.randomUUID());dto.setDescription("Owned fixture");dto.setType(ApplicationTypeEnum.SERVER);dto.setAuthMethod(AuthFlowEnum.CLIENT_SECRET_JWT);dto.setUsernameType(UsernameTypeEnum.USERNAME);dto.setAllowForgotUsername(false);
