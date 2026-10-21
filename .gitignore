@@ -35,6 +35,7 @@ build/
 # Local development credentials, databases and downloaded build tools
 .local/
 .superpowers/
+.worktrees/
 
 __pycache__/
 *.pyc
