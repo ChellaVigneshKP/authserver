@@ -255,4 +255,44 @@ class CredentialMetadataIntegrationTest {
         assertThat(problem.path("retryable").asBoolean()).isFalse();
         assertThat(denied.body()).doesNotContain("Exception",foreignApp.getRowGuid().toString());
     }
+    void assertProblem(HttpResponse<String> response,int status,String code) throws Exception {
+        assertThat(response.statusCode()).isEqualTo(status);
+        assertThat(response.headers().firstValue("Content-Type").orElse("")).startsWith("application/json");
+        assertThat(response.headers().firstValue("Cache-Control").orElse("")).contains("no-store");
+        var problem=mapper.readTree(response.body());
+        assertThat(problem.properties().stream().map(Map.Entry::getKey).toList()).containsExactlyInAnyOrder("code","message","requestId","retryable");
+        assertThat(problem.path("code").asText()).isEqualTo(code);
+        assertThat(problem.path("message").asText().isBlank()).isFalse();
+        assertThat(UUID.fromString(problem.path("requestId").asText())).isNotNull();
+        assertThat(problem.path("retryable").asBoolean()).isFalse();
+        assertThat(response.body()).doesNotContain("Exception","stackTrace");
+    }
+    @Test void v2DeniedAccessUsesProblemEnvelope() throws Exception {
+        var client=confidentialApplication();
+        var stranger=user(orgB,group(orgB,"Envelope viewer",List.of("idp-admin-app:read")),"envelope-stranger");
+        var bearer=token(stranger);
+        assertThat(call(bearer,"GET",path(client),null).body()).isEqualTo("Access denied");
+        assertProblem(call(bearer,"GET",path(client).replace("/v1/","/v2/"),null),403,"ACCESS_DENIED");
+    }
+    @Test void v2MalformedIdentifiersUseProblemEnvelope() throws Exception {
+        var client=confidentialApplication();String route=path(client).replace("/v1/","/v2/");
+        for(String guid:List.of(orgA.getRowGuid().toString(),client.getRowGuid().toString())) {
+            var response=call(viewerToken,"GET",route.replace(guid,"malformed-guid-marker"),null);
+            assertProblem(response,400,"INVALID_REQUEST");
+            assertThat(response.body()).doesNotContain("malformed-guid-marker");
+        }
+    }
+    @Test void v2MissingOrInvalidBearerUsesProblemEnvelope() throws Exception {
+        var client=confidentialApplication();String route=path(client).replace("/v1/","/v2/");
+        for(Fixture bearer:Arrays.asList(null,new Fixture("invalid-bearer-marker",new byte[32]))) {
+            var legacy=call(bearer,"GET",path(client),null);
+            assertThat(legacy.statusCode()).isEqualTo(401);
+            assertThat(legacy.body()).isEmpty();
+            var response=call(bearer,"GET",route,null);
+            assertProblem(response,401,"UNAUTHORIZED");
+            assertThat(response.headers().firstValue("WWW-Authenticate").orElse("")).startsWith("Bearer");
+            assertThat(response.body()).doesNotContain("invalid-bearer-marker");
+        }
+    }
+
 }

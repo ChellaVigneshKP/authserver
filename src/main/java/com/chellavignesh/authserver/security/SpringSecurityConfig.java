@@ -135,14 +135,15 @@ public class SpringSecurityConfig {
     /** Management is bearer-only and never restores a hosted login or PRE_AUTH session. */
     @Bean
     @Order(3)
-    public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http, CredentialMetadataAuthenticationEntryPoint metadataEntryPoint) throws Exception {
         http.securityMatcher("/api/**")
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz.requestMatchers(HttpMethod.OPTIONS).permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(opaque -> opaque.introspector(tokenIntrospector)))
+                .oauth2ResourceServer(oauth2 -> oauth2.authenticationEntryPoint(metadataEntryPoint)
+                        .opaqueToken(opaque -> opaque.introspector(tokenIntrospector)))
                 .addFilterAfter(requestDatetimeValidationFilter, AuthorizationFilter.class)
                 .addFilterAfter(requestClientFingerprintFilter, RequestDatetimeValidationFilter.class)
                 .addFilterAfter(requestBodySignatureFilter, RequestDatetimeValidationFilter.class)
