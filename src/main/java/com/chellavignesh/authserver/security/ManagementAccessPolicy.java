@@ -39,6 +39,8 @@ public class ManagementAccessPolicy {
         UUID org = uuid(principal.getAttribute("org_guid"));
         if (member.status() != UserStatus.Active || org == null || !org.equals(member.orgId())) throw denied();
         activeOrganization(org);
+        if (organizations.getForMember(userId).stream().noneMatch(membership -> org.equals(membership.getRowGuid())))
+            throw denied();
         Set<String> permissions = permissions(principal);
         return new ActorContext(userId, org, permissions.contains("idp-admin-org:switch"), permissions);
     }

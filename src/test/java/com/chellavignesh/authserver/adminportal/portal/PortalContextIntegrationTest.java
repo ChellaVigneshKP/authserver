@@ -115,6 +115,17 @@ class PortalContextIntegrationTest extends ManagementHttpTestSupport {
         var response=call(bearer,"GET",CONTEXT,null);
         assertThat(response.statusCode()).isEqualTo(403);assertProblem(response,false);
     }
+    @Test void removedPlatformMembershipDeniesContext() throws Exception {
+        var platformOrg=organizations.getById(1).orElseThrow();
+        int role=group(platformOrg,"Revocable platform",List.of("idp-admin-org:switch"));
+        var member=user(platformOrg,role,"context-removed-platform");var bearer=token(member);
+        assertThat(context(bearer).path("organizations").findValuesAsText("id"))
+                .contains(orgA.getRowGuid().toString(),orgB.getRowGuid().toString());
+        sql.update("UPDATE Person.ProfileOrganization SET Status=0 WHERE ProfileId=?",member.getId());
+        var response=call(bearer,"GET",CONTEXT,null);
+        assertThat(response.statusCode()).isEqualTo(403);assertProblem(response,false);
+        assertThat(response.body()).doesNotContain("subject","organizations",orgB.getRowGuid().toString());
+    }
     @Test void providerModeDescribesConfigurationOnly() throws Exception {
         var principal=introspector.introspect(adminToken.value());
         var token=new org.springframework.security.oauth2.core.OAuth2AccessToken(
@@ -214,5 +225,17 @@ class PortalContextIntegrationTest extends ManagementHttpTestSupport {
                 .header("x-request-datetime",java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).toString()).GET().build();
         var response=http.send(request,HttpResponse.BodyHandlers.ofString());assertThat(response.statusCode()).isEqualTo(400);assertProblem(response,false);
         assertThat(UUID.fromString(mapper.readTree(response.body()).path("requestId").asText())).isNotNull();
+    }    @Test void malformedSignatureEncodingHasSafeProofRejection() throws Exception {
+        var request=HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services"+CONTEXT))
+                .header("Authorization","Bearer "+adminToken.value()).header("x-signature","%")
+                .header("x-request-id","malformed-proof-123")
+                .header("User-Agent","PolicyIntegration/1.0").header("Accept-Language","en-US")
+                .header("x-request-datetime",java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).toString()).GET().build();
+        var response=http.send(request,HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(400);assertProblem(response,false);
+        assertThat(mapper.readTree(response.body()).path("code").asText()).isEqualTo("INVALID_REQUEST");
+        assertThat(mapper.readTree(response.body()).path("requestId").asText()).isEqualTo("malformed-proof-123");
+        assertThat(response.body()).doesNotContain("subject","IllegalArgumentException","base64",adminToken.value());
     }
+
 }

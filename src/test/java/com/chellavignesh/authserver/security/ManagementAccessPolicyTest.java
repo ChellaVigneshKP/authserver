@@ -30,6 +30,8 @@ class ManagementAccessPolicyTest {
         when(users.getByGuid(targetId)).thenReturn(Optional.of(user(targetId,orgA,null)));
         when(organizations.get(orgA)).thenReturn(Optional.of(new Organization(1,orgA,"A",null,OrganizationStatus.ACTIVE,null,null)));
         when(organizations.get(orgB)).thenReturn(Optional.of(new Organization(2,orgB,"B",null,OrganizationStatus.ACTIVE,null,null)));
+        var own = organizations.get(orgA).orElseThrow();
+        when(organizations.getForMember(actorId)).thenReturn(List.of(own));
     }
     @Test void tenantReadWithoutFilterIsScoped() {
         var actor=bearer(Map.of("idp-admin-user",new String[]{"read"}));
@@ -102,6 +104,16 @@ class ManagementAccessPolicyTest {
         var grant=new OrganizationGroupPermission();grant.setKey("idp-admin-org:switch");grant.setStatus(OrganizationStatus.ACTIVE);
         when(organizations.getOrganizationGroupPermissions(1,8)).thenReturn(List.of(grant));
         assertThat(policy.canCreateUser(bearer(Map.of("idp-admin-user",List.of("create"),"idp-admin-admin",List.of("create"))),orgA,groupId)).isFalse();
+    }
+    @Test void revokedMembershipDeniesTenantAndPlatformActors() {
+        when(organizations.getForMember(actorId)).thenReturn(List.of());
+        for(var claims:List.<Map<String,Object>>of(Map.of("idp-admin-user",List.of("read","update")),
+                Map.of("idp-admin-org",List.of("switch"),"idp-admin-user",List.of("read","update")))) {
+            var actor=bearer(claims);
+            assertThatThrownBy(()->policy.requireHumanActor(actor)).isInstanceOf(AccessDeniedException.class);
+            assertThat(policy.canListUsers(actor)).isFalse();
+            assertThat(policy.canMutateUser(actor,targetId,"update")).isFalse();
+        }
     }
     BearerTokenAuthentication machine() {
         var app=mock(Application.class);when(app.getOrgId()).thenReturn(1);when(app.getActive()).thenReturn(true);when(app.getType()).thenReturn(ApplicationTypeEnum.SERVER);when(app.getAuthFlow()).thenReturn(AuthFlowEnum.CLIENT_SECRET_JWT);

@@ -20,6 +20,7 @@ import java.util.Base64;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class PortalResponseFilter extends OncePerRequestFilter {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PortalResponseFilter.class);
     private final SignatureService signatures;
 
     public PortalResponseFilter(SignatureService signatures) { this.signatures = signatures; }
@@ -33,21 +34,31 @@ public class PortalResponseFilter extends OncePerRequestFilter {
         response.setHeader("Cache-Control", "no-store");
         response.setHeader("x-request-id", PortalResponses.requestId(request));
         var buffered = new ContentCachingResponseWrapper(response);
-        chain.doFilter(request, buffered);
-        if (buffered.getStatus() >= 400) {
-            boolean wasSigned = buffered.containsHeader("x-signature");
-            PortalResponses.writeProblem(request, buffered, buffered.getStatus());
-            // A signature created inside the security chain must cover the normalized response bytes.
-            if (wasSigned) {
-                try {
-                    var signature = signatures.signBody(request.getHeader("Authorization"), buffered.getContentAsByteArray());
-                    buffered.setHeader("x-signature", Base64.getEncoder().encodeToString(signature));
-                } catch (SignatureFailedException failure) {
-                    buffered.setHeader("x-signature", "");
-                    PortalResponses.writeProblem(request, buffered, 500);
+        try {
+            chain.doFilter(request, buffered);
+            if (buffered.getStatus() >= 400) {
+                boolean wasSigned = buffered.containsHeader("x-signature");
+                PortalResponses.writeProblem(request, buffered, buffered.getStatus());
+                // A signature created inside the security chain must cover the normalized response bytes.
+                if (wasSigned) {
+                    try {
+                        var signature = signatures.signBody(request.getHeader("Authorization"), buffered.getContentAsByteArray());
+                        buffered.setHeader("x-signature", Base64.getEncoder().encodeToString(signature));
+                    } catch (SignatureFailedException failure) {
+                        buffered.setHeader("x-signature", "");
+                        PortalResponses.writeProblem(request, buffered, 500);
+                    }
                 }
             }
+            buffered.copyBodyToResponse();
+        } catch (ServletException | IOException | RuntimeException failure) {
+            // The outer availability boundary preserves typed dependency failures as retryable503.
+            if (InfrastructureAvailabilityFilter.isDependencyUnavailable(failure)) throw failure;
+            log.warn("Portal request failed before completion ({})", failure.getClass().getSimpleName());
+            if (buffered.isCommitted()) return;
+            buffered.setHeader("x-signature", "");
+            PortalResponses.writeProblem(request, buffered, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            buffered.copyBodyToResponse();
         }
-        buffered.copyBodyToResponse();
     }
 }

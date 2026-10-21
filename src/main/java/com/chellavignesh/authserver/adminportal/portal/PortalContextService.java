@@ -32,8 +32,6 @@ public class PortalContextService {
         var actor = policy.requireHumanActor(authentication);
         var user = users.getByGuid(actor.userId()).orElseThrow(() -> new AccessDeniedException("Access denied"));
         var accessible = actor.platformAdmin() ? organizations.getAll() : organizations.getForMember(actor.userId());
-        if (!actor.platformAdmin() && accessible.stream().noneMatch(org -> org.getRowGuid().equals(actor.organizationId())))
-            throw new AccessDeniedException("Access denied");
         var permissions = actor.permissions();
         return new PortalContextDto(
                 new PortalContextDto.Subject(actor.userId(), user.loginId(), user.username(), actor.organizationId()),
