@@ -4,6 +4,7 @@ import com.chellavignesh.authserver.adminportal.application.ApplicationService;
 import com.chellavignesh.authserver.adminportal.organization.OrganizationService;
 import com.chellavignesh.authserver.adminportal.organization.OrganizationStatus;
 import com.chellavignesh.authserver.adminportal.organization.entity.Organization;
+import com.chellavignesh.authserver.adminportal.organization.role.RoleRepository;
 import com.chellavignesh.authserver.adminportal.user.UserService;
 import com.chellavignesh.authserver.adminportal.user.UserStatus;
 import com.chellavignesh.authserver.adminportal.user.entity.UserDetails;
@@ -26,12 +27,14 @@ public class ManagementAccessPolicy {
     private final OrganizationService organizations;
     private final ApplicationService applications;
     private final ManagementLifecycleGuard lifecycle;
+    private final RoleRepository roles;
 
-    public ManagementAccessPolicy(UserService users, OrganizationService organizations, ApplicationService applications, ManagementLifecycleGuard lifecycle) {
+    public ManagementAccessPolicy(UserService users, OrganizationService organizations, ApplicationService applications, ManagementLifecycleGuard lifecycle, RoleRepository roles) {
         this.users = users;
         this.organizations = organizations;
         this.applications = applications;
         this.lifecycle = lifecycle;
+        this.roles = roles;
     }
 
     public ActorContext requireHumanActor(Authentication authentication) {
@@ -168,7 +171,14 @@ public class ManagementAccessPolicy {
         if (!actor.permissions().contains("idp-admin-user:create")) throw denied();
         if (group != null) {
             if (!actor.permissions().contains("idp-admin-admin:create")) throw denied();
-            requireGrantCeiling(actor, org, group);
+            var grants = requireGrantCeiling(actor, org, group);
+            // Creation grants a new role. Existing legacy administrators remain eligible for
+            // lifecycle updates, but new reserved authority requires a protected platform role.
+            if (grants.stream().anyMatch(ManagementAccessPolicy::platformReserved)) {
+                var organization = activeOrganization(org);
+                if (!actor.platformAdmin() || organization.getId() != 1
+                        || !roles.get(organization.getId(), group).builtin()) throw denied();
+            }
         }
     }
 
@@ -212,7 +222,7 @@ public class ManagementAccessPolicy {
         return allowed(() -> requireHumanActor(authentication).userId().equals(userGuid));
     }
 
-    private void requireGrantCeiling(ActorContext actor, UUID org, UUID group) {
+    private Set<String> requireGrantCeiling(ActorContext actor, UUID org, UUID group) {
         var targetGroup = activeGroup(org, group);
         var organization = activeOrganization(org);
         Set<String> grants = new HashSet<>();
@@ -220,6 +230,7 @@ public class ManagementAccessPolicy {
                 .stream().filter(p -> p.getStatus() == OrganizationStatus.ACTIVE).forEach(p -> grants.add(p.getKey()));
         if (!actor.permissions().containsAll(grants)
                 || (!actor.platformAdmin() && grants.stream().anyMatch(ManagementAccessPolicy::platformReserved))) throw denied();
+        return grants;
     }
 
     private com.chellavignesh.authserver.adminportal.organization.entity.OrganizationGroup activeGroup(UUID org, UUID group) {

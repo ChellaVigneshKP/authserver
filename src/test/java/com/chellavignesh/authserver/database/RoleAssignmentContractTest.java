@@ -347,6 +347,62 @@ class RoleAssignmentContractTest extends ManagementHttpTestSupport {
         assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?",Integer.class,newId.toString())).isZero();
     }
 
+    @Test void creationRejectsUnprotectedPlatformRoleBeforeProviderLookup() throws Exception {
+        assertCreationRejectsPlatformRole(false);
+    }
+
+    @Test void creationRejectsProtectedRoleOutsidePlatformOrgBeforeProviderLookup() throws Exception {
+        assertCreationRejectsPlatformRole(true);
+    }
+
+    void assertCreationRejectsPlatformRole(boolean foreignBuiltin) throws Exception {
+        var platformOrg = organizations.getById(1).orElseThrow();
+        var organization = foreignBuiltin ? orgA : platformOrg;
+        int group = role(organization, List.of("idp-admin-org:switch"));
+        if (foreignBuiltin) sql.update("UPDATE Partner.OrganizationGroup SET IsBuiltin=1 WHERE OrganizationGroupId=?", group);
+        var pending = new User();
+        pending.setRowGuid(UUID.randomUUID());
+        var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(createBody(pending, "unknown-provider"));
+        payload.put("orgGuid", organization.getRowGuid().toString());
+        payload.put("groupGuid", guid(group).toString());
+        var response = call(platform, "POST", "/api/v1/users", mapper.writeValueAsString(payload));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(403);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?", Integer.class, pending.getRowGuid().toString())).isZero();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileGroup WHERE OrganizationGroupId=?", Integer.class, group)).isZero();
+    }
+
+    @Test void creationAllowsProtectedPlatformRoleThroughAuthorizationOnly() throws Exception {
+        var pending = new User();
+        pending.setRowGuid(UUID.randomUUID());
+        var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(createBody(pending, "unknown-provider"));
+        payload.put("orgGuid", organizations.getById(1).orElseThrow().getRowGuid().toString());
+        payload.put("groupGuid", guid(1).toString());
+        var response = call(platform, "POST", "/api/v1/users", mapper.writeValueAsString(payload));
+        // Missing branding proves the protected builtin passed authorization, not provider success.
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(400);
+        assertThat(response.body()).contains("Invalid Branding");
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?", Integer.class, pending.getRowGuid().toString())).isZero();
+    }
+
+    @Test void existingLegacyPlatformAdministratorKeepsLifecycleEligibility() throws Exception {
+        var platformOrg = organizations.getById(1).orElseThrow();
+        int legacy = role(platformOrg, List.of("idp-admin-org:switch"));
+        var target = member(platformOrg, legacy);
+        var response = call(platform, "PUT", "/api/v1/users/" + target.getRowGuid() + "/status", "{\"status\":\"Inactive\"}");
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(204);
+        assertThat(memberships(target)).containsExactly(legacy);
+        var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(profileBody(target, "unknown-provider"));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) payload.path("urn:ascensus:529:1.0:accountsync"))
+                .put("orgId", platformOrg.getRowGuid().toString());
+        response = call(platform, "POST", "/api/v1/users/profile", mapper.writeValueAsString(payload));
+        // This entrypoint has no role field: reactivation retains the existing role after scope checks.
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(400);
+        assertThat(response.body()).contains("Invalid branding");
+        assertThat(memberships(target)).containsExactly(legacy);
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?", Integer.class, target.getId())).isZero();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?", Integer.class, target.getRowGuid().toString())).isEqualTo(1);
+    }
+
     @Test void malformedSwitchGrantDoesNotCountAsSurvivingAdministrator() throws Exception {
         var platformOrg=organizations.getById(1).orElseThrow();
         for(String key:List.of("IDP-ADMIN-ORG:SWITCH","idp-admin-org:switch ")) {
