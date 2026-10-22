@@ -18,7 +18,8 @@ public final class PortalResponses {
     public static boolean isPortalRequest(HttpServletRequest request) {
         var path=request.getServletPath();
         return path.equals("/api/v1/portal") || path.startsWith("/api/v1/portal/")
-                || path.matches("/api/v1/organizations/[^/]+/groups(?:/[^/]+)?");
+                || path.matches("/api/v1/organizations/[^/]+/groups(?:/[^/]+)?")
+                || path.matches("/api/v1/organizations/[^/]+/users/[^/]+/group");
     }
 
     public static String requestId(HttpServletRequest request) {

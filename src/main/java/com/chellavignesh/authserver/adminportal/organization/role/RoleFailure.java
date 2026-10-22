@@ -23,6 +23,18 @@ public class RoleFailure extends RuntimeException {
                 "Legacy role contains platform-reserved permissions and requires review before modification.");
     }
 
+    public static RoleFailure existingProfile() {
+        return new RoleFailure(409, "PROFILE_EXISTS", "The supplied member identifier already belongs to a profile.");
+    }
+
+    public static RoleFailure membership() {
+        return new RoleFailure(409, "MEMBERSHIP_REQUIRES_REVIEW", "Existing organization or role memberships require review before modification.");
+    }
+
+    public static RoleFailure lastAdministrator() {
+        return new RoleFailure(409, "LAST_PLATFORM_ADMIN", "The final active platform administrator and platform organization must remain active.");
+    }
+
     public String code() { return code; }
     public int status() { return status; }
 }

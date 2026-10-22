@@ -24,7 +24,7 @@ class ManagementAccessPolicyTest {
     final UserService users=mock(UserService.class);
     final OrganizationService organizations=mock(OrganizationService.class);
     final ApplicationService applications=mock(ApplicationService.class);
-    final ManagementAccessPolicy policy=new ManagementAccessPolicy(users,organizations,applications);
+    final ManagementAccessPolicy policy=new ManagementAccessPolicy(users,organizations,applications,mock(ManagementLifecycleGuard.class));
     @BeforeEach void fixtures() {
         when(users.getByGuid(actorId)).thenReturn(Optional.of(user(actorId,orgA,groupId)));
         when(users.getByGuid(targetId)).thenReturn(Optional.of(user(targetId,orgA,null)));

@@ -24,6 +24,10 @@ import com.chellavignesh.authserver.cms.BrandUrlMappingService;
 import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.security.PasswordValidatorService;
 import com.chellavignesh.authserver.security.ManagementAccessPolicy;
+import com.chellavignesh.authserver.security.ManagementMutationLock;
+import com.chellavignesh.authserver.security.ManagementLifecycleGuard;
+import com.chellavignesh.authserver.adminportal.organization.role.RoleFailure;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.chellavignesh.authserver.security.exception.PasswordValidationException;
@@ -56,6 +60,8 @@ public class UserController {
 
     private final UserService userService;
     private final ManagementAccessPolicy managementAccessPolicy;
+    private final ManagementMutationLock mutations;
+    private final ManagementLifecycleGuard lifecycle;
     private final EntityValidator entityValidator;
     private final UserDtoValidator userDtoValidator;
     private final AccountSyncType accountSyncType;
@@ -70,9 +76,11 @@ public class UserController {
     private static final Integer MAX_LIMIT = 10;
 
     @Autowired
-    public UserController(UserService userService, EntityValidator entityValidator, UserDtoValidator userDtoValidator, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, OnPremAccountServiceClient onPremAccountService, BrandUrlMappingService brandUrlMappingService, ExternalSourceService externalSourceService, PasswordValidatorService passwordValidatorService, MetadataService metadataService, ManagementAccessPolicy managementAccessPolicy) {
+    public UserController(UserService userService, EntityValidator entityValidator, UserDtoValidator userDtoValidator, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, OnPremAccountServiceClient onPremAccountService, BrandUrlMappingService brandUrlMappingService, ExternalSourceService externalSourceService, PasswordValidatorService passwordValidatorService, MetadataService metadataService, ManagementAccessPolicy managementAccessPolicy, ManagementMutationLock mutations, ManagementLifecycleGuard lifecycle) {
         this.userService = userService;
         this.managementAccessPolicy = managementAccessPolicy;
+        this.mutations = mutations;
+        this.lifecycle = lifecycle;
         this.entityValidator = entityValidator;
         this.userDtoValidator = userDtoValidator;
         this.accountSyncType = accountSyncType;
@@ -109,10 +117,15 @@ public class UserController {
 
     @PostMapping
     @SkipInitBinder
-    @PreAuthorize("@managementAccessPolicy.canCreateUser(authentication, #createUserDto.orgGuid, #createUserDto.groupGuid)")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDto createUserDto, @SessionAttribute(value = ApplicationConstants.BRANDING_INFO, required = false) String brand) throws OrgNotFoundException, OrgGroupNotFoundException, UserCreationFailedException, InvalidBrandingException {
 
+        mutations.acquire();
+        managementAccessPolicy.requireUserCreation(SecurityContextHolder.getContext().getAuthentication(), createUserDto.getOrgGuid(), createUserDto.getGroupGuid());
+
         managementAccessPolicy.requireUserCreationTarget(SecurityContextHolder.getContext().getAuthentication(), createUserDto.getOrgGuid(), createUserDto.getMemberId());
+        lifecycle.requireUnusedProfileId(createUserDto.getMemberId());
         createUserDto.setOrgId(entityValidator.validateOrganizationId(createUserDto.getOrgGuid()));
 
         int groupId = 0;
@@ -139,8 +152,11 @@ public class UserController {
     // ----------------------------------------------------------------------
 
     @PostMapping("/profile")
+    @Transactional(rollbackFor = Exception.class)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createUserProfile(@RequestBody String jsonPayload, @RequestHeader Map<String, String> headers) throws UserCreationBadRequestException, OrgNotFoundException, UserCreationFailedException, InvalidBrandingException, UserSyncFailedException {
+
+        mutations.acquire();
 
         BaseRequestObject baseRequestObject = BaseRequestPayloadParser.parsePayload(jsonPayload, CreateUserProfileDto.class);
 
@@ -186,8 +202,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/profile")
     @SkipInitBinder
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUser(@Valid @RequestBody UpdateUserDto updateUserDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers, HttpServletRequest request) throws UserCreationBadRequestException, InvalidBrandingException, UserUpdateFailedException, UserNotFoundException, AccountSyncException, UserSyncFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         BindException bindingResult = new BindException(updateUserDto, "updateUserDto");
 
@@ -223,8 +243,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/email")
     @SkipInitBinder
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserEmail(@Valid @RequestBody UpdateUserEmailDto updateUserEmailDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers, HttpServletRequest request) throws UserUpdateFailedException, InvalidBrandingException, UserNotFoundException, AccountSyncException, UserSyncFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         final var oExternalSource = externalSourceService.findBySourceCode(updateUserEmailDto.getBranding());
 
@@ -251,8 +275,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/password")
     @SkipInitBinder
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserPassword(@Valid @RequestBody NotifiableUpdateUserPasswordDto updateUserPasswordDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, PasswordValidationException, UserNotFoundException, AccountSyncException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         final var oExternalSource = externalSourceService.findBySourceCode(updateUserPasswordDto.getBranding());
 
@@ -288,8 +316,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/username")
     @SkipInitBinder
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameDto dto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, UsernameExistsException, UserNotFoundException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         final var oExternalSource = externalSourceService.findBySourceCode(dto.getBranding());
 
@@ -317,8 +349,12 @@ public class UserController {
 // ----------------------------------------------------------------------
 
     @PutMapping("/{userGuid}/security-settings")
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserSecuritySettings(@Valid @RequestBody UpdateUserSecuritySettingsDto updateUserSecuritySettingsDto, @Valid @PathVariable UUID userGuid, BindingResult bindingResult) throws UserCreationBadRequestException, UserUpdateFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         if (bindingResult.hasErrors()) {
             String message = "Error in field " + Objects.requireNonNull(bindingResult.getFieldError()).getField() + " : " + bindingResult.getFieldError().getDefaultMessage();
@@ -332,8 +368,12 @@ public class UserController {
     }
 
     @PutMapping("/{userGuid}/metadata")
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'update')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserMetadata(@Valid @RequestBody UpdateUserMetadataDto updateUserMetadataDto, @Valid @PathVariable UUID userGuid, BindingResult bindingResult) throws UserCreationBadRequestException, UserUpdateFailedException, UserNotFoundException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         if (bindingResult.hasErrors()) {
             String message = "Error in field " + Objects.requireNonNull(bindingResult.getFieldError()).getField() + ": " + bindingResult.getFieldError().getDefaultMessage();
@@ -363,8 +403,13 @@ public class UserController {
     }
 
     @DeleteMapping("/{userGuid}")
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'delete')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteUserByGuid(@PathVariable UUID userGuid) throws UserDeleteFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "delete");
+        lifecycle.requireAdminSurvives(ManagementLifecycleGuard.ChangeIntent.user(userGuid));
 
         User user = userService.deleteByGuid(userGuid);
         if (user == null) {
@@ -375,8 +420,14 @@ public class UserController {
     }
 
     @PutMapping("/{userGuid}/status")
-    @PreAuthorize("@managementAccessPolicy.canMutateUser(authentication, #userGuid, 'delete')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserStatusByGuid(@Valid @RequestBody UpdateUserStatusDto updateUserStatusDto, @PathVariable UUID userGuid) throws UserDeleteFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "delete");
+        if (updateUserStatusDto.status() == null) return ResponseEntity.badRequest().build();
+        if (updateUserStatusDto.status() != UserStatus.Active) lifecycle.requireAdminSurvives(ManagementLifecycleGuard.ChangeIntent.user(userGuid));
 
         return userService.updateUserStatusByGuid(updateUserStatusDto.status(), userGuid).map(user -> ResponseEntity.noContent().build()).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or user does not have permissions."));
     }
@@ -420,6 +471,14 @@ public class UserController {
             }
         }
         return null;
+    }
+
+    @ExceptionHandler(RoleFailure.class)
+    public ResponseEntity<?> lifecycleFailure(RoleFailure failure, HttpServletRequest request) {
+        return ResponseEntity.status(failure.status()).cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem(
+                        failure.code()==null?"ROLE_CONFLICT":failure.code(), failure.getMessage(),
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request),false));
     }
 
     @ExceptionHandler(BadRequestException.class)

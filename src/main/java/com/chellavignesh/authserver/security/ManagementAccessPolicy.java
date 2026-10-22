@@ -25,11 +25,13 @@ public class ManagementAccessPolicy {
     private final UserService users;
     private final OrganizationService organizations;
     private final ApplicationService applications;
+    private final ManagementLifecycleGuard lifecycle;
 
-    public ManagementAccessPolicy(UserService users, OrganizationService organizations, ApplicationService applications) {
+    public ManagementAccessPolicy(UserService users, OrganizationService organizations, ApplicationService applications, ManagementLifecycleGuard lifecycle) {
         this.users = users;
         this.organizations = organizations;
         this.applications = applications;
+        this.lifecycle = lifecycle;
     }
 
     public ActorContext requireHumanActor(Authentication authentication) {
@@ -56,6 +58,7 @@ public class ManagementAccessPolicy {
             throw new IllegalStateException("Mutation authorization requires the shared locked transaction");
         }
         var actor = requireHumanActor(authentication);
+        lifecycle.requireActor(actor.userId(), actor.organizationId());
         Set<String> permissions = new HashSet<>(actor.permissions());
         if (!values(principal(authentication).getAttribute("scope")).contains("idp-admin")) {
             permissions.clear();
@@ -70,7 +73,7 @@ public class ManagementAccessPolicy {
         UUID own;
         boolean platform = false;
         if (userId(principal) != null) {
-            var actor = requireHumanActor(authentication);
+            var actor = actorForAccess(authentication);
             own = actor.organizationId();
             platform = actor.platformAdmin();
         } else {
@@ -93,7 +96,7 @@ public class ManagementAccessPolicy {
 
     public boolean hasPlatformPermission(Authentication authentication, String key) {
         return allowed(() -> {
-            var actor = requireHumanActor(authentication);
+            var actor = actorForAccess(authentication);
             return actor.platformAdmin() && actor.permissions().contains(key);
         });
     }
@@ -103,7 +106,7 @@ public class ManagementAccessPolicy {
             var target = target(userGuid);
             requireOrganizationScope(authentication, target.orgId());
             if (isMachine(authentication)) return hasMachinePermission(authentication, "GET");
-            var actor = requireHumanActor(authentication);
+            var actor = actorForAccess(authentication);
             return actor.permissions().contains(target.groupId() == null ? "idp-admin-user:read" : "idp-admin-admin:read");
         });
     }
@@ -130,13 +133,14 @@ public class ManagementAccessPolicy {
     }
 
     public void requireUserMutation(Authentication authentication, UUID userGuid, String action) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) lifecycle.requireTarget(userGuid);
         var target = target(userGuid);
         requireOrganizationScope(authentication, target.orgId());
         if (isMachine(authentication)) {
             if (!hasMachinePermission(authentication, verb(action))) throw denied();
             return;
         }
-        var actor = requireHumanActor(authentication);
+        var actor = actorForAccess(authentication);
         if (!actor.permissions().contains("idp-admin-user:" + action)) throw denied();
         if (target.groupId() != null) {
             if (!actor.permissions().contains("idp-admin-admin:" + action)) throw denied();
@@ -160,7 +164,7 @@ public class ManagementAccessPolicy {
             if (group != null) activeGroup(org, group);
             return;
         }
-        var actor = requireHumanActor(authentication);
+        var actor = actorForAccess(authentication);
         if (!actor.permissions().contains("idp-admin-user:create")) throw denied();
         if (group != null) {
             if (!actor.permissions().contains("idp-admin-admin:create")) throw denied();
@@ -171,7 +175,14 @@ public class ManagementAccessPolicy {
     /** A synchronized create can reactivate an existing member; the supplied org cannot override its tenant. */
     public void requireUserCreationTarget(Authentication authentication, UUID organizationId, UUID memberId) {
         if (memberId == null) return;
+        if (TransactionSynchronizationManager.isActualTransactionActive() && lifecycle.hasProfile(memberId)) {
+            var existing = lifecycle.requireTarget(memberId);
+            if (!existing.organizationGuid().equals(organizationId)) throw denied();
+            requireUserMutation(authentication, memberId, "update");
+            return;
+        }
         users.getByGuid(memberId).ifPresent(existing -> {
+            if (TransactionSynchronizationManager.isActualTransactionActive()) lifecycle.requireTarget(memberId);
             if (!existing.orgId().equals(organizationId)) throw denied();
             requireUserMutation(authentication, memberId, "update");
         });
@@ -187,10 +198,11 @@ public class ManagementAccessPolicy {
 
     public void requireOrganizationUpdate(Authentication authentication, UUID org, String status) {
         requireOrganizationScope(authentication, org);
+        var actor = actorForAccess(authentication);
+        if (!actor.permissions().contains("idp-admin-org:update")) throw denied();
         var current = organizations.get(org).orElseThrow(ManagementAccessPolicy::denied);
         boolean active = "Active".equalsIgnoreCase(status);
         if (active != (current.getStatus() == OrganizationStatus.ACTIVE)) {
-            var actor = requireHumanActor(authentication);
             if (!actor.platformAdmin() || !actor.permissions().contains("idp-admin-org:deactivate")
                     || org.equals(actor.organizationId())) throw denied();
         }
@@ -202,12 +214,12 @@ public class ManagementAccessPolicy {
 
     private void requireGrantCeiling(ActorContext actor, UUID org, UUID group) {
         var targetGroup = activeGroup(org, group);
-        if (actor.platformAdmin()) return;
         var organization = activeOrganization(org);
         Set<String> grants = new HashSet<>();
         organizations.getOrganizationGroupPermissions(organization.getId(), targetGroup.getId())
                 .stream().filter(p -> p.getStatus() == OrganizationStatus.ACTIVE).forEach(p -> grants.add(p.getKey()));
-        if (!actor.permissions().containsAll(grants) || grants.stream().anyMatch(ManagementAccessPolicy::platformReserved)) throw denied();
+        if (!actor.permissions().containsAll(grants)
+                || (!actor.platformAdmin() && grants.stream().anyMatch(ManagementAccessPolicy::platformReserved))) throw denied();
     }
 
     private com.chellavignesh.authserver.adminportal.organization.entity.OrganizationGroup activeGroup(UUID org, UUID group) {
@@ -222,6 +234,11 @@ public class ManagementAccessPolicy {
                         "idp-admin-group:create", "idp-admin-group:update", "idp-admin-group:delete", "idp-admin-permission:read",
                         "idp-admin-resource:read", "idp-admin-resource:create", "idp-admin-resource:update", "idp-admin-resource:delete", "idp-admin-app:assign-resource",
                         "idp-admin-org-cert:create", "idp-admin-org-cert:update", "idp-admin-org-cert:delete").contains(key);
+    }
+
+    private ActorContext actorForAccess(Authentication authentication) {
+        return TransactionSynchronizationManager.isActualTransactionActive()
+                ? requireHumanActorForMutation(authentication) : requireHumanActor(authentication);
     }
 
     private UUID machineOrganization(Authentication authentication) {

@@ -115,4 +115,18 @@ public class RoleRepository {
                 WHERE OrganizationGroupId=? AND OrganizationId=?
                 """, actor.toString(), row.id(), org);
     }
+    public java.util.Set<String> assignedPermissions(int profile,int organization) {
+        return new java.util.HashSet<>(sql.queryForList("""
+                SELECT DISTINCT permission.PermissionKey FROM Person.ProfileGroup pg
+                JOIN Partner.OrganizationGroup g ON g.OrganizationGroupId=pg.OrganizationGroupId AND g.Status=1
+                JOIN Partner.OrganizationGroupPermission permission ON permission.OrganizationGroupId=g.OrganizationGroupId
+                    AND permission.OrganizationId=g.OrganizationId AND permission.Status=1
+                WHERE pg.ProfileId=? AND g.OrganizationId=?
+                """,String.class,profile,organization));
+    }
+
+    public void assign(int organization,int profile,Integer group) {
+        sql.update("EXEC Person.AssignOrganizationGroup ?,?,?",organization,profile,group);
+    }
+
 }

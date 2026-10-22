@@ -30,7 +30,7 @@ public class ManagementMutationLock {
                     IF @@TRANCOUNT=0 SELECT @bootstrap=OrganizationId FROM Partner.Organization WHERE 1=0;
                     DECLARE @result INT;
                     EXEC @result=sys.sp_getapplock @Resource=N'%s',
-                        @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000;
+                        @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=5000;
                     IF @result<0 THROW 51012, 'Management mutation lock unavailable', 1;
                     """.formatted(RESOURCE));
         } catch (UncategorizedSQLException failure) {

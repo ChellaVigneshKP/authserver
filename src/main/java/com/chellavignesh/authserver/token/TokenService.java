@@ -175,7 +175,7 @@ public class TokenService {
 
         UserDetails user = userService.getByUsernameAndBranding(subjectId, branding).orElseThrow(); // TODO: handle better
         attributes.put("org_guid", user.orgId());
-        if (user.status() == UserStatus.Active) {
+        if (user.status() == UserStatus.Active && userService.isManagementIdentityActive(user.rowGuid(), user.orgId(), user.loginId())) {
             attributes.put("active", true);
 
             if (scopes.contains("openid")) {

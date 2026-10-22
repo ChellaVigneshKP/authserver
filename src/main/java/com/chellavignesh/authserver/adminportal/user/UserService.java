@@ -507,6 +507,10 @@ public class UserService {
         return this.userRepository.getUserAuthDetailsByUsernameAndExternalSourceCode(username, externalSourceCode);
     }
 
+    public boolean isManagementIdentityActive(UUID user, UUID organization, UUID credential) {
+        return userRepository.isManagementIdentityActive(user,organization,credential);
+    }
+
     public Set<String> getCurrentManagementPermissions(UUID userGuid, UUID organizationGuid) {
         return userRepository.getCurrentManagementPermissions(userGuid, organizationGuid);
     }

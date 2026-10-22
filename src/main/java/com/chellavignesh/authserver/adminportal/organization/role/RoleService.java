@@ -18,10 +18,12 @@ import java.util.UUID;
 public class RoleService {
     private final RoleRepository roles;
     private final ManagementMutationLock mutations;
+    private final com.chellavignesh.authserver.security.ManagementLifecycleGuard lifecycle;
 
-    public RoleService(RoleRepository roles, ManagementMutationLock mutations) {
+    public RoleService(RoleRepository roles, ManagementMutationLock mutations, com.chellavignesh.authserver.security.ManagementLifecycleGuard lifecycle) {
         this.roles = roles;
         this.mutations = mutations;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional
@@ -31,6 +33,7 @@ public class RoleService {
         int organization = roles.organization(org);
         roles.preflight(organization);
         String name = validate(dto.name(), dto.description(), dto.permissionKeys());
+        if (!actor.permissions().containsAll(dto.permissionKeys())) throw new AccessDeniedException("Role delegation denied");
         roles.unique(organization, name, null);
         UUID id = roles.create(organization, name, dto.description(), actor.userId());
         var row = roles.get(organization, id);
@@ -47,10 +50,13 @@ public class RoleService {
         mutable(row);
         roles.preflight(organization);
         String name = validate(dto.name(), dto.description(), dto.permissionKeys());
+        if (!actor.permissions().containsAll(dto.permissionKeys())) throw new AccessDeniedException("Role delegation denied");
         if (dto.revision() == null || dto.revision() < 1) throw new RoleFailure(400);
         if (dto.revision() != row.dto().revision()) throw new RoleFailure(409);
         if (!"Active".equals(row.dto().status())) throw new RoleFailure(409);
         roles.unique(organization, name, row.id());
+        if (!dto.permissionKeys().contains("idp-admin-org:switch"))
+            lifecycle.requireAdminSurvives(com.chellavignesh.authserver.security.ManagementLifecycleGuard.ChangeIntent.group(row.id()));
         roles.update(organization, row, name, dto.description(), dto.revision(), actor.userId());
         roles.permissions(organization, row.id(), dto.permissionKeys(), actor.userId());
         return roles.get(organization, group).dto();
@@ -71,6 +77,7 @@ public class RoleService {
         roles.preflight(organization);
         if (row.dto().memberCount() > 0) throw RoleFailure.assigned(row.dto().memberCount());
         if (!"Active".equals(row.dto().status())) throw new RoleFailure(409);
+        lifecycle.requireAdminSurvives(com.chellavignesh.authserver.security.ManagementLifecycleGuard.ChangeIntent.group(row.id()));
         roles.deactivate(organization, row, actor.userId());
     }
 

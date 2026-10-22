@@ -492,6 +492,15 @@ public class UserRepository {
         ).stream().findFirst();
     }
 
+    public boolean isManagementIdentityActive(UUID user, UUID organization, UUID credential) {
+        return !namedParameterJdbcTemplate.query("""
+                SELECT actor.ProfileId FROM Person.ActiveManagementIdentity actor
+                JOIN Person.Credential c ON c.ProfileId=actor.ProfileId AND c.Status=1 AND c.CredentialLocked=0
+                WHERE actor.UserGuid=:user AND actor.OrganizationGuid=:organization AND c.RowGuid=:credential
+                """,new MapSqlParameterSource("user",user.toString()).addValue("organization",organization.toString())
+                .addValue("credential",credential.toString()),(row,_)->row.getInt(1)).isEmpty();
+    }
+
     /** Live organization-scoped grants for authorization after the shared mutation lock. */
     public Set<String> getCurrentManagementPermissions(UUID userGuid, UUID organizationGuid) {
         var parameters = new MapSqlParameterSource("userGuid", userGuid.toString())
@@ -507,6 +516,9 @@ public class UserRepository {
                 JOIN Partner.OrganizationGroupPermission permission ON permission.OrganizationGroupId=role.OrganizationGroupId
                     AND permission.OrganizationId=organization.OrganizationId AND permission.Status=1
                 WHERE actor.RowGuid=:userGuid AND actor.Status=1 AND organization.RowGuid=:organizationGuid
+                AND EXISTS(SELECT 1 FROM Person.ActiveManagementIdentity valid WHERE valid.ProfileId=actor.ProfileId AND valid.OrganizationId=organization.OrganizationId)
+                AND (organization.OrganizationId=1 OR NOT EXISTS(SELECT 1 FROM dbo.PermissionCatalog catalog
+                    WHERE catalog.PermissionKey=permission.PermissionKey COLLATE Latin1_General_100_BIN2 AND catalog.PlatformOnly=1))
                 """, parameters, (row, _) -> row.getString(1)));
     }
 

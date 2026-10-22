@@ -99,12 +99,15 @@ class PortalContextIntegrationTest extends ManagementHttpTestSupport {
         sql.update("UPDATE Person.ProfileGroup SET OrganizationGroupId=? WHERE ProfileId=?",replacement,user.getId());
         assertThat(values(context(bearer).path("permissions"))).containsExactly("idp-admin-app:read");
     }
-    @Test void contextUsesLiveActiveMemberships() throws Exception {
+    @Test void contextRejectsAmbiguousMembershipsAndRecoversAfterCorrection() throws Exception {
         var member=user(orgA,0,"context-multiple-memberships");var bearer=token(member);
         assertThat(context(bearer).path("organizations")).hasSize(1);
         sql.update("INSERT Person.ProfileOrganization(ProfileId,OrganizationId) VALUES(?,?)",member.getId(),orgB.getId());
-        assertThat(context(bearer).path("organizations").findValuesAsText("id"))
-                .containsExactlyInAnyOrder(orgA.getRowGuid().toString(),orgB.getRowGuid().toString());
+        // B5's singular actor scope must never select an arbitrary imported active membership.
+        var ambiguous=call(bearer,"GET",CONTEXT,null);
+        assertThat(ambiguous.statusCode()).isEqualTo(401);assertProblem(ambiguous,false);
+        assertThat(ambiguous.body()).doesNotContain("subject","organizations");
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileOrganization WHERE ProfileId=? AND Status=1",Integer.class,member.getId())).isEqualTo(2);
         sql.update("UPDATE Person.ProfileOrganization SET Status=0 WHERE ProfileId=? AND OrganizationId=?",member.getId(),orgB.getId());
         assertThat(context(bearer).path("organizations").findValuesAsText("id")).containsExactly(orgA.getRowGuid().toString());
     }
@@ -113,7 +116,14 @@ class PortalContextIntegrationTest extends ManagementHttpTestSupport {
         assertThat(context(bearer).path("organizations")).hasSize(1);
         sql.update("UPDATE Person.ProfileOrganization SET Status=0 WHERE ProfileId=?",member.getId());
         var response=call(bearer,"GET",CONTEXT,null);
-        assertThat(response.statusCode()).isEqualTo(403);assertProblem(response,false);
+        // B5 invalidates the bearer during live introspection, before any raw permission evaluator.
+        assertThat(response.statusCode()).isEqualTo(401);assertProblem(response,false);
+        assertThat(response.body()).doesNotContain("subject","organizations");
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileOrganization WHERE ProfileId=? AND Status=1",Integer.class,member.getId())).isZero();
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?",Integer.class,member.getId())).isEqualTo(1);
+        // Deliberate operator correction restores access with the retained token; the read repaired nothing.
+        sql.update("UPDATE Person.ProfileOrganization SET Status=1 WHERE ProfileId=?",member.getId());
+        assertThat(context(bearer).path("subject").path("userId").asText()).isEqualTo(member.getRowGuid().toString());
     }
     @Test void removedPlatformMembershipDeniesContext() throws Exception {
         var platformOrg=organizations.getById(1).orElseThrow();
@@ -123,7 +133,14 @@ class PortalContextIntegrationTest extends ManagementHttpTestSupport {
                 .contains(orgA.getRowGuid().toString(),orgB.getRowGuid().toString());
         sql.update("UPDATE Person.ProfileOrganization SET Status=0 WHERE ProfileId=?",member.getId());
         var response=call(bearer,"GET",CONTEXT,null);
-        assertThat(response.statusCode()).isEqualTo(403);assertProblem(response,false);
+        // B5 invalidates the bearer during live introspection, before any raw permission evaluator.
+        assertThat(response.statusCode()).isEqualTo(401);assertProblem(response,false);
+        assertThat(response.body()).doesNotContain("subject","organizations");
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileOrganization WHERE ProfileId=? AND Status=1",Integer.class,member.getId())).isZero();
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?",Integer.class,member.getId())).isEqualTo(1);
+        // Deliberate operator correction restores access with the retained token; the read repaired nothing.
+        sql.update("UPDATE Person.ProfileOrganization SET Status=1 WHERE ProfileId=?",member.getId());
+        assertThat(context(bearer).path("subject").path("userId").asText()).isEqualTo(member.getRowGuid().toString());
         assertThat(response.body()).doesNotContain("subject","organizations",orgB.getRowGuid().toString());
     }
     @Test void providerModeDescribesConfigurationOnly() throws Exception {

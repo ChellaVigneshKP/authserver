@@ -100,10 +100,9 @@ public class OrganizationRepository {
     /** Active memberships are read live; global organization-list permission is not required. */
     public List<Organization> getForMember(UUID userGuid) {
         return namedParameterJdbcTemplate.query("""
-                SELECT DISTINCT o.* FROM Partner.Organization o
-                JOIN Person.ProfileOrganization po ON po.OrganizationId=o.OrganizationId
-                JOIN Person.Profile p ON p.ProfileId=po.ProfileId
-                WHERE p.RowGuid=:userGuid AND p.Status=1 AND po.Status=1 AND o.Status=1
+                SELECT o.* FROM Partner.Organization o
+                JOIN Person.ActiveManagementIdentity actor ON actor.OrganizationId=o.OrganizationId
+                WHERE actor.UserGuid=:userGuid
                 """, new MapSqlParameterSource("userGuid", userGuid.toString()), new OrganizationRowMapper());
     }
 

@@ -14,7 +14,7 @@ LOCAL = ROOT / '.local'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=['policy', 'credentials', 'context', 'roles'], required=True)
+    parser.add_argument('--phase', choices=['policy', 'credentials', 'context', 'roles', 'assignments'], required=True)
     args = parser.parse_args()
     values = json.loads((LOCAL / 'dev.json').read_text())
     url = values['DB_URL']
@@ -30,6 +30,7 @@ def main():
         'policy': 'com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest',
         'credentials': 'com.chellavignesh.authserver.recovery.CredentialMetadataIntegrationTest',
         'context': 'com.chellavignesh.authserver.adminportal.portal.PortalContextIntegrationTest',
+        'assignments': 'com.chellavignesh.authserver.database.RoleAssignmentContractTest,com.chellavignesh.authserver.database.RoleMigrationContractTest',
         'roles': 'com.chellavignesh.authserver.database.RoleContractTest,com.chellavignesh.authserver.database.RoleMigrationContractTest',
     }[args.phase]
     command = [str(ROOT / 'mvnw'), '-B', '-ntp', '-Dmaven.repo.local=' + str(LOCAL / 'm2'),
