@@ -24,6 +24,23 @@ public final class CredentialExpiration {
         }
     }
 
+    /** Both persisted bounds apply. Keep malformed imported data so the expiry check fails closed. */
+    public static String earliest(String credentialExpiration, String secretExpiration) {
+        if (credentialExpiration == null) return secretExpiration;
+        if (secretExpiration == null) return credentialExpiration;
+        Instant credential;
+        try {
+            credential = parse(credentialExpiration);
+        } catch (DateTimeParseException invalid) {
+            return credentialExpiration;
+        }
+        try {
+            return credential.isBefore(parse(secretExpiration)) ? credentialExpiration : secretExpiration;
+        } catch (DateTimeParseException invalid) {
+            return secretExpiration;
+        }
+    }
+
     public static boolean isExpired(Credential credential, Clock clock) {
         if (credential.getExpireOn() == null) return false;
         try {

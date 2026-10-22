@@ -124,7 +124,10 @@ public class ApplicationController {
     public ResponseEntity<ApplicationDetailResponseDto> getApplication(@Valid @PathVariable UUID orgGuid, @Valid @PathVariable UUID appGuid) throws OrgNotFoundException, AppNotFoundException {
 
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
-        Integer appId = entityValidator.validateApplicationId(orgId, appGuid);
+        // Detail readback must expose the actual inactive status after deactivation.
+        Integer appId = applicationService.get(appGuid)
+                .filter(application -> orgId.equals(application.getOrgId()))
+                .orElseThrow(() -> new AppNotFoundException("Application not found")).getId();
 
         ApplicationDetail applicationDetail = applicationService.getApplicationDetailById(appId).orElseThrow(() -> new AppNotFoundException("Application with ID " + appGuid + " not found"));
 
@@ -157,6 +160,10 @@ public class ApplicationController {
 
         if (orgId == null || StringUtils.isEmpty(orgId.toString()) || appId == null || StringUtils.isEmpty(updateApplicationUrlsDto.getApplicationUrl()) || isEmpty(updateApplicationUrlsDto.getReturnUrls()) || isEmpty(updateApplicationUrlsDto.getLogoutUrls())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Required data is missing.");
+        }
+
+        if (hasDuplicates(updateApplicationUrlsDto.getReturnUrls()) || hasDuplicates(updateApplicationUrlsDto.getLogoutUrls())) {
+            return ResponseEntity.badRequest().body("Duplicate redirect or logout URIs are not allowed.");
         }
 
         if (!isValidURL(updateApplicationUrlsDto.getApplicationUrl()) || isValidURLs(updateApplicationUrlsDto.getReturnUrls()) || isValidURLs(updateApplicationUrlsDto.getLogoutUrls())) {
@@ -240,6 +247,10 @@ public class ApplicationController {
         Integer appResourceId = entityValidator.validateResourceId(orgId, appId, resourceLibraryGuid);
 
         applicationService.deleteResource(appResourceId);
+    }
+
+    private boolean hasDuplicates(List<String> urls) {
+        return new java.util.HashSet<>(urls).size() != urls.size();
     }
 
     private boolean isValidURLs(List<String> urls) {

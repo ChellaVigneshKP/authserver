@@ -167,7 +167,7 @@ public class CredentialService {
         Optional<Secret> secret = secretService.getById(credential.getSecretId());
         if (secret.isPresent()) {
             credential.setValue(secret.get().getSecretKey());
-            credential.setExpireOn(secret.get().getExpiration());
+            credential.setExpireOn(CredentialExpiration.earliest(credential.getExpireOn(), secret.get().getExpiration()));
         } else {
             log.warn("Secret not found for credential: {} with secretId{}", credential.getId(), credential.getSecretId());
         }

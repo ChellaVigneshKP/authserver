@@ -11,6 +11,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,7 +35,8 @@ public class SecretRepository {
                 .addValue("appId", dto.getAppId())
                 .addValue("description", dto.getDescription())
                 .addValue("secretHash", dto.getSecretHashValue())
-                .addValue("expiration", dto.getExpireOn())
+                .addValue("expiration", dto.getExpireOn() == null ? null
+                        : LocalDateTime.ofInstant(dto.getExpireOn().toInstant(), ZoneOffset.UTC))
                 .addValue("mainKeyStoreBytes", dto.getMainKeyStoreBytes())
                 .addValue("passwordKeyStoreBytes", dto.getPasswordKeyStoreBytes())
                 .addValue("passwordKeyId", dto.getPasswordKeyId());

@@ -14,11 +14,11 @@ import urllib.parse
 import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
-config = json.loads((ROOT/'.local/dev.json').read_text())
+from e2e_target import load_target
+config, base, database = load_target()
 client_id = os.environ.get('LOCAL_CLIENT_ID') or config.get('LOCAL_CLIENT_ID')
 if not client_id:
     raise SystemExit('Set LOCAL_CLIENT_ID to the non-secret client_id printed by local bootstrap.')
-base = os.environ.get('AUTH_SMOKE_BASE', 'http://localhost:9080/services')
 callback = config.get('LOCAL_CALLBACK_URL', base+'/local/callback')
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):

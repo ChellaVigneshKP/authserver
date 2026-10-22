@@ -18,14 +18,16 @@ import time
 import uuid
 import urllib.parse
 
+from e2e_target import load_target, sql_text
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def main():
-    base_override = os.environ.get('AUTH_SMOKE_BASE', 'http://localhost:9080/services')
+    _, base_override, database = load_target()
     if urllib.parse.urlparse(base_override).hostname not in ('localhost', '127.0.0.1'):
         raise SystemExit('Certificate fixture tests are restricted to the local development app.')
-    results = dict(checks=[], database_checks=[], scenarios=[])
+    results = dict(checks=[], database_checks=[], scenarios=[], database=database, app_base=base_override, provider='unconfigured; not exercised')
     def save_results():
         report_path = ROOT / '.local/certificate-e2e-report.json'
         descriptor = os.open(report_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -58,13 +60,7 @@ def main():
         return headers, body
 
     def sql(query):
-        env = os.environ | {'SQLCMDPASSWORD': config['DB_PASSWORD']}
-        result = subprocess.run(['docker', 'exec', '-i', '-e', 'SQLCMDPASSWORD',
-            os.environ.get('AUTH_SQL_CONTAINER', 'authserver-dev-sqlserver-1'),
-            '/opt/mssql-tools18/bin/sqlcmd', '-S', 'localhost', '-U', config['DB_USERNAME'],
-            '-d', 'AGSAuth', '-C', '-b', '-h', '-1', '-W', '-Q', 'SET NOCOUNT ON; '+query],
-            env=env, capture_output=True, check=True)
-        output = result.stdout.decode().strip()
+        output = sql_text(config,database,query,scalar=True)
         results['database_checks'].append(dict(operation=query.split()[0], passed=True))
         return output
 

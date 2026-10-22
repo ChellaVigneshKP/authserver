@@ -20,6 +20,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from e2e_target import load_target, sql_text
+
 ROOT = Path(__file__).resolve().parent.parent
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -28,14 +30,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 class Acceptance:
     def __init__(self):
-        self.config = json.loads(Path(os.environ.get('AUTH_E2E_CONFIG', ROOT/'.local/dev.json')).read_text())
-        self.base = os.environ.get('AUTH_E2E_BASE', 'http://localhost:9080/services')
-        if urllib.parse.urlparse(self.base).hostname not in ('localhost', '127.0.0.1'):
-            raise SystemExit('This fixture-mutating suite is restricted to a local development app.')
+        self.config, self.base, self.database = load_target()
         self.http = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
         self.prefix = 'E2E '+secrets.token_hex(6)
         self.token = None
-        self.report = dict(started_at=datetime.now(timezone.utc).isoformat(), checks=[], database_checks=[], failures=[])
+        self.report = dict(database=self.database, app_base=self.base, provider='unconfigured; not exercised', started_at=datetime.now(timezone.utc).isoformat(), checks=[], database_checks=[], failures=[])
 
     def request(self, method, path, expected, *, payload=None, form=None, authenticated=True, label=None, positive=None):
         headers = {'User-Agent':'AuthserverAcceptance/1.0', 'Accept-Language':'en-US',
@@ -67,16 +66,7 @@ class Acceptance:
         return response.headers, json.loads(body) if body and (body[0] in '[{' or body in ('true','false','null')) else body
 
     def sql(self, query):
-        # Only this repo's explicitly task-owned Compose development database.
-        database = os.environ.get('AUTH_E2E_DB', 'AGSAuth')
-        if not re.fullmatch(r'AGSAuth(?:Providers_[a-f0-9]{8})?', database):
-            raise ValueError('Only task-owned local development databases are supported')
-        command=['docker','compose','exec','-T','sqlserver','bash','-lc',
-                 'SQLCMDPASSWORD="$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -d '+database+' -C -b -h -1 -y 8000 -w 65535']
-        # -W and -y cannot be combined with some sqlcmd versions; use -y only.
-        command[-1]=command[-1].replace(' -W','')
-        result=subprocess.run(command,cwd=ROOT,input='SET NOCOUNT ON;\n'+query+'\nGO\n',text=True,capture_output=True,check=True)
-        text=result.stdout.strip()
+        text=sql_text(self.config,self.database,query)
         return json.loads(text) if text else []
 
     def db(self, label, query, predicate):

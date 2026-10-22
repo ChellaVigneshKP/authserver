@@ -6,6 +6,7 @@ import com.chellavignesh.authserver.adminportal.application.dto.UpdateTokenSetti
 import com.chellavignesh.authserver.adminportal.application.entity.*;
 import com.chellavignesh.authserver.adminportal.application.exception.*;
 import com.chellavignesh.authserver.adminportal.credential.CredentialService;
+import com.chellavignesh.authserver.adminportal.credential.CredentialExpiration;
 import com.chellavignesh.authserver.adminportal.credential.CredentialStatus;
 import com.chellavignesh.authserver.adminportal.credential.entity.Credential;
 import com.chellavignesh.authserver.adminportal.forgotusername.ForgotUsernameSetting;
@@ -28,9 +29,8 @@ import org.springframework.security.oauth2.server.authorization.settings.OAuth2T
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.chellavignesh.authserver.adminportal.application.entity.TokenSettings.MAX_REQUEST_TRANSIT_TIME;
@@ -38,7 +38,6 @@ import static com.chellavignesh.authserver.adminportal.application.entity.TokenS
 @Service
 public class ApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private static final List<String> AUTHORIZED_SCOPES = List.of("openid", "profile", "email", "metadata", "idp-admin", "read", "confidential-client");
 
@@ -48,17 +47,19 @@ public class ApplicationService {
     private volatile UpdateTokenSettingsDto updateTokenSettingsDto = null;
     private final TokenSettingsService tokenSettingsService;
     RangeCache rangeCache;
+    private final Clock clock;
 
     public ApplicationService(ApplicationRepository applicationRepository,
                               CredentialService credentialService,
                               OrganizationRepository organizationRepository,
                               TokenSettingsService tokenSettingsService,
-                              RangeCache rangeCache) {
+                              RangeCache rangeCache, Clock clock) {
         this.applicationRepository = applicationRepository;
         this.credentialService = credentialService;
         this.organizationRepository = organizationRepository;
         this.tokenSettingsService = tokenSettingsService;
         this.rangeCache = rangeCache;
+        this.clock = clock;
     }
 
     public Application create(Integer orgId, CreateApplicationDto dto) throws AppCreationFailedException {
@@ -367,28 +368,8 @@ public class ApplicationService {
     }
 
     private boolean checkIfExpire(Credential credential) {
-        try {
-            String expireOn = credential.getExpireOn();
-            if (expireOn == null || expireOn.trim().isEmpty()) {
-                log.warn("Credential expireOn is null or empty for credential ID: {}", credential.getId());
-                return true;
-            }
-            LocalDate expirationDate;
-            if (expireOn.contains("T")) {
-                String datePart = expireOn.substring(0, expireOn.indexOf("T"));
-                expirationDate = LocalDate.parse(datePart, DATE_FORMATTER);
-            } else {
-                expirationDate = LocalDate.parse(expireOn, DATE_FORMATTER);
-            }
-            if (LocalDate.now().isAfter(expirationDate)) {
-                log.warn("Credential expireOn is expired for credential ID: {}", credential.getId());
-                return true;
-            }
-        } catch (Exception e) {
-            log.error("Error while checking credential expireOn for credential ID: {}", credential.getId(), e);
-            return true;
-        }
-        return false;
+        // Missing internal expiry retains the existing fail-closed confidential-client policy.
+        return credential.getExpireOn() == null || CredentialExpiration.isExpired(credential, clock);
     }
 
     private boolean isOrganizationActive(Application application) {

@@ -192,6 +192,13 @@ public class RestExceptionHandler {
                 .body(com.chellavignesh.authserver.filter.InfrastructureAvailabilityFilter.MESSAGE);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    protected ResponseEntity<Object> handleUploadTooLarge(Exception ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .header("Cache-Control", "no-store").body(new com.chellavignesh.authserver.adminportal.util.PortalProblem(
+                        "UPLOAD_TOO_LARGE", "Certificate upload exceeds the 1 MiB limit", java.util.UUID.randomUUID().toString(), false));
+    }
+
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<Object> handleOtherException(Exception ex) {
         logger.error("Unhandled request exception", ex);

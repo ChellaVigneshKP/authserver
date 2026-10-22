@@ -100,6 +100,7 @@ def main():
                        AUTH_APP_IT='true')
             run(command+['clean','verify'], env)
             run(['node', '--test', 'src/test/js/auth-forms.test.mjs'], env)
+            run([sys.executable, str(ROOT/'scripts/test_e2e_target.py')], env)
 
 
 if __name__ == '__main__':

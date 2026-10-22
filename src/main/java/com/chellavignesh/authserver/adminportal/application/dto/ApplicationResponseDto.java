@@ -12,6 +12,7 @@ import java.util.UUID;
 @Getter
 @AllArgsConstructor
 public class ApplicationResponseDto {
+    private boolean active;
     private UUID id;
     private UUID orgId;
     private String clientId;
@@ -25,6 +26,7 @@ public class ApplicationResponseDto {
 
     public static ApplicationResponseDto fromApplication(Application a, UUID orgGuid) {
         return new ApplicationResponseDto(
+                Boolean.TRUE.equals(a.getActive()),
                 a.getRowGuid(),
                 orgGuid,
                 a.getClientId(),

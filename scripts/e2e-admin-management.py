@@ -14,7 +14,7 @@ LOCAL = ROOT / '.local'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=['policy', 'credentials', 'context', 'roles', 'assignments'], required=True)
+    parser.add_argument('--phase', choices=['policy', 'credentials', 'context', 'roles', 'assignments', 'lifecycle'], required=True)
     args = parser.parse_args()
     values = json.loads((LOCAL / 'dev.json').read_text())
     url = values['DB_URL']
@@ -27,6 +27,7 @@ def main():
         'AUTH_APP_IT': 'true',
     }
     test_class = {
+        'lifecycle': 'com.chellavignesh.authserver.recovery.AdminLifecycleIntegrationTest',
         'policy': 'com.chellavignesh.authserver.security.ManagementPolicyHttpIntegrationTest',
         'credentials': 'com.chellavignesh.authserver.recovery.CredentialMetadataIntegrationTest',
         'context': 'com.chellavignesh.authserver.adminportal.portal.PortalContextIntegrationTest',
