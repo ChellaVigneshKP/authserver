@@ -1,12 +1,25 @@
 {
-  "source_commit": "0aebe70096b11a9003b93bedaac1f832f412743e",
-  "source_tree_sha256": "6c466f1d1c2e92125761ed1ed222361ca1b876b88dfdb546a7df55eafb42fb25",
+  "source_commit": "212e059c44999554a67bddeedffb68a0b78cde8b",
+  "source_tree_sha256": "6fe43cd1a47ce0e660225ed180fc469e41eaea3a2cf6dc776f5532d516eb9f94",
   "working_tree_dirty": true,
-  "tracked_diff_sha256": "ce237f869725ef7e2c5382e5f904eb4a79200a900ad9614c1b1d7b3b731d20c4",
-  "database": "AuthserverLifecycle_3b08bf4cdd374d1bb49383a47d75c9e7",
-  "app_base": "http://localhost:63871/services",
+  "tracked_diff_sha256": "006892d7fd98520882b415a0b1d2d0a5203cccb445aa70b245cb4319b563872c",
+  "database": "AuthserverLifecycle_251795a2aab6455298834893c698d7d6",
+  "app_base": "http://localhost:61345/services",
   "artifact_sha256": "a713db4373145060b19b13d2717adadcd0156ee3f97bf93c282215a17f8f4fd8",
   "provider": "unconfigured; no external provider success claimed",
+  "redis_target": {
+    "host": "127.0.0.1",
+    "port": 16379,
+    "session_database": 2,
+    "cache_database": 3,
+    "container_id": "731e90e4d099c969a000fc2a297dcf384cf64d26eff6cdf825ac2169b4c7ee01",
+    "container_port": 6379,
+    "databases": [
+      2,
+      3
+    ],
+    "published_endpoint_verified": true
+  },
   "campaigns": [
     {
       "script": "e2e-certificates.py",
@@ -25,12 +38,12 @@
     "owned_process_stopped": true,
     "redis_databases": [
       {
-        "database": 0,
-        "removed": 16,
+        "database": 2,
+        "removed": 17,
         "remaining": 0
       },
       {
-        "database": 1,
+        "database": 3,
         "removed": 1,
         "remaining": 0
       }

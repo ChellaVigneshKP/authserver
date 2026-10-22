@@ -30,8 +30,10 @@ def private_json(path,value):
     with os.fdopen(descriptor,'w') as output: json.dump(value,output,indent=2)
 
 
-def configured_redis_databases(config):
+def spring_properties(config):
     raw = json.loads(config.get('SPRING_APPLICATION_JSON', '{}'))
+    if not isinstance(raw, dict):
+        raise ValueError('Spring application JSON must be an object')
     properties = {}
     def flatten(value, prefix=''):
         for key, item in value.items():
@@ -41,22 +43,91 @@ def configured_redis_databases(config):
             else:
                 properties[name] = item
     flatten(raw)
-    databases = []
-    for name, default in [('spring.data.redis.database', 0), ('spring.data.redis.cache.database', 1)]:
-        value = properties.get(name, config.get(name.upper().replace('.', '_'), default))
-        if isinstance(value, bool) or not re.fullmatch(r'0|[1-9][0-9]*', str(value)) or not 0 <= int(value) <= 15:
-            raise ValueError('Refusing unsafe local Redis database')
-        databases.append(int(value))
-    return sorted(set(databases))
+    return properties
 
 
-def cleanup_redis_owned(config, namespace, run=subprocess.run):
+def redis_property(environment, properties, name, default):
+    return properties.get(name, environment.get(name.upper().replace('.', '_'), default))
+
+
+def redis_database(value):
+    if isinstance(value, bool) or not re.fullmatch(r'0|[1-9][0-9]*', str(value)) or not 0 <= int(value) <= 15:
+        raise ValueError('Refusing unsafe local Redis database')
+    return int(value)
+
+
+def configured_redis_databases(config):
+    properties = spring_properties(config)
+    return sorted({redis_database(redis_property(config, properties, name, default))
+                   for name, default in [('spring.data.redis.database', 0), ('spring.data.redis.cache.database', 1)]})
+
+
+def redis_settings(environment):
+    properties = spring_properties(environment)
+    def value(name, default=''):
+        return redis_property(environment, properties, 'spring.data.redis.'+name, default)
+    host = value('host', environment.get('REDIS_HOST', 'localhost'))
+    port = value('port', environment.get('REDIS_PORT', '6379'))
+    if host not in ('127.0.0.1', 'localhost') or str(port) != '16379':
+        raise ValueError('Only the approved published Redis endpoint is supported')
+    if str(value('sentinel.enabled', False)).lower() != 'false' or str(value('ssl.enabled', False)).lower() != 'false':
+        raise ValueError('Sentinel and TLS Redis transports are unsupported by this local launcher')
+    if any(value(name) not in ('', None) for name in ('url', 'username', 'password', 'sentinel.master', 'sentinel.nodes', 'sentinel.password', 'cluster.nodes')):
+        raise ValueError('Redis URL, authentication, sentinel and cluster overrides are unsupported')
+    return dict(host='127.0.0.1', port=16379,
+                session_database=redis_database(value('database', 0)),
+                cache_database=redis_database(value('cache.database', 1)))
+
+
+def effective_child_environment(config, inherited, namespace):
     if not re.fullmatch(r'authserver:lifecycle:[0-9a-f]{32}:', namespace):
         raise ValueError('Refusing unsafe Redis ownership prefix')
-    databases = configured_redis_databases(config)
+    environment = dict(inherited) | config
+    # These alternate configuration inputs are outside this launcher's transport resolver.
+    unsupported = ('JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS',
+                   'SPRING_CONFIG_LOCATION', 'SPRING_CONFIG_ADDITIONAL_LOCATION', 'SPRING_CONFIG_IMPORT',
+                   'SPRING_CONFIG_NAME', 'SPRING_REDIS_HOST', 'SPRING_REDIS_PORT', 'SPRING_REDIS_URL')
+    if any(environment.get(name) for name in unsupported):
+        raise ValueError('Unsupported inherited JVM/configuration transport override')
+    settings = redis_settings(environment)
+    properties = spring_properties(environment)
+    properties.update({'spring.data.redis.host':settings['host'], 'spring.data.redis.port':settings['port'],
+                       'spring.data.redis.database':settings['session_database'],
+                       'spring.data.redis.cache.database':settings['cache_database'],
+                       'spring.data.redis.sentinel.enabled':False, 'spring.data.redis.ssl.enabled':False,
+                       'spring.session.redis.namespace':namespace+'session',
+                       'spring.cache.redis.key-prefix':namespace+'cache:',
+                       'logging.level.root':'WARN', 'logback.access.enabled':'false'})
+    environment['SPRING_APPLICATION_JSON'] = json.dumps(properties)
+    return environment
+
+
+def verified_redis_target(environment, run=subprocess.run):
+    settings = redis_settings(environment)
+    # Inspect only nonsecret endpoint identity, never container environment/configuration values.
+    template = '{"id":{{json .Id}},"running":{{json .State.Running}},"ports":{{json .NetworkSettings.Ports}}}'
+    result = run(['docker', 'inspect', '--format', template, 'authserver-dev-redis-1'],
+                 capture_output=True, text=True, check=True)
+    container = json.loads(result.stdout)
+    bindings = container.get('ports', {}).get('6379/tcp', []) or []
+    if (not re.fullmatch(r'[0-9a-f]{64}', container.get('id', '')) or container.get('running') is not True
+            or not any(binding.get('HostIp') == settings['host'] and binding.get('HostPort') == str(settings['port']) for binding in bindings)):
+        raise ValueError('Redis container does not publish the validated application endpoint')
+    return settings | dict(container_id=container['id'], container_port=6379,
+                           databases=configured_redis_databases(environment), published_endpoint_verified=True)
+
+
+def cleanup_redis_owned(target, namespace, run=subprocess.run):
+    if not re.fullmatch(r'authserver:lifecycle:[0-9a-f]{32}:', namespace):
+        raise ValueError('Refusing unsafe Redis ownership prefix')
+    if (target.get('host') != '127.0.0.1' or target.get('port') != 16379
+            or target.get('container_port') != 6379 or target.get('published_endpoint_verified') is not True
+            or not re.fullmatch(r'[0-9a-f]{64}', target.get('container_id', ''))):
+        raise ValueError('Cleanup requires the verified application Redis endpoint')
+    databases = sorted({redis_database(value) for value in target['databases']})
     evidence = []
     for database in databases:
-        command = ['docker', 'exec', 'authserver-dev-redis-1', 'redis-cli', '-n', str(database)]
+        command = ['docker', 'exec', target['container_id'], 'redis-cli', '-h', '127.0.0.1', '-p', '6379', '-n', str(database)]
         def scan():
             keys = run(command+['--scan', '--pattern', namespace+'*'], capture_output=True, text=True, check=True).stdout.splitlines()
             if any(not key.startswith(namespace) for key in keys):
@@ -84,7 +155,6 @@ def main():
     run_id=uuid.uuid4().hex
     database='AuthserverLifecycle_'+run_id
     directory=ROOT/'.local/b6-campaigns'/run_id
-    directory.mkdir(mode=0o700,parents=True)
     namespace='authserver:lifecycle:'+run_id+':'
     with socket.socket() as probe:
         probe.bind(('127.0.0.1',0)); port=probe.getsockname()[1]
@@ -93,21 +163,22 @@ def main():
             SERVER_PORT=str(port),SERVER_BASE_PATH=base,LOCAL_CALLBACK_URL=base+'/local/callback',
             LOCAL_BOOTSTRAP_ENABLED='true',LOCAL_ADMIN_USERNAME='lifecycle_'+run_id,
             LOCAL_ADMIN_PASSWORD='L8!'+secrets.token_hex(20)+'qZ')
-    properties=json.loads(config.get('SPRING_APPLICATION_JSON','{}'))
-    properties.update({'spring.session.redis.namespace':namespace+'session','spring.cache.redis.key-prefix':namespace+'cache:',
-                       'logging.level.root':'WARN','logback.access.enabled':'false'})
-    config['SPRING_APPLICATION_JSON']=json.dumps(properties)
-    validate_target(config,{'AUTH_E2E_BASE':base,'AUTH_E2E_DB':database})
+    # Resolve once before DB creation/JVM launch, and keep that exact environment for both.
+    child_environment=effective_child_environment(config,os.environ,namespace)
+    redis_target=verified_redis_target(child_environment)
+    config['SPRING_APPLICATION_JSON']=child_environment['SPRING_APPLICATION_JSON']
+    validate_target(child_environment,{'AUTH_E2E_BASE':base,'AUTH_E2E_DB':database})
+    directory.mkdir(mode=0o700,parents=True)
     config_path=directory/'dev.json';private_json(config_path,config)
     runtime=directory/'authserver.jar';shutil.copy2(artifact,runtime);os.chmod(runtime,0o400)
     report=dict(**source_provenance(),database=database,app_base=base,artifact_sha256=hashlib.sha256(runtime.read_bytes()).hexdigest(),
-                provider='unconfigured; no external provider success claimed',campaigns=[],cleanup={})
+                provider='unconfigured; no external provider success claimed',redis_target=redis_target,campaigns=[],cleanup={})
     owned=False;child=None
     try:
         sql_text(original,'AGSAuth','CREATE DATABASE ['+database+'];',scalar=True);owned=True
         with (directory/'app.log').open('w') as log:
             os.chmod(log.name,0o600)
-            child=subprocess.Popen(['java','-jar',str(runtime)],cwd=ROOT,env=os.environ|config,stdout=log,stderr=subprocess.STDOUT)
+            child=subprocess.Popen(['java','-jar',str(runtime)],cwd=ROOT,env=child_environment,stdout=log,stderr=subprocess.STDOUT)
         for _ in range(180):
             if child.poll() is not None: raise RuntimeError('Owned app exited; inspect private run log')
             try:
@@ -154,7 +225,7 @@ def main():
         if owned:
             # Namespace is generated by this invocation. No other session/cache keys are touched.
             try:
-                report['cleanup']['redis_databases']=cleanup_redis_owned(config,namespace)
+                report['cleanup']['redis_databases']=cleanup_redis_owned(redis_target,namespace)
             except Exception as error:
                 report['cleanup']['redis_error']=type(error).__name__;report['passed']=False
             try:

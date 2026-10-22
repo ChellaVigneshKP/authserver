@@ -69,6 +69,8 @@ class PortalAcceptanceIntegrationTest extends ManagementHttpTestSupport {
 
     @Test void localUserSecurityAndDeletionPersistWithPermissionDenials() throws Exception {
         var target = user(orgA, 0, "acceptance-local-target");
+        sql.update("UPDATE Person.Profile SET TwoFactorEnabled=0 WHERE ProfileId=?", target.getId());
+        assertThat(sql.queryForObject("SELECT TwoFactorEnabled FROM Person.Profile WHERE ProfileId=?", Boolean.class, target.getId())).isFalse();
         var reader = token(user(orgA, 0, "acceptance-no-management-grants"));
         String path = "/api/v1/users/"+target.getRowGuid();
         for (String method : List.of("PUT", "DELETE")) {
@@ -77,8 +79,11 @@ class PortalAcceptanceIntegrationTest extends ManagementHttpTestSupport {
                     method.equals("PUT")?"{\"twoFactorEnabled\":true}":null).statusCode()).isEqualTo(403);
             assertThat(com.chellavignesh.authserver.support.ManagementObservations.snapshot(sql)).isEqualTo(before);
         }
+        var beforeMutation = com.chellavignesh.authserver.support.ManagementObservations.snapshot(sql);
         assertThat(call(platform, "PUT", path+"/security-settings", "{\"twoFactorEnabled\":true}").statusCode()).isEqualTo(200);
         assertThat(sql.queryForObject("SELECT TwoFactorEnabled FROM Person.Profile WHERE ProfileId=?", Boolean.class, target.getId())).isTrue();
+        assertThat(com.chellavignesh.authserver.support.ManagementObservations.snapshot(sql).get("Person.Profile"))
+                .isNotEqualTo(beforeMutation.get("Person.Profile"));
         assertThat(call(platform, "DELETE", path, null).statusCode()).isEqualTo(204);
         assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?", Integer.class, target.getId())).isZero();
     }

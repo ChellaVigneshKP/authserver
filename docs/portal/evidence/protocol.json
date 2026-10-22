@@ -1,8 +1,8 @@
 {
-  "database": "AuthserverLifecycle_3b08bf4cdd374d1bb49383a47d75c9e7",
-  "app_base": "http://localhost:63871/services",
+  "database": "AuthserverLifecycle_251795a2aab6455298834893c698d7d6",
+  "app_base": "http://localhost:61345/services",
   "provider": "unconfigured; not exercised",
-  "started_at": "2026-10-22T13:45:15.644279+00:00",
+  "started_at": "2026-10-22T19:18:02.820444+00:00",
   "checks": [
     {
       "id": "GET /services/oauth2/authorize",
@@ -77,7 +77,7 @@
     {
       "id": "disable MFA only for disposable forms user",
       "method": "PUT",
-      "path": "/api/v1/users/df82463e-f36b-1410-8ed4-00fc9a23848b/security-settings",
+      "path": "/api/v1/users/0cb2463e-f36b-1410-8ed4-00fc9a23848b/security-settings",
       "status": 200,
       "expected": [
         200
@@ -165,9 +165,9 @@
       "passed": true
     },
     {
-      "id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/openid-configuration",
+      "id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/openid-configuration",
       "method": "GET",
-      "path": "/oauth2/.well-known/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/openid-configuration",
+      "path": "/oauth2/.well-known/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/openid-configuration",
       "status": 200,
       "expected": [
         200
@@ -471,9 +471,9 @@
       "positive": false
     },
     {
-      "id": "POST /services/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications",
+      "id": "POST /services/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications",
       "method": "POST",
-      "path": "/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications",
+      "path": "/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications",
       "status": 201,
       "expected": [
         201
@@ -481,9 +481,9 @@
       "passed": true
     },
     {
-      "id": "GET /services/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications/ee83463e-f36b-1410-8ed4-00fc9a23848b",
+      "id": "GET /services/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications/1db4463e-f36b-1410-8ed4-00fc9a23848b",
       "method": "GET",
-      "path": "/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications/ee83463e-f36b-1410-8ed4-00fc9a23848b",
+      "path": "/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications/1db4463e-f36b-1410-8ed4-00fc9a23848b",
       "status": 200,
       "expected": [
         200
@@ -491,9 +491,9 @@
       "passed": true
     },
     {
-      "id": "POST /services/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications/ee83463e-f36b-1410-8ed4-00fc9a23848b/credentials",
+      "id": "POST /services/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications/1db4463e-f36b-1410-8ed4-00fc9a23848b/credentials",
       "method": "POST",
-      "path": "/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications/ee83463e-f36b-1410-8ed4-00fc9a23848b/credentials",
+      "path": "/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications/1db4463e-f36b-1410-8ed4-00fc9a23848b/credentials",
       "status": 201,
       "expected": [
         201
@@ -501,9 +501,9 @@
       "passed": true
     },
     {
-      "id": "DELETE /services/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications/ee83463e-f36b-1410-8ed4-00fc9a23848b",
+      "id": "DELETE /services/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications/1db4463e-f36b-1410-8ed4-00fc9a23848b",
       "method": "DELETE",
-      "path": "/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b/applications/ee83463e-f36b-1410-8ed4-00fc9a23848b",
+      "path": "/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b/applications/1db4463e-f36b-1410-8ed4-00fc9a23848b",
       "status": 200,
       "expected": [
         200
@@ -513,7 +513,7 @@
     {
       "id": "delete disposable forms user",
       "method": "DELETE",
-      "path": "/api/v1/users/df82463e-f36b-1410-8ed4-00fc9a23848b",
+      "path": "/api/v1/users/0cb2463e-f36b-1410-8ed4-00fc9a23848b",
       "status": 204,
       "expected": [
         204
@@ -523,7 +523,7 @@
     {
       "id": "revoke disposable forms organization",
       "method": "PUT",
-      "path": "/api/v1/organizations/4d82463e-f36b-1410-8ed4-00fc9a23848b",
+      "path": "/api/v1/organizations/1fb1463e-f36b-1410-8ed4-00fc9a23848b",
       "status": 200,
       "expected": [
         200
@@ -669,11 +669,11 @@
       "state_preserved": true
     }
   ],
-  "finished_at": "2026-10-22T13:45:21.756526+00:00",
-  "source_commit": "0aebe70096b11a9003b93bedaac1f832f412743e",
-  "source_tree_sha256": "6c466f1d1c2e92125761ed1ed222361ca1b876b88dfdb546a7df55eafb42fb25",
+  "finished_at": "2026-10-22T19:18:08.981458+00:00",
+  "source_commit": "212e059c44999554a67bddeedffb68a0b78cde8b",
+  "source_tree_sha256": "6fe43cd1a47ce0e660225ed180fc469e41eaea3a2cf6dc776f5532d516eb9f94",
   "working_tree_dirty": true,
-  "tracked_diff_sha256": "ce237f869725ef7e2c5382e5f904eb4a79200a900ad9614c1b1d7b3b731d20c4",
+  "tracked_diff_sha256": "006892d7fd98520882b415a0b1d2d0a5203cccb445aa70b245cb4319b563872c",
   "artifact_sha256": "a713db4373145060b19b13d2717adadcd0156ee3f97bf93c282215a17f8f4fd8",
   "provenance_origin": "owned lifecycle launcher snapshot before execution",
   "provider_simulation": false

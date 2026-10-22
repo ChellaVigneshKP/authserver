@@ -6,7 +6,7 @@ Design/plans were approved in chat on **2026-10-21**. This document records back
 
 Runs use the existing ignored private `.local/dev.json`; no password, bearer, signing key, authorization code, client secret, private key or SQL connection credential is copied into reports. Test identities are synthetic and owned. Actual observation files contain a redacted route, method, fixture actor class, HTTP status, safe SQL projection outcome and execution-time source commit/tree information. They never contain request/response bodies or headers. JUnit names are assertion metadata only and are not converted into route results.
 
-The source commit recorded by B7 executions is the reviewed baseline `0aebe70096b11a9003b93bedaac1f832f412743e` **with dirty B7 changes**. Each report records the execution snapshot's SHA256 tree digest, tracked diff digest and `working_tree_dirty:true`. The final documentation commit is created after these executions; it is not retroactively presented as their source SHA. Documentation/evidence generated after a run naturally changes the tree digest. The copied JAR hash independently identifies the actual lifecycle runtime.
+The original full203-test gate records baseline `0aebe70096b11a9003b93bedaac1f832f412743e` **with dirty B7 changes**. Fresh review-fix management and lifecycle reports record `212e059c44999554a67bddeedffb68a0b78cde8b` **with dirty fix changes**, execution tree `6fe43cd1a47ce0e660225ed180fc469e41eaea3a2cf6dc776f5532d516eb9f94`. Each report retains its actual execution snapshot/diff digest and `working_tree_dirty:true`. Commits created afterward are never retroactively presented as execution SHAs. Later documentation and pure test-harness changes naturally change the worktree digest. The copied JAR hash independently identifies the lifecycle runtime; no production Java changed for this review fix.
 
 `source_tree_sha256` hashes sorted tracked/nonignored untracked file paths and bytes before execution. The digest identifies that observed worktree snapshot; it is not a Git commit/tree object or a claim that the dirty execution ran a later commit. The suite result and lifecycle binary evidence remain distinct.
 
@@ -17,10 +17,11 @@ From this worktree with private local configuration already present:
 ```sh
 ./scripts/local-dev.py test
 python3 scripts/e2e-admin-management.py --phase all
-python3 scripts/e2e-isolated-lifecycles.py
+SPRING_DATA_REDIS_DATABASE=2 SPRING_DATA_REDIS_CACHE_DATABASE=3 \
+  python3 scripts/e2e-isolated-lifecycles.py
 ```
 
-The first command performs Maven clean verify/package, five Node form tests and Python target/cleanup/observation checks. It never uses shared AGSAuth as an integration-test fixture database. Management tests create independently owned `AuthserverManagement_<uuid>`, `AuthserverPolicy_<uuid>` or migration-test databases and UUID Redis prefixes. They drop their own database and remove their own session/cache keys.
+The first command performs Maven clean verify/package, five Node form tests and Python target/cleanup/observation checks (currently5/10/4). The preserved full-gate report predates the expanded cleanup tests; fresh focused Python results are recorded below. It never uses shared AGSAuth as an integration-test fixture database. Management tests create independently owned `AuthserverManagement_<uuid>`, `AuthserverPolicy_<uuid>` or migration-test databases and UUID Redis prefixes. They drop their own database and remove their own session/cache keys.
 
 The lifecycle launcher copies the built JAR read-only, chooses a free loopback port, creates `AuthserverLifecycle_<uuid>`, and runs both existing certificate and protocol campaigns against that same database/JVM. It validates private SQL/HTTP target correspondence using DB_NAME, discovery issuer and the unique synthetic bootstrap identity. Shared AGSAuth is only the administrative connection for creating/dropping the separate database; its fixtures/accounts/keys are not mutated. No Docker service or shared JVM is restarted/reset.
 
@@ -48,22 +49,26 @@ The inventory remains schema_version2. Its importer accepts actual checks with `
 
 ## Recorded results
 
-The full required gate passed: **203 Java tests (198 baseline +5 new), zero failures/errors/skips;5 Node tests;14 Python checks (5 target +5 cleanup +4 observation).** Maven clean verify and packaged JAR succeeded. Private execution log: `.local/b7-full-gate.log`; execution provenance is retained in the sanitized evidence bundle. No production source was changed after this gate. The subsequent inventory importer alias/provenance additions are tooling-only and have their own checks.
+The preserved full required gate, before review-fix changes to fixtures/runner, passed: **203 Java tests (198 baseline +5 new), zero failures/errors/skips;5 Node tests;14 Python checks (5 target +5 cleanup +4 observation).** Maven clean verify and packaged JAR succeeded. Private execution log: `.local/b7-full-gate.log`; execution provenance is retained in the sanitized evidence bundle. No production Java was changed after this gate. Fresh review-fix verification is the corrected focused Java test, final observation-enabled all-phase run,19 Python checks and the owned nondefault-DB lifecycle campaign. The full gate is not claimed rerun after these test/runner changes.
 
 
 | Command | Final result | Sanitized evidence |
 |---|---|---|
-| `./scripts/local-dev.py test` |203 Java;5 Node;14 Python; clean verify/package exit0 | [full gate](evidence/full-gate.json) |
+| `./scripts/local-dev.py test` (preserved pre-fix run) |203 Java;5 Node;14 Python; clean verify/package exit0 | [full gate](evidence/full-gate.json) |
 | `python3 scripts/e2e-admin-management.py --phase all` |131 tests;361 actual HTTP/SQL observations;32/32 source-derived mutation variants with authentication denial and unchanged structural SQL; exit0 | [management report](evidence/admin-management.json) |
-| `python3 scripts/e2e-isolated-lifecycles.py` | Both campaigns and owned cleanup passed; exit0 | [launcher/cleanup](evidence/lifecycle-campaign.json) |
+| `SPRING_DATA_REDIS_DATABASE=2 SPRING_DATA_REDIS_CACHE_DATABASE=3 python3 scripts/e2e-isolated-lifecycles.py` | Both campaigns and same-endpoint DB2/3 owned cleanup passed; exit0 | [launcher/cleanup](evidence/lifecycle-campaign.json) |
 | Certificate campaign (inside owned launcher) |38 HTTP checks;8 SQL checks;22 scenarios passed | [certificate report](evidence/certificates.json) |
 | Protocol campaign (same owned app/DB) |51 HTTP checks;5 SQL checks; no failures | [protocol report](evidence/protocol.json) |
+
+Fresh review-fix checks passed: the focused security-settings Java test1/1 and19 Python checks (10 cleanup/environment/endpoint,5 target,4 observation). The security fixture now explicitly sets/asserts false before the actual PUT, then asserts true plus a changed public profile projection. The prior archive had24 positive-with-SQL-change variants, contrary to its prose claim of25; the refreshed archive now measures25, with `management-109` recording `Person.Profile` changed.
 
 Management observations contain171 positive HTTP results and190 non-positive observations (including deliberately injected500/503 rollback/outage checks). Their statuses are actual transport results. Twenty-five of the32 management mutation variants have a positive HTTP observation **and** an observed structural SQL change in this report. Certificate DELETE is additionally qualified by the separate certificate campaign. The six remaining positive gaps are provider/brand-dependent user creation (both legacy entrypoints), profile/email/password/username changes; their negative/ambiguity guards are exercised, and their successful provider flows remain unqualified here.
 
 Separate existing assertions cover: tenant omission/forged filters and totals; revoked actor membership401 and target ambiguity409; current permission removal and queued/concurrent writes; final administrator/unassignment races; V11→V13 and V12→V13 populated additive upgrades with stable IDs/profiles/credentials/grants/membership history and no duplicate seed additions; builtin/custom/protected-legacy readOnly metadata; stale role revisions and assigned-role conflicts; old/v2 secret absence and one-time creation; exact UTC write/metadata/actual confidential issuance before/at/after restrictive expiry; inactive client readback and retained-token invalidation; real RSA private_key_jwt, PKCE exchange, logout/revocation and public-only certificate/key advertisement. These assertions are not converted into invented endpoint observations.
 
-The final immutable JAR SHA256 is `a713db4373145060b19b13d2717adadcd0156ee3f97bf93c282215a17f8f4fd8`. It ran against `AuthserverLifecycle_3b08bf4cdd374d1bb49383a47d75c9e7` at `http://localhost:63871/services`. Cleanup stopped only that owned JVM, removed16 owned session keys from RedisDB0 and1 owned cache key from RedisDB1, verified0 remaining in each, dropped the owned database and verified absence. DB selection supports environment values and flat/nested Spring JSON, rejects unsafe database/prefix values, deduplicates configured DBs and never flushes shared state. The old B6 report remains DB0-only evidence; this is a new B7 run.
+The retained immutable JAR SHA256 is `a713db4373145060b19b13d2717adadcd0156ee3f97bf93c282215a17f8f4fd8` (unchanged production artifact from the preserved full gate). It ran against `AuthserverLifecycle_251795a2aab6455298834893c698d7d6` at `http://localhost:61345/services`. The launcher resolves `os.environ | private_config | owned_overrides` once, validates effective Redis settings, and passes that exact environment to the JVM. Before database creation/JVM launch, Docker inspection proves that the running Redis container publishes `127.0.0.1:16379` from its6379 port. Cleanup uses that verified immutable container ID, port and effective DBs; arbitrary loopback ports, remote hosts, Redis URL/auth/TLS/sentinel/cluster and unsupported JVM/config transport overrides are refused.
+
+The fresh inherited-environment proof selected sessionDB2/cacheDB3. Cleanup stopped only the owned JVM, removed17 owned keys from DB2 and1 from DB3, verified0 remaining in each, dropped the UUID database and verified absence. No shared flush/reset or unrelated-key cleanup occurred. Earlier defaultDB0/1 B7 runs and DB0-only B6 evidence retain their historical scope; they are not proof of the later inherited-environment fix.
 
 Fresh inventory regeneration:
 
