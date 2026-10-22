@@ -10,7 +10,7 @@
 
 **Spec:** [2026-10-18-identity-portal-design.md](../specs/2026-10-18-identity-portal-design.md). Review: [source findings](../specs/2026-10-18-identity-portal-review.md).
 
-**Status:** Draft for approval. Do not execute until user approves the full design and plans. This document is an implementation proposal, not completed remediation.
+**Status:** Design and execution plan approved in chat2026-10-21. Original proposal history is preserved; completed backend contracts and evidence are published in `docs/portal/`.
 
 ## Global Constraints
 
@@ -45,7 +45,7 @@ New focused units:
 - `T/security/ManagementAccessPolicyTest.java`, `T/adminportal/portal/PortalContextIntegrationTest.java`, `T/database/RoleContractTest.java`, `T/recovery/CredentialMetadataIntegrationTest.java`: security policy and real SQL/HTTP contracts.
 - `scripts/e2e-admin-management.py`: reusable disposable two-tenant real-HTTP campaign; report `.local/e2e-admin-management-report.json` with no secrets.
 
-Shared contract names: `ActorContext(userId:UUID,organizationId:UUID,platformAdmin:boolean,permissions:Set<String>)`; `RoleDto(id:UUID,name:String,description:String,status:String,permissionKeys:List<String>,revision:int,memberCount:int)`; assignment body `{groupId:UUID|null}`. Existing public GUIDs are used; never expose numeric SQL IDs. A platform actor's selected organization is a request scope, not a replacement identity.
+Shared contract names: `ActorContext(userId:UUID,organizationId:UUID,platformAdmin:boolean,permissions:Set<String>)`; `RoleDto(id:UUID,name:String,description:String,status:String,permissionKeys:List<String>,revision:int,memberCount:int,readOnly:boolean)`; assignment body `{groupId:UUID|null}`. Existing public GUIDs are used; never expose numeric SQL IDs. A platform actor's selected organization is a request scope, not a replacement identity.
 
 Use the existing `scripts/local-dev.py test` gate for Maven integration tests; extend its database-test selection only if needed, retaining disposable UUID database ownership. For focused Java tests, use the same private environment and Maven cache setup as that runner, rather than copying secrets into shell arguments. Name methods/classes as below so `-Dtest=<Class>` can select them when running under the configured environment.
 

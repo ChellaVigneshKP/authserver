@@ -1,12 +1,13 @@
 # Identity account portal and administration console
 
-Date: 18 October 2026. Status: **draft for approval; implementation not authorized by this document**.
+Date: 18 October 2026. Status: **design and execution plans approved in chat 2026-10-21**.
+Original draft/review history is retained below; backend implementation contracts are now published in [API-CONTRACT.md](../../portal/API-CONTRACT.md).
 Repository baseline: `2f90ecd5720bfbf3fa20e87d6e61f1e9a0c23b82`.
 Companion review: [repository findings](2026-10-18-identity-portal-review.md).
 
 ## Intent and scope
 
-Provide an enterprise interface for this identity service: an account portal for users and an administration console for clients, users, organizations, roles/permissions and certificates. The user requested all five management areas, a professional enterprise design, and a specification/plan before code changes. Next.js was recommended and the review/spec/planning stage approved. Exact component library, session policy and delegation behavior below are proposed engineering decisions, not previously approved requirements.
+Provide an enterprise interface for this identity service: an account portal for users and an administration console for clients, users, organizations, roles/permissions and certificates. The user requested all five management areas, a professional enterprise design, and a specification/plan before code changes. Next.js was recommended and the review/spec/planning stage approved. The concrete stack, session policy and delegation decisions below were subsequently approved in chat on2026-10-21.
 
 Success means a person can register and configure a usable client, manage authorized identities and organizations, and verify the result through genuine browser/API/database flows. A polished screen backed by a mock response does not count. The product must show understandable failures when infrastructure or providers are unavailable.
 
@@ -124,10 +125,10 @@ Use existing v1 routes where compatible; credential metadata moves to a new v2 r
 | GET `/api/v2/organizations/{org}/applications/{app}/credentials` | `[{id,name,type,algorithm,status,expirationDate,isExpired}]`, no `value`, secret or key material |
 | Existing user detail/list extension | Add `organizationId`, `groupId`, `syncMode` fields, retaining existing IDs; derive from authorized SQL mapping, not editable request metadata |
 | Existing application summary/detail extension | Add `active:boolean`; retain existing DTO fields and active-only list semantics |
-| POST org `/groups` | `{name,description,permissionKeys}` → 201 `{id,name,description,status,permissionKeys,revision,memberCount}` |
+| POST org `/groups` | `{name,description,permissionKeys}` → 201 `{id,name,description,status,permissionKeys,revision,memberCount,readOnly}` |
 | PUT org `/groups/{group}` | `{name,description,permissionKeys,revision}` → same role record; stale 409 |
 | DELETE org `/groups/{group}` | Soft deactivate only custom unassigned role; 204 or 409 |
-| GET org `/groups/{group}` | Role record including revision/member count; preserve existing group list/permission reads |
+| GET org `/groups/{group}` | Role record including revision/memberCount/readOnly; preserve existing group list/permission reads |
 | PUT `/api/v1/organizations/{org}/users/{user}/group` | `{groupId:UUID|null}` → 204; transactionally replace same-org assignment, apply delegation ceiling and last-admin guard |
 
 New role name length 1–100 trimmed characters, description ≤1024, no duplicate permission keys, keys must exist in catalog. Scope checks happen before returning target details. New role API errors: 400 validation, 401 no bearer, 403 denied, 404 absent/foreign target, 409 duplicate/stale/assigned/last-admin, 503 dependency outage. Legacy adapters normalize other existing status/body shapes.
@@ -148,10 +149,14 @@ Every visible mutation has a real HTTP + SQL readback test and at least one perm
 
 ## Approval decisions
 
-The review and drafting are authorized. Implementation waits for approval of these concrete proposed choices: Next.js server/BFF plus MUI, existing Java-hosted auth/self-service, the permission/delegation matrix, single active role per org membership with ambiguity checks, platform-only role-definition editing initially, and audit UI as a later extension. No production domain/hosting choice is required to review this design; use configurable portal/issuer origins and Docker support.
+Chat approval on2026-10-21 authorized implementation of these concrete choices: Next.js server/BFF plus MUI, existing Java-hosted auth/self-service, the permission/delegation matrix, single active role per org membership with ambiguity checks, platform-only role-definition editing initially, and audit UI as a later extension. No production domain/hosting choice is required to review this design; use configurable portal/issuer origins and Docker support.
 
-Plans: [backend foundation](../plans/2026-10-18-identity-portal-backend.md) and [frontend and acceptance](../plans/2026-10-18-identity-portal-frontend.md). Both are drafts for joint approval with this specification.
+Plans: [backend foundation](../plans/2026-10-18-identity-portal-backend.md) and [frontend and acceptance](../plans/2026-10-18-identity-portal-frontend.md). Both execution plans were approved with this specification on2026-10-21.
 
 ## Draft review record
 
 A fresh Superpowers builder-check reviewer read this specification and source context and reported “nothing important left.” Its source check confirmed the existing token `signing_key` extension; that answer is incorporated above. The author checked the two plans against the scope: authorization/context B1–B3/F1, roles B4–B5/F5, client lifecycle B6/F3, users/organizations B1/B3/F4, certificates B6/F6, accessibility/deployment/outages F2/F7. This is a documentation review, not validation of future implementation.
+
+## B7 contract finalization
+
+Role detail and legacy group list now expose authoritative `readOnly:boolean` using the server mutation-protection predicate, including protected legacy grants. This describes definition protection, not designated platform assignment eligibility. Frontend401 actor invalidation requires sign-in plus operator correction of bad SQL relationships; target409 requires review/refetch. Client `active` and credential UTC/null semantics are defined in the implemented API contract. The frontend adapter must strip inherited numeric resource IDs from browser DTOs and use the public catalog GUID for assignment deletion; legacy assignment `id` is a different GUID.

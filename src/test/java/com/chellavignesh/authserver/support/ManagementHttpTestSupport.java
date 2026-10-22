@@ -98,7 +98,14 @@ public abstract class ManagementHttpTestSupport {
         String sessionId=sql.queryForObject("SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.AuthSession WHERE AuthSessionId=?",String.class,session);
         String value="policy-"+UUID.randomUUID();byte[] key=new byte[32];new java.security.SecureRandom().nextBytes(key);
         sql.queryForObject("EXEC Token.CreateTokenWithHash ?,?,?,?,?,?,?,?,?",Integer.class,TokenTypeEnum.ACCESS_TOKEN.getValue(),client.getId(),subject,sessionId,true,value,key,600,MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        observationActors.put(value, com.chellavignesh.authserver.support.ManagementObservations.actor(sql, subject));
         return new Fixture(value,key);
+    }
+    private volatile String observationScenario = "fixture-setup";
+    private final Map<String,String> observationActors = new java.util.concurrent.ConcurrentHashMap<>();
+    @org.junit.jupiter.api.BeforeEach
+    void observationScenario(org.junit.jupiter.api.TestInfo info) {
+        observationScenario = getClass().getSimpleName()+"#"+info.getTestMethod().orElseThrow().getName();
     }
     protected HttpResponse<String> call(Fixture token,String method,String path,String body) throws Exception {
         var b=HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services"+path)).timeout(Duration.ofSeconds(20))
@@ -107,7 +114,14 @@ public abstract class ManagementHttpTestSupport {
         if(token!=null) {var mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(token.key(),"HmacSHA256"));b.header("Authorization","Bearer "+token.value()).header("x-signature",Base64.getEncoder().encodeToString(mac.doFinal((body==null?"":body).getBytes(StandardCharsets.UTF_8))));}
         b.header("x-request-id", "fixture-request-123");
         if(body!=null)b.header("Content-Type","application/json");
-        return http.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofString());
+        return com.chellavignesh.authserver.support.ManagementObservations.capture(sql, mapper, observationScenario,
+                token == null ? "unauthenticated" : observationActors.getOrDefault(token.value(), "unregistered_bearer"), method, path,
+                () -> http.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofString()));
+    }
+
+    protected HttpResponse<String> observed(String actor, String method, String path,
+                                            ManagementObservations.Request request) throws Exception {
+        return ManagementObservations.capture(sql, mapper, observationScenario, actor, method, path, request);
     }
 
     protected void cleanup(OwnedDatabase database) {

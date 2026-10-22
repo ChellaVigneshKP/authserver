@@ -4,4 +4,4 @@ import java.util.List;
 import java.util.UUID;
 
 public record RoleDto(UUID id, String name, String description, String status,
-                      List<String> permissionKeys, int revision, int memberCount) {}
+                      List<String> permissionKeys, int revision, int memberCount, boolean readOnly) {}

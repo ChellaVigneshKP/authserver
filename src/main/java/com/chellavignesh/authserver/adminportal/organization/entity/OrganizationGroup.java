@@ -21,9 +21,10 @@ public class OrganizationGroup {
     private Integer orgId;
     private int revision;
     private int memberCount;
+    private boolean readOnly;
 
     public OrganizationGroup(Integer id, UUID rowGuid, String name, String description, OrganizationStatus status, Integer orgId) {
-        this(id, rowGuid, name, description, status, orgId, 1, 0);
+        this(id, rowGuid, name, description, status, orgId, 1, 0, false);
     }
 
     public static OrganizationGroup fromResult(ResultSet result) throws SQLException {

@@ -260,7 +260,7 @@ def authored(row):
 def matching(row, check):
     if row['method'] != check.get('method', '').upper():
         return False
-    parts = urlsplit(check.get('path', ''))
+    parts = urlsplit(check.get('path', check.get('url', '')))
     path = parts.path
     if path.startswith('/services/'):
         path = path[len('/services'):]
@@ -308,6 +308,9 @@ def main():
                                 200 <= status < 400 and check.get('positive', True) is not False)
                     row['observations'].append(dict(report=path, check_id=check.get('id'),
                                                     status=status, passed=check.get('passed'), positive_http=positive,
+                                                    actor_class=check.get('actor_class'), sql_outcome=check.get('sql_outcome'),
+                                                    source_commit=check.get('source_commit', report.get('source_commit')),
+                                                    source_tree_sha256=check.get('source_tree_sha256', report.get('source_tree_sha256')),
                                                     provider_simulation=bool(report.get('provider_simulation') or report.get('qualification','').startswith('Synthetic local')),
                                                     semantic_view_verified=check.get('semantic_view_verified') is True and check.get('passed') is True))
         positive = any(item['positive_http'] and not item['provider_simulation'] for item in row['observations'])
@@ -360,6 +363,9 @@ def main():
                   ],
                   evidence_reports=[dict(path=path, sha256=hashlib.sha256(Path(path).read_bytes()).hexdigest(),
                                          started_at=report.get('started_at'), finished_at=report.get('finished_at'),
+                                         source_commit=report.get('source_commit'),
+                                         source_tree_sha256=report.get('source_tree_sha256'),
+                                         working_tree_dirty=report.get('working_tree_dirty'),
                                          provider_simulation=bool(report.get('provider_simulation') or report.get('qualification','').startswith('Synthetic local')),
                                          qualification=report.get('qualification'),
                                          database_checks=report.get('database_checks', []),

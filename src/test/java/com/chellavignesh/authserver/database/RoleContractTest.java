@@ -155,6 +155,33 @@ class RoleContractTest extends ManagementHttpTestSupport {
         assertThat(call(bearer,"POST","/api/v1/endpoints","{\"name\":\"Denied\",\"description\":\"Denied\",\"uri\":\"https://example.test/denied\",\"allowedMethod\":\"GET\",\"urn\":\"urn:test:denied\"}").statusCode()).isEqualTo(403);
         assertThat(call(bearer,"PUT","/api/v1/endpoints/"+UUID.randomUUID(),"{\"name\":\"Denied\",\"description\":\"Denied\",\"uri\":\"https://example.test/denied\",\"allowedMethod\":\"GET\",\"urn\":\"urn:test:denied\"}").statusCode()).isEqualTo(403);
     }
+    @Test void roleReadsExposeAuthoritativeProtectionForBuiltinCustomAndLegacyRoles() throws Exception {
+        var custom = create("Editable metadata", List.of("idp-admin-user:read"));
+        int legacy = group(orgA, "Reserved legacy metadata", List.of("idp-admin-org:switch"));
+        int builtin = sql.queryForObject("SELECT OrganizationGroupId FROM Partner.OrganizationGroup WHERE OrganizationId=? AND GroupTemplateId=1", Integer.class, orgA.getId());
+        int explicit = group(orgA, "Explicit builtin metadata", List.of("idp-admin-user:read"));
+        sql.update("UPDATE Partner.OrganizationGroup SET IsBuiltin=1 WHERE OrganizationGroupId=?", explicit);
+        var expected = new LinkedHashMap<String,Boolean>();
+        expected.put(custom.path("id").asText(), false);
+        for (int id : List.of(legacy, builtin, explicit)) {
+            expected.put(sql.queryForObject("SELECT CONVERT(VARCHAR(36),RowGuid) FROM Partner.OrganizationGroup WHERE OrganizationGroupId=?", String.class, id), true);
+        }
+        for (var entry : expected.entrySet()) {
+            var detail = mapper.readTree(call(platform, "GET", path+"/"+entry.getKey(), null).body());
+            assertThat(detail.path("readOnly").isBoolean()).isTrue();
+            assertThat(detail.path("readOnly").asBoolean()).isEqualTo(entry.getValue());
+        }
+        var listed = mapper.readTree(call(tenant, "GET", path, null).body());
+        for (var entry : expected.entrySet()) {
+            var role = java.util.stream.StreamSupport.stream(listed.spliterator(), false)
+                    .filter(row -> row.path("id").asText().equalsIgnoreCase(entry.getKey())).findFirst().orElseThrow();
+            assertThat(role.path("readOnly").isBoolean()).isTrue();
+            assertThat(role.path("readOnly").asBoolean()).isEqualTo(entry.getValue());
+            if (entry.getValue()) {
+                problem(call(platform, "PUT", path+"/"+entry.getKey(), body("Protected", List.of("idp-admin-user:read"), 1)), 409);
+            }
+        }
+    }
     @Test void existingListHasRevisionAndMemberCount() throws Exception {
         var list=mapper.readTree(call(tenant,"GET",path,null).body());assertThat(list).isNotEmpty();
         for(var role:list) {assertThat(role.path("revision").asInt()).isPositive();assertThat(role.has("memberCount")).isTrue();}

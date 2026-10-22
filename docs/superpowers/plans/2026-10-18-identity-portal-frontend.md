@@ -10,7 +10,7 @@
 
 **Spec:** [2026-10-18-identity-portal-design.md](../specs/2026-10-18-identity-portal-design.md).
 
-**Status:** Draft for approval; do not scaffold or install packages until the user approves the design and plans.
+**Status:** Design and execution plan approved in chat2026-10-21. Original proposal history is preserved; completed backend contracts and evidence are published in `docs/portal/`.
 
 ## Global Constraints
 
@@ -105,7 +105,7 @@ Server interfaces: `requireSession(request:Request):Promise<PortalSession>`; `re
 
 **Depends on:** B4/B5. **Files:** `contracts/roles.ts`, `features/roles/{RoleList,RoleEditor,PermissionMatrix,RoleAssignment}.tsx`, `features/roles/api.ts`; explicit org roles/group assignment route handlers/pages; `tests/e2e/roles.spec.ts`, `tests/integration/role-conflict.test.ts`.
 
-**Interfaces:** RoleDto and bodies exactly backend plan; editor carries revision; assignment sends `{groupId:UUID|null}` to org-scoped endpoint. No client-generated permission catalog and no arbitrary role keys.
+**Interfaces:** RoleDto and bodies follow `docs/portal/API-CONTRACT.md`, including authoritative `readOnly:boolean` on detail and legacy list; never infer editability from names/grants; editor carries revision; assignment sends `{groupId:UUID|null}` to org-scoped endpoint. No client-generated permission catalog and no arbitrary role keys.
 
 - [ ] Write failing tests for platform custom role CRUD and assignment, built-in immutability, tenant read/eligible assignment, unavailable foreign role, grant ceiling, stale409, assigned-role409 and ambiguous legacy membership409. Two browsers with stale revisions cannot overwrite; permission removal makes an already logged-in tab lose the next protected action. Last-platform-admin action displays actual backend409 rather than optimistic success.
 - [ ] Run integration tests and `python3 scripts/e2e-portal.py --phase roles`; expect missing screens.
@@ -143,3 +143,11 @@ Server interfaces: `requireSession(request:Request):Promise<PortalSession>`; `re
 Both plans plus the specification require user approval before execution. Recommended execution is subagent-driven with fresh task reviews because changes span authorization, secrets and browser sessions. Native execution is also possible with the same task gates and a fresh whole-branch review. Backend B1–B3 precede F1; B4/B5 precede F5; B6 precedes F3/F6 release. No phase may advertise functionality backed by unimplemented APIs.
 
 Completion means the documented local workflows and denial/outage cases pass against real services with preserved user data. External provider certification, production load sizing and deployment acceptance remain explicit independent gates; do not claim perfect or exhaustive verification.
+
+## B7 frontend carryovers
+
+- Render definition editability from `readOnly`; assignment eligibility additionally applies the designated platform organization1/template1 rule and server delegation checks.
+- Handle actor401 as invalid session/sign-in; SQL relationship ambiguity needs deliberate operator correction. Handle target409 with review/refetch.
+- Legacy application-resource response retains numeric fields and assignment GUID. Strip numeric IDs in browser DTOs; use/resolve public catalog GUID for DELETE. Do not submit the assignment GUID as catalog GUID.
+- Preserve `active:boolean`, active-only listing, UTC earliest-bound expiry and empty-string/null-display semantics from the implemented backend contract. Null metadata is not credential usability proof.
+- Historical naive datetime2 provenance is an upgrade/operator audit; frontend must not shift or repair historical values.

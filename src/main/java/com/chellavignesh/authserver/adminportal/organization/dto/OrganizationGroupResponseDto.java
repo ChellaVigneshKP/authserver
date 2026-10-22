@@ -16,6 +16,7 @@ public class OrganizationGroupResponseDto {
     private OrganizationStatus status;
     private int revision;
     private int memberCount;
+    private boolean readOnly;
 
     public static OrganizationGroupResponseDto fromOrganizationGroup(OrganizationGroup og) {
         return new OrganizationGroupResponseDto(
@@ -24,7 +25,8 @@ public class OrganizationGroupResponseDto {
                 og.getDescription(),
                 og.getStatus(),
                 og.getRevision(),
-                og.getMemberCount()
+                og.getMemberCount(),
+                og.isReadOnly()
         );
     }
 }

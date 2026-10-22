@@ -44,7 +44,7 @@ public class RoleRepository {
                 row.getInt("OrganizationId") == 1 && row.getInt("GroupTemplateId") == 1,
                 new RoleDto(UUID.fromString(row.getString("RowGuid")), row.getString("GroupName"),
                         row.getString("Description"), row.getInt("Status") == 1 ? "Active" : "Inactive",
-                        List.of(), row.getInt("Revision"), row.getInt("MemberCount"))), org, group.toString());
+                        List.of(), row.getInt("Revision"), row.getInt("MemberCount"), false)), org, group.toString());
         var value = rows.stream().findFirst().orElseThrow(() -> new RoleFailure(404));
         var keys = sql.query("""
                 SELECT PermissionKey FROM Partner.OrganizationGroupPermission
@@ -52,7 +52,31 @@ public class RoleRepository {
                 """, (row, _) -> row.getString(1), value.id(), org);
         var dto = value.dto();
         return new Row(value.id(), value.builtin(), value.designatedPlatformRole(), new RoleDto(dto.id(), dto.name(), dto.description(), dto.status(),
-                keys, dto.revision(), dto.memberCount()));
+                keys, dto.revision(), dto.memberCount(), readOnly(value.builtin(), keys)));
+    }
+
+    /** Shared definition-protection predicate; assignment eligibility remains separate. */
+    public static boolean readOnly(boolean builtinOrTemplate, List<String> permissionKeys) {
+        return builtinOrTemplate || permissionKeys.stream().anyMatch(
+                com.chellavignesh.authserver.security.ManagementAccessPolicy::platformReserved);
+    }
+
+    /** One tenant-bounded additive projection for the legacy group list/detail DTOs. */
+    public java.util.Map<Integer, Boolean> readOnlyByOrganization(int organization) {
+        var result = new java.util.HashMap<Integer, Boolean>();
+        sql.query("""
+                SELECT g.OrganizationGroupId,g.IsBuiltin,g.GroupTemplateId,p.PermissionKey
+                FROM Partner.OrganizationGroup g
+                LEFT JOIN Partner.OrganizationGroupPermission p ON p.OrganizationGroupId=g.OrganizationGroupId
+                    AND p.OrganizationId=g.OrganizationId AND p.Status=1
+                WHERE g.OrganizationId=?
+                """, row -> {
+            String key = row.getString("PermissionKey");
+            boolean protectedDefinition = readOnly(row.getBoolean("IsBuiltin") || row.getObject("GroupTemplateId") != null,
+                    key == null ? List.of() : List.of(key));
+            result.merge(row.getInt("OrganizationGroupId"), protectedDefinition, (left, right) -> left || right);
+        }, organization);
+        return result;
     }
 
     public void preflight(int org) {

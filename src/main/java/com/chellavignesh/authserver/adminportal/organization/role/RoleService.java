@@ -83,7 +83,7 @@ public class RoleService {
 
     private void mutable(RoleRepository.Row role) {
         if (role.builtin()) throw new RoleFailure(409);
-        if (role.dto().permissionKeys().stream().anyMatch(ManagementAccessPolicy::platformReserved)) {
+        if (role.dto().readOnly()) {
             throw RoleFailure.legacyPlatformRole();
         }
     }

@@ -101,6 +101,8 @@ def main():
             run(command+['clean','verify'], env)
             run(['node', '--test', 'src/test/js/auth-forms.test.mjs'], env)
             run([sys.executable, str(ROOT/'scripts/test_e2e_target.py')], env)
+            run([sys.executable, str(ROOT/'scripts/test_e2e_cleanup.py')], env)
+            run([sys.executable, str(ROOT/'scripts/test_e2e_management.py')], env)
 
 
 if __name__ == '__main__':

@@ -358,9 +358,9 @@ class AdminLifecycleIntegrationTest extends ManagementHttpTestSupport {
         body.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"certificate\"; filename=\"fixture.pem\"\r\nContent-Type: application/x-pem-file\r\n\r\n").getBytes(StandardCharsets.UTF_8));
         body.write(bytes);
         body.write(("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.UTF_8));
-        return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services/api/v1/organizations/"+orgA.getRowGuid()+"/certificates"))
+        return observed(type.equals("ORGANIZATION") ? "human_platform_organization" : "human_tenant", "POST", "/api/v1/organizations/"+orgA.getRowGuid()+"/certificates", () -> http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services/api/v1/organizations/"+orgA.getRowGuid()+"/certificates"))
                 .header("Authorization","Bearer "+(type.equals("ORGANIZATION")?platform:admin).value()).header("User-Agent","PolicyIntegration/1.0").header("Accept-Language","en-US").header("x-request-datetime",Instant.now().toString())
-                .header("Content-Type","multipart/form-data; boundary="+boundary).POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build(),HttpResponse.BodyHandlers.ofString());
+                .header("Content-Type","multipart/form-data; boundary="+boundary).POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build(),HttpResponse.BodyHandlers.ofString()));
     }
     int certificates() { return sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate WHERE OrganizationId=?",Integer.class,orgA.getId()); }
     @Test
