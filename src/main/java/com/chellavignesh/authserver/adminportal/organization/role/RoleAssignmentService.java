@@ -33,7 +33,7 @@ public class RoleAssignmentService {
                 || next.stream().anyMatch(ManagementAccessPolicy::platformReserved)))) throw denied();
         if(user.equals(actor.userId()) && !current.containsAll(next)) throw denied();
         if(next.stream().anyMatch(ManagementAccessPolicy::platformReserved)
-                && (role==null || !role.builtin() || organization!=1 || !actor.platformAdmin())) throw denied();
+                && (role==null || !role.designatedPlatformRole() || !actor.platformAdmin())) throw denied();
         if(!next.contains("idp-admin-org:switch")) lifecycle.requireAdminSurvives(ManagementLifecycleGuard.ChangeIntent.user(user));
         roles.assign(organization,target.profileId(),role==null?null:role.id());
     }

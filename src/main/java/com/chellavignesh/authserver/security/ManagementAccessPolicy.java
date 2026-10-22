@@ -173,11 +173,10 @@ public class ManagementAccessPolicy {
             if (!actor.permissions().contains("idp-admin-admin:create")) throw denied();
             var grants = requireGrantCeiling(actor, org, group);
             // Creation grants a new role. Existing legacy administrators remain eligible for
-            // lifecycle updates, but new reserved authority requires a protected platform role.
+            // lifecycle updates, but new reserved authority requires the designated platform role.
             if (grants.stream().anyMatch(ManagementAccessPolicy::platformReserved)) {
                 var organization = activeOrganization(org);
-                if (!actor.platformAdmin() || organization.getId() != 1
-                        || !roles.get(organization.getId(), group).builtin()) throw denied();
+                if (!actor.platformAdmin() || !roles.get(organization.getId(), group).designatedPlatformRole()) throw denied();
             }
         }
     }

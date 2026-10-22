@@ -359,7 +359,7 @@ class RoleAssignmentContractTest extends ManagementHttpTestSupport {
         var platformOrg = organizations.getById(1).orElseThrow();
         var organization = foreignBuiltin ? orgA : platformOrg;
         int group = role(organization, List.of("idp-admin-org:switch"));
-        if (foreignBuiltin) sql.update("UPDATE Partner.OrganizationGroup SET IsBuiltin=1 WHERE OrganizationGroupId=?", group);
+        if (foreignBuiltin) sql.update("UPDATE Partner.OrganizationGroup SET IsBuiltin=1, GroupTemplateId=1 WHERE OrganizationGroupId=?", group);
         var pending = new User();
         pending.setRowGuid(UUID.randomUUID());
         var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(createBody(pending, "unknown-provider"));
@@ -369,6 +369,51 @@ class RoleAssignmentContractTest extends ManagementHttpTestSupport {
         assertThat(response.statusCode()).as(response.body()).isEqualTo(403);
         assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?", Integer.class, pending.getRowGuid().toString())).isZero();
         assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileGroup WHERE OrganizationGroupId=?", Integer.class, group)).isZero();
+    }
+
+    int importedPlatformRole(int template) {
+        int group = role(organizations.getById(1).orElseThrow(), List.of("idp-admin-org:switch"));
+        if (template >= 0) {
+            sql.update("UPDATE Partner.OrganizationGroup SET IsBuiltin=1, GroupTemplateId=? WHERE OrganizationGroupId=?",
+                    template == 0 ? null : template, group);
+        }
+        return group;
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 2, 3})
+    void creationRejectsImportedReservedGrantsOutsideDesignatedPlatformRole(int template) throws Exception {
+        int group = importedPlatformRole(template);
+        var pending = new User();
+        pending.setRowGuid(UUID.randomUUID());
+        var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(createBody(pending, "unknown-provider"));
+        payload.put("orgGuid", organizations.getById(1).orElseThrow().getRowGuid().toString());
+        payload.put("groupGuid", guid(group).toString());
+        var response = call(platform, "POST", "/api/v1/users", mapper.writeValueAsString(payload));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(403);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?", Integer.class, pending.getRowGuid().toString())).isZero();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileGroup WHERE OrganizationGroupId=?", Integer.class, group)).isZero();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 2, 3})
+    void assignmentRejectsImportedReservedGrantsOutsideDesignatedPlatformRole(int template) throws Exception {
+        var platformOrg = organizations.getById(1).orElseThrow();
+        int group = importedPlatformRole(template);
+        var target = member(platformOrg, 0);
+        var response = call(platform, "PUT", route(platformOrg, target), body(group));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(403);
+        assertThat(memberships(target)).isEmpty();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.ProfileGroup WHERE OrganizationGroupId=?", Integer.class, group)).isZero();
+    }
+
+    @Test void assignmentAllowsDesignatedPlatformRole() throws Exception {
+        var platformOrg = organizations.getById(1).orElseThrow();
+        var target = member(platformOrg, 0);
+        var response = call(platform, "PUT", route(platformOrg, target), body(1));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(204);
+        assertThat(memberships(target)).containsExactly(1);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.EffectivePlatformAdministrator WHERE ProfileId=?", Integer.class, target.getId())).isEqualTo(1);
     }
 
     @Test void creationAllowsProtectedPlatformRoleThroughAuthorizationOnly() throws Exception {
@@ -384,9 +429,11 @@ class RoleAssignmentContractTest extends ManagementHttpTestSupport {
         assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?", Integer.class, pending.getRowGuid().toString())).isZero();
     }
 
-    @Test void existingLegacyPlatformAdministratorKeepsLifecycleEligibility() throws Exception {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {-1, 0, 2, 3})
+    void existingLegacyPlatformAdministratorKeepsLifecycleEligibility(int template) throws Exception {
         var platformOrg = organizations.getById(1).orElseThrow();
-        int legacy = role(platformOrg, List.of("idp-admin-org:switch"));
+        int legacy = importedPlatformRole(template);
         var target = member(platformOrg, legacy);
         var response = call(platform, "PUT", "/api/v1/users/" + target.getRowGuid() + "/status", "{\"status\":\"Inactive\"}");
         assertThat(response.statusCode()).as(response.body()).isEqualTo(204);

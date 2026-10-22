@@ -25,7 +25,9 @@ public class RoleRepository {
                 .stream().findFirst().orElseThrow(() -> new RoleFailure(404));
     }
 
-    public record Row(int id, boolean builtin, RoleDto dto) {}
+    // Builtin marks definition immutability. Only the platform Administrators template
+    // is eligible for new assignments carrying reserved authority.
+    public record Row(int id, boolean builtin, boolean designatedPlatformRole, RoleDto dto) {}
 
     public Row get(int org, UUID group) { return get(org, group, false); }
 
@@ -39,6 +41,7 @@ public class RoleRepository {
                 FROM Partner.OrganizationGroup g%s WHERE g.OrganizationId=? AND g.RowGuid=?
                 """.formatted(lock), (row, _) -> new Row(
                 row.getInt("OrganizationGroupId"), row.getBoolean("IsBuiltin") || row.getObject("GroupTemplateId") != null,
+                row.getInt("OrganizationId") == 1 && row.getInt("GroupTemplateId") == 1,
                 new RoleDto(UUID.fromString(row.getString("RowGuid")), row.getString("GroupName"),
                         row.getString("Description"), row.getInt("Status") == 1 ? "Active" : "Inactive",
                         List.of(), row.getInt("Revision"), row.getInt("MemberCount"))), org, group.toString());
@@ -48,7 +51,7 @@ public class RoleRepository {
                 WHERE OrganizationGroupId=? AND OrganizationId=? AND Status=1 ORDER BY PermissionKey
                 """, (row, _) -> row.getString(1), value.id(), org);
         var dto = value.dto();
-        return new Row(value.id(), value.builtin(), new RoleDto(dto.id(), dto.name(), dto.description(), dto.status(),
+        return new Row(value.id(), value.builtin(), value.designatedPlatformRole(), new RoleDto(dto.id(), dto.name(), dto.description(), dto.status(),
                 keys, dto.revision(), dto.memberCount()));
     }
 
