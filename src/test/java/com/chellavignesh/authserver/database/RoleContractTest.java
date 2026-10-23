@@ -231,8 +231,16 @@ class RoleContractTest extends ManagementHttpTestSupport {
             String action = switch (method) { case "POST" -> "create"; case "PUT" -> "update"; default -> "delete"; };
             var platformOrg = organizations.getById(1).orElseThrow();
             int group = group(platformOrg, "Queued writer " + suffix, List.of("idp-admin-org:switch",
-                    "idp-admin-group:read", "idp-admin-group:" + action));
+                    "idp-admin-group:read", "idp-admin-app:read", "idp-admin-group:" + action));
             var bearer = token(user(platformOrg, group, "queued-" + suffix));
+            // Identical action/grants/revision are authorized before the selective revocation.
+            // A separate target avoids changing the queued target or its revision.
+            var baselineTarget = create("Baseline target " + suffix, List.of("idp-admin-user:read"));
+            String baselinePath = method.equals("POST") ? path : path + "/" + baselineTarget.path("id").asText();
+            String baselineBody = method.equals("DELETE") ? null
+                    : body("Baseline write " + suffix, List.of("idp-admin-app:read"), method.equals("PUT") ? 1 : null);
+            assertThat(call(bearer, method, baselinePath, baselineBody).statusCode())
+                    .as("Authorized before revoking " + action).isEqualTo(method.equals("POST") ? 201 : method.equals("PUT") ? 200 : 204);
             var authenticated = new CountDownLatch(1);
             var resume = new CountDownLatch(1);
             var firstAcquire = new java.util.concurrent.atomic.AtomicBoolean(true);

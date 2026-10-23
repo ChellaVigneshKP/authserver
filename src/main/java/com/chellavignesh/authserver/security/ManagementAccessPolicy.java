@@ -10,6 +10,7 @@ import com.chellavignesh.authserver.adminportal.user.UserStatus;
 import com.chellavignesh.authserver.adminportal.user.entity.UserDetails;
 import com.chellavignesh.authserver.enums.entity.ApplicationTypeEnum;
 import com.chellavignesh.authserver.enums.entity.AuthFlowEnum;
+import com.chellavignesh.authserver.enums.entity.CertificateType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
@@ -104,6 +105,19 @@ public class ManagementAccessPolicy {
         });
     }
 
+    /** Called after the shared lock; the stored type selects the certificate authority. */
+    public void requireCertificateWrite(Authentication authentication, UUID organization,
+                                        CertificateType type, String action) {
+        requireOrganizationScope(authentication, organization);
+        var actor = requireHumanActorForMutation(authentication);
+        String resource = type == CertificateType.ORGANIZATION
+                ? "idp-admin-org-cert:" : "idp-admin-cred-cert:";
+        if (!actor.permissions().contains(resource + action)
+                || (type == CertificateType.ORGANIZATION && !actor.platformAdmin())) {
+            throw denied();
+        }
+    }
+
     public boolean canReadUser(Authentication authentication, UUID userGuid) {
         return allowed(() -> {
             var target = target(userGuid);
@@ -164,7 +178,15 @@ public class ManagementAccessPolicy {
         requireOrganizationScope(authentication, org);
         if (isMachine(authentication)) {
             if (!hasMachinePermission(authentication, "POST")) throw denied();
-            if (group != null) activeGroup(org, group);
+            if (group != null) {
+                var targetGroup = activeGroup(org, group);
+                var organization = activeOrganization(org);
+                boolean reserved = organizations.getOrganizationGroupPermissions(organization.getId(), targetGroup.getId())
+                        .stream().filter(permission -> permission.getStatus() == OrganizationStatus.ACTIVE)
+                        .anyMatch(permission -> platformReserved(permission.getKey()));
+                // A URL grant permits ordinary provisioning, never new human platform authority.
+                if (reserved) throw denied();
+            }
             return;
         }
         var actor = actorForAccess(authentication);

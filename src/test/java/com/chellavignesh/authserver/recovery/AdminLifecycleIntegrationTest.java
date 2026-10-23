@@ -28,6 +28,7 @@ import java.time.*;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
+import org.mockito.Mockito;
 
 /** Real HTTP and SQL lifecycle assertions;
 every row belongs to this UUID database. */
@@ -44,6 +45,7 @@ class AdminLifecycleIntegrationTest extends ManagementHttpTestSupport {
     @Autowired SecretService secrets;
     @Autowired ApplicationService service;
     @Autowired TestClock clock;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean com.chellavignesh.authserver.security.ManagementMutationLock mutationLock;
     @Value("${server.base-path}") String issuer;
     Fixture admin, platform;
     KeyPair keys;
@@ -62,7 +64,7 @@ class AdminLifecycleIntegrationTest extends ManagementHttpTestSupport {
         orgA = organization("Lifecycle A");
         orgB = organization("Lifecycle B");
         int group = group(orgA,"Lifecycle administrator", List.of("idp-admin-app:read","idp-admin-app:create","idp-admin-app:update","idp-admin-app:delete",
-                "idp-admin-cred-cert:create","idp-admin-cred-cert:read"));
+                "idp-admin-cred-cert:create","idp-admin-cred-cert:read","idp-admin-cred-cert:delete"));
         app = application(orgA);
         redirects.createRedirectUris(orgA.getId(),app.getId(),List.of("http://localhost/callback"));
         admin = token(user(orgA,group,"lifecycle-admin"));
@@ -352,14 +354,17 @@ class AdminLifecycleIntegrationTest extends ManagementHttpTestSupport {
         }return writer.toString().getBytes(StandardCharsets.US_ASCII);
     }
     HttpResponse<String> upload(byte[] bytes,String type) throws Exception {
+        return upload(bytes, type, type.equals("ORGANIZATION") ? platform : admin, orgA.getRowGuid());
+    }
+    HttpResponse<String> upload(byte[] bytes,String type,Fixture actor,UUID organization) throws Exception {
         String boundary="owned"+UUID.randomUUID();
         var body=new java.io.ByteArrayOutputStream();
         for(var entry:Map.of("name","Owned certificate","type",type,"password","").entrySet()) body.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\""+entry.getKey()+"\"\r\n\r\n"+entry.getValue()+"\r\n").getBytes(StandardCharsets.UTF_8));
         body.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"certificate\"; filename=\"fixture.pem\"\r\nContent-Type: application/x-pem-file\r\n\r\n").getBytes(StandardCharsets.UTF_8));
         body.write(bytes);
         body.write(("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.UTF_8));
-        return observed(type.equals("ORGANIZATION") ? "human_platform_organization" : "human_tenant", "POST", "/api/v1/organizations/"+orgA.getRowGuid()+"/certificates", () -> http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services/api/v1/organizations/"+orgA.getRowGuid()+"/certificates"))
-                .header("Authorization","Bearer "+(type.equals("ORGANIZATION")?platform:admin).value()).header("User-Agent","PolicyIntegration/1.0").header("Accept-Language","en-US").header("x-request-datetime",Instant.now().toString())
+        return observed(type.equals("ORGANIZATION") ? "human_platform_organization" : "human_tenant", "POST", "/api/v1/organizations/"+organization+"/certificates", () -> http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services/api/v1/organizations/"+organization+"/certificates"))
+                .header("Authorization","Bearer "+actor.value()).header("User-Agent","PolicyIntegration/1.0").header("Accept-Language","en-US").header("x-request-datetime",Instant.now().toString())
                 .header("Content-Type","multipart/form-data; boundary="+boundary).POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build(),HttpResponse.BodyHandlers.ofString()));
     }
     int certificates() { return sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate WHERE OrganizationId=?",Integer.class,orgA.getId()); }
@@ -441,4 +446,88 @@ class AdminLifecycleIntegrationTest extends ManagementHttpTestSupport {
         assertThat(read.body()).doesNotContain("PRIVATE KEY","keyStore","password");
         assertThat(sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate WHERE RowGuid=? AND DATALENGTH(KeyStore)>0",Integer.class,id)).isEqualTo(1);
     }
+    @Test void certificateDeletionUsesStoredTypeAndCurrentPlatformAuthority() throws Exception {
+        var created=upload(pem(false,true),"ORGANIZATION");
+        assertThat(created.statusCode()).isEqualTo(201);
+        String id=mapper.readTree(created.body()).path("id").asText();
+        String path="/api/v1/organizations/"+orgA.getRowGuid()+"/certificates/"+id;
+        assertThat(call(admin,"DELETE",path,null).statusCode()).isEqualTo(403);
+        var foreign=token(user(orgB,group(orgB,"Foreign certificate deleter",List.of("idp-admin-cred-cert:delete")),"certificate-foreign"));
+        assertThat(call(foreign,"DELETE",path,null).statusCode()).isEqualTo(403);
+        assertThat(call(foreign,"DELETE",path.replace(id,UUID.randomUUID().toString()),null).statusCode()).isEqualTo(403);
+        assertThat(sql.queryForObject("SELECT Status FROM Partner.Certificate WHERE RowGuid=?",Integer.class,id)).isEqualTo(1);
+        assertThat(call(platform,"DELETE",path,null).statusCode()).isEqualTo(204);
+        assertThat(sql.queryForObject("SELECT Status FROM Partner.Certificate WHERE RowGuid=?",Integer.class,id)).isZero();
+        var publicKey=upload(pem(false,false),"PUBLIC_KEY");
+        assertThat(publicKey.statusCode()).isEqualTo(201);
+        String publicId=mapper.readTree(publicKey.body()).path("id").asText();
+        assertThat(call(admin,"DELETE","/api/v1/organizations/"+orgA.getRowGuid()+"/certificates/"+publicId,null).statusCode()).isEqualTo(204);
+        assertThat(sql.queryForObject("SELECT Status FROM Partner.Certificate WHERE RowGuid=?",Integer.class,publicId)).isZero();
+    }
+
+    @Test void organizationOneCertificateGrantWithoutSwitchCannotCreateSigningKey() throws Exception {
+        var org=organizations.getById(1).orElseThrow();
+        var actor=token(user(org,group(org,"Org certificate without switch",List.of("idp-admin-org-cert:create")),"certificate-no-switch"));
+        int before=sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate",Integer.class);
+        var response=upload(pem(false,true),"ORGANIZATION",actor,org.getRowGuid());
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate",Integer.class)).isEqualTo(before);
+    }
+
+    @Test void certificateListAndDetailShareInjectedUtcBoundary() throws Exception {
+        var created=upload(pem(false,false),"PUBLIC_KEY");
+        assertThat(created.statusCode()).isEqualTo(201);
+        String id=mapper.readTree(created.body()).path("id").asText();
+        String collection="/api/v1/organizations/"+orgA.getRowGuid()+"/certificates";
+        Instant end=sql.queryForObject("SELECT ValidTo FROM Partner.Certificate WHERE RowGuid=?",LocalDateTime.class,id).toInstant(ZoneOffset.UTC);
+        for(Instant now:List.of(end.minusSeconds(3600),end,end.plusMillis(1))) {
+            clock.fixed=now;
+            var detail=certificateReadAtClock(collection+"/"+id);
+            var list=certificateReadAtClock(collection);
+            assertThat(detail.statusCode()).isEqualTo(200);
+            assertThat(list.statusCode()).isEqualTo(200);
+            assertThat(mapper.readTree(detail.body()).path("isExpired").asBoolean()).isEqualTo(now.isAfter(end));
+            var entries=mapper.readTree(list.body());
+            var match=java.util.stream.StreamSupport.stream(entries.spliterator(),false).filter(e->id.equals(e.path("id").asText())).findFirst().orElseThrow();
+            assertThat(match.path("isExpired").asBoolean()).isEqualTo(now.isAfter(end));
+        }
+    }
+    @Test void certificateWriteReloadsAuthorityAfterAuthentication() throws Exception {
+        var org=organizations.getById(1).orElseThrow();
+        int role=group(org,"Revocable certificate actor",List.of("idp-admin-org:switch","idp-admin-org-cert:create","idp-admin-org-cert:delete"));
+        var actor=token(user(org,role,"certificate-revocable"));
+        byte[] certificate=pem(false,true);
+        var created=upload(certificate,"ORGANIZATION",actor,org.getRowGuid());
+        assertThat(created.statusCode()).isEqualTo(201);
+        String id=mapper.readTree(created.body()).path("id").asText();
+        int before=sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate",Integer.class);
+        for(String action:List.of("create","delete")) {
+            var first=new java.util.concurrent.atomic.AtomicBoolean(true);
+            Mockito.doAnswer(invocation->{
+                if(first.compareAndSet(true,false)) {
+                    // Controller entry is after real introspection/proof. Revoke before its lock/read.
+                    assertThat(sql.update("UPDATE Partner.OrganizationGroupPermission SET Status=0 WHERE OrganizationGroupId=? AND PermissionKey=?",role,"idp-admin-org-cert:"+action)).isEqualTo(1);
+                }
+                return invocation.callRealMethod();
+            }).when(mutationLock).acquire();
+            try {
+                var response=action.equals("create") ? upload(certificate,"ORGANIZATION",actor,org.getRowGuid())
+                        : call(actor,"DELETE","/api/v1/organizations/"+org.getRowGuid()+"/certificates/"+id,null);
+                assertThat(response.statusCode()).isEqualTo(403);
+                assertThat(sql.queryForObject("SELECT COUNT(*) FROM Partner.Certificate",Integer.class)).isEqualTo(before);
+                assertThat(sql.queryForObject("SELECT Status FROM Partner.Certificate WHERE RowGuid=?",Integer.class,id)).isEqualTo(1);
+            } finally {Mockito.reset(mutationLock);}
+        }
+    }
+
+    HttpResponse<String> certificateReadAtClock(String path) throws Exception {
+        var mac=javax.crypto.Mac.getInstance("HmacSHA256");
+        mac.init(new javax.crypto.spec.SecretKeySpec(admin.key(),"HmacSHA256"));
+        var request=HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services"+path))
+                .header("Authorization","Bearer "+admin.value()).header("User-Agent","PolicyIntegration/1.0")
+                .header("Accept-Language","en-US").header("x-request-datetime",clock.instant().toString())
+                .header("x-signature",Base64.getEncoder().encodeToString(mac.doFinal(new byte[0]))).GET().build();
+        return observed("human_tenant","GET",path,()->http.send(request,HttpResponse.BodyHandlers.ofString()));
+    }
+
 }

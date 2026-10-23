@@ -42,11 +42,12 @@ class CredentialMetadataIntegrationTest extends com.chellavignesh.authserver.sup
     @org.springframework.beans.factory.annotation.Value("${server.base-path}") String issuer;
     static final OwnedDatabase database=new OwnedDatabase();
     @DynamicPropertySource static void isolate(DynamicPropertyRegistry registry) { database.register(registry); }
-    @Autowired CredentialService credentials;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean CredentialService credentials;
     @Autowired CredentialRepository credentialRepository;
     @Autowired SecretService secretService;
     @Autowired OrganizationCertificateService certificateService;
     @Autowired OrganizationRepository organizationRepository;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean com.chellavignesh.authserver.token.TokenService tokenService;
     Fixture adminToken,viewerToken;
     @BeforeAll void fixtures() throws Exception {
         orgA=organization("Credentials A"); orgB=organization("Credentials B");
@@ -159,7 +160,7 @@ class CredentialMetadataIntegrationTest extends com.chellavignesh.authserver.sup
         var denied=call(viewerToken,"GET",forged,null);
         assertThat(denied.statusCode()).isEqualTo(404);
         var problem=mapper.readTree(denied.body());assertThat(problem.path("code").asText()).isEqualTo("NOT_FOUND");
-        assertThat(UUID.fromString(problem.path("requestId").asText())).isNotNull();
+        assertThat(problem.path("requestId").asText()).isEqualTo("fixture-request-123");
         assertThat(problem.path("retryable").asBoolean()).isFalse();
         assertThat(denied.body()).doesNotContain("Exception",foreignApp.getRowGuid().toString());
     }
@@ -171,7 +172,7 @@ class CredentialMetadataIntegrationTest extends com.chellavignesh.authserver.sup
         assertThat(problem.properties().stream().map(Map.Entry::getKey).toList()).containsExactlyInAnyOrder("code","message","requestId","retryable");
         assertThat(problem.path("code").asText()).isEqualTo(code);
         assertThat(problem.path("message").asText().isBlank()).isFalse();
-        assertThat(UUID.fromString(problem.path("requestId").asText())).isNotNull();
+        assertThat(problem.path("requestId").asText()).isEqualTo("fixture-request-123");
         assertThat(problem.path("retryable").asBoolean()).isFalse();
         assertThat(response.body()).doesNotContain("Exception","stackTrace");
     }
@@ -201,6 +202,56 @@ class CredentialMetadataIntegrationTest extends com.chellavignesh.authserver.sup
             assertThat(response.headers().firstValue("WWW-Authenticate").orElse("")).startsWith("Bearer");
             assertThat(response.body()).doesNotContain("invalid-bearer-marker");
         }
+    }
+
+    void portalProblem(HttpResponse<String> response,int status,String requestId) throws Exception {
+        assertThat(response.statusCode()).isEqualTo(status);
+        assertThat(response.headers().firstValue("Cache-Control").orElse("")).contains("no-store");
+        assertThat(response.headers().firstValue("x-request-id").orElse("")).isEqualTo(requestId);
+        var body=mapper.readTree(response.body());
+        assertThat(body.properties().stream().map(Map.Entry::getKey)).containsExactlyInAnyOrder("code","message","requestId","retryable");
+        assertThat(body.path("requestId").asText()).isEqualTo(requestId);
+        assertThat(body.path("retryable").asBoolean()).isEqualTo(status==503);
+        assertThat(response.body()).doesNotContain("private-host","Exception","base64",adminToken.value());
+        if(response.headers().firstValue("x-signature").filter(v->!v.isBlank()).isPresent()) {
+            var mac=javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(adminToken.key(),"HmacSHA256"));
+            assertThat(response.headers().firstValue("x-signature").orElseThrow()).isEqualTo(Base64.getEncoder().encodeToString(mac.doFinal(response.body().getBytes(StandardCharsets.UTF_8))));
+        }
+    }
+    @Test void v2ProofFailuresShareSafePortalBoundary() throws Exception {
+        for(String signature:Arrays.asList(null,"%",Base64.getEncoder().encodeToString(new byte[32]))) {
+            var request=HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/services"+path(app).replace("/v1/","/v2/")))
+                    .header("Authorization","Bearer "+adminToken.value()).header("x-request-id","credential-proof-123")
+                    .header("User-Agent","PolicyIntegration/1.0").header("Accept-Language","en-US")
+                    .header("x-request-datetime",Instant.now().toString());
+            if(signature!=null) request.header("x-signature",signature);
+            var response=observed("human_tenant","GET",path(app).replace("/v1/","/v2/"),()->http.send(request.GET().build(),HttpResponse.BodyHandlers.ofString()));
+            portalProblem(response,400,"credential-proof-123");
+        }
+    }
+    @Test void v2DependencyOutageAndUnexpectedFailureAreSafe() throws Exception {
+        var unavailable=new Fixture("v2-outage-"+UUID.randomUUID(),new byte[32]);
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("private-host-secret"))
+                .when(tokenService).getByValue(unavailable.value(),TokenTypeEnum.ACCESS_TOKEN);
+        try {
+            var response=call(unavailable,"GET",path(app).replace("/v1/","/v2/"),null);
+            portalProblem(response,503,"fixture-request-123");
+            assertThat(response.headers().firstValue("Retry-After").orElse("")).isEqualTo("5");
+        } finally {org.mockito.Mockito.doCallRealMethod().when(tokenService).getByValue(unavailable.value(),TokenTypeEnum.ACCESS_TOKEN);}
+        org.mockito.Mockito.doThrow(new IllegalStateException("private-host-secret"))
+                .when(credentials).listMetadata(orgA.getRowGuid(),app.getRowGuid());
+        try {
+            portalProblem(call(adminToken,"GET",path(app).replace("/v1/","/v2/"),null),500,"fixture-request-123");
+        } finally {org.mockito.Mockito.doCallRealMethod().when(credentials).listMetadata(orgA.getRowGuid(),app.getRowGuid());}
+    }
+
+    @Test void v2LocalDenialsPreserveRequestIdAndSignedBytes() throws Exception {
+        portalProblem(call(null,"GET",path(app).replace("/v1/","/v2/"),null),401,"fixture-request-123");
+        var denied=call(adminToken,"GET",path(app).replace("/v1/","/v2/").replace(orgA.getRowGuid().toString(),orgB.getRowGuid().toString()),null);
+        assertThat(denied.headers().firstValue("x-signature").orElse("")).isNotBlank();
+        portalProblem(denied,403,"fixture-request-123");
+        portalProblem(call(adminToken,"GET",path(app).replace("/v1/","/v2/").replace(app.getRowGuid().toString(),"invalid"),null),400,"fixture-request-123");
     }
 
 }

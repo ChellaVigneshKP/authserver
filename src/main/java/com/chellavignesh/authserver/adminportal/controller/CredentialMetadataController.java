@@ -5,6 +5,8 @@ import com.chellavignesh.authserver.adminportal.credential.CredentialService;
 import com.chellavignesh.authserver.adminportal.credential.dto.CredentialMetadataDto;
 import com.chellavignesh.authserver.adminportal.organization.exception.OrgNotFoundException;
 import com.chellavignesh.authserver.adminportal.util.PortalProblem;
+import com.chellavignesh.authserver.adminportal.util.PortalResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,23 +30,24 @@ public class CredentialMetadataController {
     }
 
     @ExceptionHandler({OrgNotFoundException.class, AppNotFoundException.class})
-    public ResponseEntity<PortalProblem> notFound() {
-        return problem(404, "NOT_FOUND", "Credential scope not found");
+    public ResponseEntity<PortalProblem> notFound(HttpServletRequest request) {
+        return problem(request, 404, "NOT_FOUND", "Credential scope not found");
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<PortalProblem> accessDenied() {
-        return problem(403, "ACCESS_DENIED", "Access denied");
+    public ResponseEntity<PortalProblem> accessDenied(HttpServletRequest request) {
+        return problem(request, 403, "ACCESS_DENIED", "Access denied");
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<PortalProblem> malformedIdentifier() {
-        return problem(400, "INVALID_REQUEST", "Invalid credential scope identifier");
+    public ResponseEntity<PortalProblem> malformedIdentifier(HttpServletRequest request) {
+        return problem(request, 400, "INVALID_REQUEST", "Invalid credential scope identifier");
     }
 
-    private ResponseEntity<PortalProblem> problem(int status, String code, String message) {
+    private ResponseEntity<PortalProblem> problem(HttpServletRequest request, int status, String code, String message) {
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore())
-                .body(new PortalProblem(code, message, UUID.randomUUID().toString(), false));
+                .header("x-request-id", PortalResponses.requestId(request))
+                .body(new PortalProblem(code, message, PortalResponses.requestId(request), false));
     }
 
 }

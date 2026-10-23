@@ -55,4 +55,16 @@ class PortalResponseFilterTest {
         assertThatThrownBy(()->new PortalResponseFilter(null).doFilter(request,new MockHttpServletResponse(),
                 (req,res)->{throw failure;})).isSameAs(failure);
     }
+    @Test void credentialMatcherIsBoundedToTheV2Collection() {
+        String route="/api/v2/organizations/tenant/applications/client/credentials";
+        for(String path:new String[]{route,route+"/"}) {
+            var request=new MockHttpServletRequest();request.setServletPath(path);
+            assertThat(com.chellavignesh.authserver.adminportal.util.PortalResponses.isPortalRequest(request)).isTrue();
+        }
+        for(String path:new String[]{route+"/id",route+"/extra/path",route+"-extra",route.replace("/v2/","/v1/"),"/api/v2/organizations/tenant/applications/client/secrets"}) {
+            var request=new MockHttpServletRequest();request.setServletPath(path);
+            assertThat(com.chellavignesh.authserver.adminportal.util.PortalResponses.isPortalRequest(request)).isFalse();
+        }
+    }
+
 }

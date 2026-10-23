@@ -3,6 +3,7 @@ package com.chellavignesh.authserver.adminportal.certificate.dto;
 import com.chellavignesh.authserver.adminportal.certificate.CertificateEntity;
 import com.chellavignesh.authserver.adminportal.certificate.CertificateStatus;
 import com.chellavignesh.authserver.enums.entity.CertificateType;
+import com.chellavignesh.authserver.adminportal.credential.CredentialExpiration;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,9 +11,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Clock;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
 @Getter
@@ -31,6 +31,10 @@ public class CertificateResponseDto {
     private boolean isExpired;
 
     public static CertificateResponseDto fromCertificateEntityReduce(CertificateEntity a) {
+        return fromCertificateEntityReduce(a, Clock.systemUTC());
+    }
+
+    public static CertificateResponseDto fromCertificateEntityReduce(CertificateEntity a, Clock clock) {
         return new CertificateResponseDto(
                 a.getId(),
                 a.getName(),
@@ -40,11 +44,15 @@ public class CertificateResponseDto {
                 null,
                 null,
                 null,
-                isExpired(a)
+                isExpired(a, clock)
         );
     }
 
     public static CertificateResponseDto fromCertificateEntityExtended(CertificateEntity a) {
+        return fromCertificateEntityExtended(a, Clock.systemUTC());
+    }
+
+    public static CertificateResponseDto fromCertificateEntityExtended(CertificateEntity a, Clock clock) {
         return new CertificateResponseDto(
                 a.getId(),
                 a.getName(),
@@ -54,23 +62,19 @@ public class CertificateResponseDto {
                 StringUtils.defaultIfBlank(a.getFingerprint(), ""),
                 StringUtils.defaultIfBlank(a.getThumbprint(), ""),
                 StringUtils.defaultIfBlank(a.getCertificate(), ""),
-                isExpired(a)
+                isExpired(a, clock)
         );
     }
 
-    private static boolean isExpired(CertificateEntity a) {
-        if (a.getStatus() == CertificateStatus.EXPIRED) {
+    private static boolean isExpired(CertificateEntity certificate, Clock clock) {
+        if (certificate.getStatus() == CertificateStatus.EXPIRED || certificate.getValidTo() == null) {
             return true;
         }
-        if (a.getValidTo() != null) {
-            Date date = null;
-            try {
-                DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-                date = df.parse(a.getValidTo());
-            } catch (Exception _) {
-            }
-            return (new Date()).compareTo(date) > 0;
+        try {
+            // X509Certificate.checkValidity accepts the notAfter instant itself.
+            return clock.millis() > CredentialExpiration.parse(certificate.getValidTo()).toEpochMilli();
+        } catch (DateTimeParseException invalid) {
+            return true;
         }
-        return true;
     }
 }

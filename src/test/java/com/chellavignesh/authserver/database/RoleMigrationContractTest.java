@@ -31,7 +31,7 @@ class RoleMigrationContractTest {
             sql.update("INSERT Person.ProfileGroup(ProfileId,OrganizationGroupId) VALUES(?,1),(?,2)",profile,profile);
             var members=sql.queryForList("SELECT * FROM Person.ProfileGroup ORDER BY ProfileGroupId");
             var profiles=sql.queryForList("SELECT * FROM Person.Profile ORDER BY ProfileId");
-            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
             assertThat(sql.queryForMap("SELECT RowGuid,GroupName,GroupTemplateId FROM Partner.OrganizationGroup WHERE OrganizationGroupId=1")).isEqualTo(builtin);
             assertThat(sql.queryForList("SELECT GroupTemplateId,RowGuid FROM dbo.GroupTemplate ORDER BY GroupTemplateId")).isEqualTo(templateIds);
             assertThat(sql.queryForList("SELECT OrganizationGroupPermissionId,RowGuid,PermissionKey FROM Partner.OrganizationGroupPermission WHERE OrganizationGroupPermissionId<=? ORDER BY OrganizationGroupPermissionId",permissionIds.size())).isEqualTo(permissionIds);
@@ -68,7 +68,7 @@ class RoleMigrationContractTest {
             var memberships=sql.queryForList("SELECT * FROM Person.ProfileOrganization ORDER BY ProfileOrganizationId");
             var groups=sql.queryForList("SELECT * FROM Person.ProfileGroup ORDER BY ProfileGroupId");
             var permissions=sql.queryForList("SELECT * FROM Partner.OrganizationGroupPermission ORDER BY OrganizationGroupPermissionId");
-            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
             assertThat(sql.queryForList("SELECT * FROM Person.Profile ORDER BY ProfileId")).isEqualTo(profiles);
             assertThat(sql.queryForList("SELECT * FROM Person.Credential ORDER BY Id")).usingRecursiveComparison().isEqualTo(credentials);
             assertThat(sql.queryForList("SELECT * FROM Person.ProfileOrganization ORDER BY ProfileOrganizationId")).isEqualTo(memberships);
@@ -82,6 +82,39 @@ class RoleMigrationContractTest {
             assertThat(sql.queryForObject("SELECT COUNT(DISTINCT ProfileId) FROM Person.EffectivePlatformAdministrator",Integer.class)).isZero();
             assertThat(flyway.migrate().migrationsExecuted).isZero();flyway.validate();
         } finally {admin.execute("ALTER DATABASE ["+name+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");admin.execute("DROP DATABASE ["+name+"]");}
+    }
+
+    @Test void populatedThirteenUpgradePreservesHistoryAndScopesCurrentList() {
+        String url=System.getenv("AUTH_DB_IT_URL");
+        assertThat(url).matches("jdbc:sqlserver://(?:127\\.0\\.0\\.1|localhost):15433;encrypt=true;trustServerCertificate=true");
+        String name="AuthserverListUpgrade_"+UUID.randomUUID().toString().replace("-","");
+        var admin=new JdbcTemplate(source(url));
+        admin.execute("CREATE DATABASE ["+name+"]");
+        try {
+            var ds=source(url+";databaseName="+name);
+            var sql=new JdbcTemplate(ds);
+            assertThat(Flyway.configure().dataSource(ds).target("13").load().migrate().migrationsExecuted).isEqualTo(13);
+            int profile=sql.queryForObject("INSERT Person.Profile(LoginProviderId,Email,EmailConfirmed,PhoneNumber,PhoneNumberConfirmed,TwoFactorEnabled,FirstName,DataOriginId) OUTPUT INSERTED.ProfileId VALUES(1,'list-upgrade@example.test',1,'+19999999999',1,0,'List upgrade',0)",Integer.class);
+            sql.update("INSERT Person.Credential(ProfileId,UserName,Password,CredentialLocked,AccessFailedCount,DataOriginId,ExternalId) VALUES(?,'list-upgrade',0x00112233,0,0,0,'11111111-1111-1111-1111-111111111111')",profile);
+            sql.update("INSERT Person.ProfileOrganization(ProfileId,OrganizationId,Status) VALUES(?,1,1),(?,1,0)",profile,profile);
+            sql.update("INSERT Person.ProfileGroup(ProfileId,OrganizationGroupId) VALUES(?,1)",profile);
+            var tables=List.of("Person.Profile","Person.Credential","Person.ProfileOrganization","Person.ProfileGroup","Partner.OrganizationGroup","Partner.OrganizationGroupPermission");
+            var before=new LinkedHashMap<String,List<Map<String,Object>>>();
+            for(String table:tables) before.put(table,sql.queryForList("SELECT * FROM "+table));
+            assertThat(sql.queryForList("EXEC Person.GetUsers 100,0,NULL,N'list-upgrade',NULL,NULL,NULL")).hasSize(2);
+            var flyway=Flyway.configure().dataSource(ds).load();
+            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+            for(String table:tables) assertThat(sql.queryForList("SELECT * FROM "+table)).usingRecursiveComparison().isEqualTo(before.get(table));
+            var listed=sql.queryForList("EXEC Person.GetUsers 100,0,NULL,N'list-upgrade',N'Administrator',NULL,NULL");
+            assertThat(listed).hasSize(1);
+            assertThat(((Number)listed.getFirst().get("Results")).intValue()).isEqualTo(1);
+            assertThat(sql.queryForList("EXEC Person.GetUsers 100,0,NULL,N'list-upgrade',N'User',NULL,NULL")).isEmpty();
+            assertThat(flyway.migrate().migrationsExecuted).isZero();
+            flyway.validate();
+        } finally {
+            admin.execute("ALTER DATABASE ["+name+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+            admin.execute("DROP DATABASE ["+name+"]");
+        }
     }
 
 }

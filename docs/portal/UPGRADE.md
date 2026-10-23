@@ -15,7 +15,7 @@ Approved implementation scope: chat **2026-10-21**. This runbook preserves exist
 
 1. Record the deployed binary/version, database migration history and configuration references. Take and restore-test an approved database backup in isolation. Preserve all signing/encryption/password-hasher stores and their existing secret-manager references; never print keys/passwords into evidence. A database-only restore without the matching key material is not a valid recovery plan.
 2. Inventory dependent clients and their secret-reading behavior; prepare consumer changes before turning on the UI. Identify active platform administrators with usable, unlocked credentials, unexpired profiles, an active organization membership and current platform grants. Arrange a tested independent recovery operator; do not disable the final effective administrator.
-3. On an isolated copy of the existing database, run Flyway validation against the unchanged V1–V11 checksums, then the additive V12/V13 migrations. Never use `clean`, schema reset, checksum repair or baseline to hide drift. B7 adds **no V14**; all V1–V13 files remain untouched.
+3. On an isolated copy of the existing database, run Flyway validation against the unchanged V1–V13 checksums, then the additive V14 migration (V12/V13 also apply for older databases). Never use `clean`, schema reset, checksum repair or baseline to hide drift. The final review repair adds **V14**; all V1–V13 files remain untouched.
 4. Review existing-data ambiguities before enabling writes. Before V12, use read-only checks below; after migration use both issue views. Capture only safe counts/codes in public evidence, keeping identifiers/private details in approved operator records.
 
 ```sql
@@ -46,7 +46,7 @@ SELECT COUNT(DISTINCT ProfileId) AS EffectivePlatformAdministrators
 FROM Person.EffectivePlatformAdministrator;
 ```
 
-Duplicate names include inactive roles. The V12 report also flags broader legacy group ambiguity; V13 supplies precise active-identity eligibility. No migration silently renames roles, merges groups, removes membership history or rewrites profiles. Affected mutations fail409; ineligible actors fail401. Review intended ownership and resolve only with a separately reviewed, backed-up corrective change. Do not convert ambiguous memberships into a default role.
+Duplicate names include inactive roles. The V12 report also flags broader legacy group ambiguity; V13 supplies precise active-identity eligibility. V14 list reads omit profiles reported by `Person.ManagementMembershipIssues`, including their totals, until the underlying ambiguity is deliberately reviewed. Inactive organization history and ineligible historical groups cannot leak current user data or misclassify administrators. No migration silently renames roles, merges groups, removes membership history or rewrites profiles. Affected mutations fail409; ineligible actors fail401. Review intended ownership and resolve only with a separately reviewed, backed-up corrective change. Do not convert ambiguous memberships into a default role.
 
 ## Historical UTC provenance audit
 
@@ -56,7 +56,7 @@ Audit writer versions/JVM timezones, request/configuration records and certifica
 
 ## Additive schema and deliberate grants
 
-`V12__Protected_role_catalog.sql` adds `Revision` (default1), `IsBuiltin` (default0; backfilled for template groups), `dbo.PermissionCatalog`, `Partner.RolePreflightIssues`, compatible live-member/revision procedure projections and protected new-organization template creation. Existing IDs, GUIDs and permission rows remain. `V13__Safe_role_assignment.sql` adds membership/effective-identity/effective-platform-admin views, nonunique supporting indexes, protected assignment and compatible active-relationship projections.
+`V12__Protected_role_catalog.sql` adds `Revision` (default1), `IsBuiltin` (default0; backfilled for template groups), `dbo.PermissionCatalog`, `Partner.RolePreflightIssues`, compatible live-member/revision procedure projections and protected new-organization template creation. Existing IDs, GUIDs and permission rows remain. `V13__Safe_role_assignment.sql` adds membership/effective-identity/effective-platform-admin views, nonunique supporting indexes, protected assignment and compatible active-relationship projections. `V14__Current_user_list_scope.sql` replaces only `Person.GetUsers`, restricting current membership and eligible role joins and excluding reported ambiguous profiles before filtering/counting/pagination. It performs no row writes; populated V11/V12/V13 upgrades and second-run Flyway validation are covered by owned-database tests.
 
 New seeded actions are exact and limited:
 
@@ -114,7 +114,7 @@ Deploy first to the validated isolated upgrade copy, then use the site's approve
 
 Role/user/assignment mutations share a transaction-owned SQL application lock `authserver:identity-management:v1`, Exclusive. Order is transaction → lock → live actor/organization → role → profile/membership/invariant → write. Acquisition timeout is5seconds, mapped to sanitized retryable503/Retry-After5. Do not replace it with a JVM mutex or independently scoped lock. No automatic retry of management writes is allowed in the portal.
 
-If the UI misbehaves, stop new portal traffic and redeploy a **compatible hardened binary** supporting the deployed schema and safe credential/tenant contracts. Verify that binary against V12/V13 before selecting it as a rollback target. Preserve role tables, assignments, revisions, keys and all existing records. Never restore permissive secret GET behavior or bypass actor/membership enforcement to make old consumers work. Schema reversion requires a separately tested migration; dropping role tables or restoring an old whole database over newer data is not the default rollback. Historical key rotation and deliberate membership corrections have their own recovery plans.
+If the UI misbehaves, stop new portal traffic and redeploy a **compatible hardened binary** supporting the deployed schema and safe credential/tenant contracts. Verify that binary against V12/V13/V14 before selecting it as a rollback target. Preserve role tables, assignments, revisions, keys and all existing records. Never restore permissive secret GET behavior or bypass actor/membership enforcement to make old consumers work. Schema reversion requires a separately tested migration; dropping role tables or restoring an old whole database over newer data is not the default rollback. Historical key rotation and deliberate membership corrections have their own recovery plans.
 
 The acceptance harness uses UUID-owned SQL databases, unique Redis session/cache prefixes and a copied immutable JAR/owned JVM. It cleans only its own prefix in **each configured Redis database** (normally sessionDB0/cacheDB1), records per-DB removed/remaining counts and verifies the owned database is absent. No `FLUSHDB`, `FLUSHALL`, shared-container restart, volume deletion or shared AGSAuth reset is part of verification. Earlier B6 cleanup evidence covered DB0 only; it must not be relabeled as DB1 cleanup.
 

@@ -15,6 +15,10 @@ import com.chellavignesh.authserver.adminportal.util.EntityValidator;
 import com.chellavignesh.authserver.cms.BrandUrlMappingService;
 import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.enums.entity.CertificateType;
+import com.chellavignesh.authserver.security.ManagementAccessPolicy;
+import com.chellavignesh.authserver.security.ManagementMutationLock;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import com.chellavignesh.authserver.keystore.exception.FailedToCreateKeyStorePairException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -39,15 +44,26 @@ public class OrganizationCertificateController {
     private final EntityValidator entityValidator;
     private final BrandUrlMappingService brandUrlMappingService;
 
-    public OrganizationCertificateController(OrganizationCertificateService organizationCertificateService, EntityValidator entityValidator, BrandUrlMappingService brandUrlMappingService) {
+    private final ManagementAccessPolicy policy;
+    private final ManagementMutationLock mutations;
+    private final Clock clock;
+
+    public OrganizationCertificateController(OrganizationCertificateService organizationCertificateService, EntityValidator entityValidator, BrandUrlMappingService brandUrlMappingService, ManagementAccessPolicy policy, ManagementMutationLock mutations, Clock clock) {
         this.organizationCertificateService = organizationCertificateService;
         this.entityValidator = entityValidator;
         this.brandUrlMappingService = brandUrlMappingService;
+        this.policy = policy;
+        this.mutations = mutations;
+        this.clock = clock;
     }
 
     @PostMapping
-    @PreAuthorize("@permissionsService.isOrgMember(authentication, #orgGuid) and ((#request.type == 'ORGANIZATION' and hasPermission('idp-admin-org-cert','create')) or (#request.type == 'PUBLIC_KEY' and hasPermission('idp-admin-cred-cert','create')))")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CreateCertificateResponse> createCertificate(@PathVariable("orgId") UUID orgGuid, @Valid CreateCertificateRequest request, @SessionAttribute(name = ApplicationConstants.BRANDING_INFO, required = false) String brand) throws URISyntaxException, InvalidFileException, FailedToStoreCertificateException, FailedToCreateKeyStorePairException, FailedToCreateFingerprintException {
+
+        mutations.acquire();
+        policy.requireCertificateWrite(SecurityContextHolder.getContext().getAuthentication(), orgGuid, CertificateType.valueOf(request.type()), "create");
 
         try (var certificateFile = request.certificate().getInputStream()) {
 
@@ -66,7 +82,7 @@ public class OrganizationCertificateController {
 
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
 
-        return ResponseEntity.ok(organizationCertificateService.getAllByOrgId(orgId).stream().map(CertificateResponseDto::fromCertificateEntityReduce).collect(Collectors.toList()));
+        return ResponseEntity.ok(organizationCertificateService.getAllByOrgId(orgId).stream().map(certificate -> CertificateResponseDto.fromCertificateEntityReduce(certificate, clock)).collect(Collectors.toList()));
     }
 
     @GetMapping("/{certId}")
@@ -75,7 +91,7 @@ public class OrganizationCertificateController {
 
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
 
-        return ResponseEntity.ok(CertificateResponseDto.fromCertificateEntityExtended(organizationCertificateService.get(orgId, certId).orElseThrow(() -> new CertificateNotFoundException("Certificate not found"))));
+        return ResponseEntity.ok(CertificateResponseDto.fromCertificateEntityExtended(organizationCertificateService.get(orgId, certId).orElseThrow(() -> new CertificateNotFoundException("Certificate not found")), clock));
     }
 
     @GetMapping(value = "/{certId}/download", produces = MediaType.TEXT_PLAIN_VALUE)
@@ -94,10 +110,17 @@ public class OrganizationCertificateController {
     }
 
     @DeleteMapping("/{certId}")
-    @PreAuthorize("@permissionsService.isOrgMember(authentication, #orgGuid) and (hasPermission('idp-admin-org-cert','delete') or hasPermission('idp-admin-cred-cert','delete'))")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteCertificate(@Valid @PathVariable("orgId") UUID orgGuid, @PathVariable @Valid UUID certId) throws OrgNotFoundException, CertificateNotFoundException {
 
+        mutations.acquire();
+        var actor = SecurityContextHolder.getContext().getAuthentication();
+        policy.requireOrganizationScope(actor, orgGuid);
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
+        var certificate = organizationCertificateService.get(orgId, certId)
+                .orElseThrow(() -> new CertificateNotFoundException("Certificate not found"));
+        policy.requireCertificateWrite(actor, orgGuid, certificate.getType(), "delete");
 
         boolean wasDeleted = organizationCertificateService.deleteCertificate(orgId, certId);
 
