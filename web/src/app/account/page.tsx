@@ -3,15 +3,36 @@ import { requireSession } from "../../server/auth";
 import { getConfig } from "../../server/config";
 import { getPortalContext } from "../../server/portal-context";
 import { PortalFailure } from "../../server/errors";
+import type { PortalSession } from "../../server/types";
 import { SignOut } from "./SignOut";
 export const dynamic = "force-dynamic";
+
+function unavailable(error: unknown, canSignOut: boolean) {
+  const message =
+    error instanceof PortalFailure
+      ? error.message
+      : "The service is temporarily unavailable. Please try again.";
+  return (
+    <>
+      <h1>Account unavailable</h1>
+      <p role="alert">{message}</p>
+      {canSignOut ? <SignOut /> : <a href="/auth/login">Sign in</a>}
+    </>
+  );
+}
+
 export default async function Account() {
+  let session: PortalSession;
   try {
-    const session = await requireSession(
+    session = await requireSession(
       new Request(getConfig().origin + "/account", {
         headers: await headers(),
       }),
     );
+  } catch (error) {
+    return unavailable(error, false);
+  }
+  try {
     const context = await getPortalContext(session);
     return (
       <>
@@ -24,16 +45,11 @@ export default async function Account() {
       </>
     );
   } catch (error) {
-    const message =
-      error instanceof PortalFailure
-        ? error.message
-        : "The service is temporarily unavailable. Please try again.";
-    return (
-      <>
-        <h1>Account unavailable</h1>
-        <p role="alert">{message}</p>
-        <a href="/auth/login">Sign in</a>
-      </>
+    // A Java 401 invalidates the Redis session. Other context failures must
+    // leave the local sign-out path available to the authenticated browser.
+    return unavailable(
+      error,
+      !(error instanceof PortalFailure && error.status === 401),
     );
   }
 }

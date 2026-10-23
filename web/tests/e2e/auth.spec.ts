@@ -414,6 +414,13 @@ test("Java outage fails closed while local sign-out succeeds with an SSO warning
     )
     .toBe(503);
   check("Java outage produces controlled BFF503", true);
+  await page.reload();
+  check(
+    "account reload with a valid Redis session retains local sign-out during Java outage",
+    await page
+      .getByRole("button", { name: "Sign out", exact: true })
+      .isVisible(),
+  );
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.waitForURL(fixture.portal + "/auth/logged-out?incomplete=1");
   check(

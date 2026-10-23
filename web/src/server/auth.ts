@@ -273,7 +273,15 @@ export class IdentityProvider {
         const response = await upstreamFetch(
           transportUrl(this.config, d.jwks_uri),
         );
-        if (!response.ok) throw invalid();
+        if (!response.ok)
+          throw response.status >= 500
+            ? new PortalFailure(
+                503,
+                "IDENTITY_UNAVAILABLE",
+                "The identity service is temporarily unavailable. Start sign-in again.",
+                true,
+              )
+            : invalid();
         const jwks = JSON.parse(
           Buffer.from(await boundedBody(response)).toString(),
         ) as JSONWebKeySet;
@@ -321,6 +329,7 @@ export class IdentityProvider {
       headers["Accept-Language"] = tx.context.acceptLanguage;
       headers.Referer = tx.context.externalOrigin + "/";
     }
+    const tokenRequestStartedAt = Date.now();
     const response = await upstreamFetch(
       transportUrl(this.config, d.token_endpoint),
       {
@@ -367,9 +376,10 @@ export class IdentityProvider {
         accessToken: token.access_token,
         idToken: token.id_token,
         signingKey: decodeSigningKey(token.signing_key),
-        expiresAt: Date.now() + Math.floor(token.expires_in * 1000),
+        expiresAt: tokenRequestStartedAt + Math.floor(token.expires_in * 1000),
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof PortalFailure && error.status === 503) throw error;
       throw invalid();
     }
   }

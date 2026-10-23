@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { createClient } from "redis";
 import { randomUUID, createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -38,6 +46,10 @@ let tokenClaims: Record<string, unknown> = {},
   apiCalls = 0;
 let discoveryOverride: Record<string, unknown> = {};
 let jwksCount = 1;
+let jwksStatus = 200;
+let jwksDisconnect = false;
+let onJwksRead: (() => void) | undefined;
+let tokenRequests = 0;
 const session = () => ({
   id: randomUUID(),
   subjectId: "subject",
@@ -74,12 +86,23 @@ beforeAll(async () => {
       return;
     }
     if (req.url === "/oauth2/jwks") {
+      onJwksRead?.();
+      if (jwksDisconnect) {
+        req.socket.destroy();
+        return;
+      }
+      if (jwksStatus !== 200) {
+        res.statusCode = jwksStatus;
+        res.end("{}");
+        return;
+      }
       res.end(
         JSON.stringify({ keys: Array.from({ length: jwksCount }, () => jwk) }),
       );
       return;
     }
     if (req.url === "/oauth2/token") {
+      tokenRequests++;
       const jwt = await new SignJWT({ nonce: "nonce", ...tokenClaims })
         .setProtectedHeader({ alg: "RS256", kid: "test" })
         .setIssuer(String(tokenClaims.iss ?? issuer))
@@ -135,6 +158,10 @@ beforeEach(() => {
   tokenClaims = {};
   discoveryOverride = {};
   jwksCount = 1;
+  jwksStatus = 200;
+  jwksDisconnect = false;
+  onJwksRead = undefined;
+  tokenRequests = 0;
   apiMode = "good";
   apiCalls = 0;
 });
@@ -254,6 +281,8 @@ describe("auth session and protocol boundaries", () => {
       tokenClaims = claim;
       await expect(provider.exchange("code", tx)).rejects.toMatchObject({
         status: 400,
+        code: "INVALID_AUTH_RESPONSE",
+        retryable: false,
       });
     }
     const wrong = await generateKeyPair("RS256");
@@ -266,6 +295,8 @@ describe("auth session and protocol boundaries", () => {
       .sign(wrong.privateKey);
     await expect(provider.verifyIdToken(jwt, "nonce")).rejects.toMatchObject({
       status: 400,
+      code: "INVALID_AUTH_RESPONSE",
+      retryable: false,
     });
   });
   it("decodes actual JSON Base64 signing key and rejects malformed keys", () => {
@@ -450,6 +481,8 @@ describe("auth session and protocol boundaries", () => {
       .sign(key.privateKey);
     await expect(provider.verifyIdToken(jwt, "nonce")).rejects.toMatchObject({
       status: 400,
+      code: "INVALID_AUTH_RESPONSE",
+      retryable: false,
     });
   });
   it("rejects discovered issuer changes and off-origin or credential-bearing endpoints before exchange", async () => {
@@ -481,5 +514,57 @@ describe("auth session and protocol boundaries", () => {
           (error) => error.status,
         ),
     ).toBe(400);
+  });
+  it("caps access expiry at token-request start despite delayed JWKS verification", async () => {
+    const startedAt = Date.now();
+    let clock = startedAt;
+    const clockSpy = vi.spyOn(Date, "now").mockImplementation(() => clock);
+    onJwksRead = () => {
+      clock += 9_000;
+    };
+    try {
+      const identity = await new IdentityProvider(config).exchange("code", {
+        nonce: "nonce",
+        verifier: "verifier",
+      });
+      expect(clock).toBe(startedAt + 9_000);
+      expect(identity.expiresAt).toBe(startedAt + 300_000);
+      const stored = {
+        ...session(),
+        ...identity,
+        createdAt: startedAt,
+        lastSeenAt: startedAt,
+      };
+      await store.putSession(stored);
+      now = startedAt + 300_000;
+      expect(await store.getSession(stored.id)).toBeNull();
+      expect(tokenRequests).toBe(1);
+    } finally {
+      clockSpy.mockRestore();
+      onJwksRead = undefined;
+    }
+  });
+  it("preserves transient JWKS service and transport failures without retrying token exchange", async () => {
+    for (const disconnect of [false, true]) {
+      jwksDisconnect = disconnect;
+      jwksStatus = 503;
+      const before = tokenRequests;
+      const error = await new IdentityProvider(config)
+        .exchange("code", { nonce: "nonce", verifier: "verifier" })
+        .then(
+          () => null,
+          (failure) => ({
+            status: failure.status,
+            code: failure.code,
+            retryable: failure.retryable,
+          }),
+        );
+      expect(error).toEqual({
+        status: 503,
+        code: "IDENTITY_UNAVAILABLE",
+        retryable: true,
+      });
+      expect(tokenRequests - before).toBe(1);
+    }
   });
 });

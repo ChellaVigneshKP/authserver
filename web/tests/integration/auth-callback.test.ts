@@ -15,6 +15,7 @@ const context = {
 };
 const codes = new Map<string, { nonce: string; subject: string }>();
 const redemptions: string[] = [];
+let jwksUnavailable = false;
 const redis = createClient({
   url: "redis://127.0.0.1:16379/0",
   socket: { reconnectStrategy: false },
@@ -40,6 +41,11 @@ beforeAll(async () => {
       return;
     }
     if (req.url === "/jwks") {
+      if (jwksUnavailable) {
+        res.statusCode = 503;
+        res.end("{}");
+        return;
+      }
       res.end(JSON.stringify({ keys: [jwk] }));
       return;
     }
@@ -162,4 +168,41 @@ it("a swapped browser binding cannot redeem an authorization code or consume the
     context.externalOrigin + "/account",
   );
   expect(redemptions.length).toBe(before + 1);
+});
+
+it("a JWKS outage redirects to the clean unavailable page and never retries the consumed code", async () => {
+  const store = await getStore();
+  const tx = await store.createLoginTransaction("/account", context);
+  codes.set("jwks-down", { nonce: tx.nonce, subject: "outage-user" });
+  const before = redemptions.length;
+  vi.resetModules();
+  const { GET: freshCallback } = await import(
+    "../../src/app/auth/callback/route"
+  );
+  jwksUnavailable = true;
+  try {
+    const response = await freshCallback(
+      request(tx.state, tx.binding, "jwks-down"),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      context.externalOrigin + "/auth/error?unavailable=1",
+    );
+    expect(await response.text()).toBe("");
+    expect(redemptions.length - before).toBe(1);
+    expect(
+      response.headers
+        .getSetCookie()
+        .some((value) => value.startsWith("portal-session=")),
+    ).toBe(false);
+    const replay = await freshCallback(
+      request(tx.state, tx.binding, "jwks-down"),
+    );
+    expect(replay.headers.get("location")).toBe(
+      context.externalOrigin + "/auth/error",
+    );
+    expect(redemptions.length - before).toBe(1);
+  } finally {
+    jwksUnavailable = false;
+  }
 });

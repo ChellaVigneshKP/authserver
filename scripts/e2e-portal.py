@@ -17,10 +17,12 @@ DEV=runpy.run_path(str(ROOT/'scripts/portal-dev.py'))
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--phase',choices=['auth'],default='auth')
+    parser.add_argument('--grep',help='Run only matching auth browser scenarios; reported with the evidence')
     args=parser.parse_args()
     passed=False
     with DEV['owned_portal']() as fixture:
         directory=fixture['directory'];report=fixture['report']
+        report['browser_filter']=args.grep or 'all auth scenarios'
         config_path=directory/'dev.json'
         DEV['LIFECYCLE']['private_json'](config_path,fixture['config'])
         environment=os.environ|dict(PORTAL_E2E_CONFIG=str(fixture['private_path']),PORTAL_E2E_REPORT=str(directory/'browser-report.json'),
@@ -28,7 +30,9 @@ def main():
             AUTH_E2E_BASE=report['issuer'],AUTH_E2E_DB=fixture['database'],NEXT_TELEMETRY_DISABLED='1')
         with (directory/'browser.log').open('w') as log:
             os.chmod(log.name,0o600)
-            result=subprocess.run([str(DEV['NODE']),str(ROOT/'web/node_modules/@playwright/test/cli.js'),'test','auth.spec.ts'],cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=240)
+            command=[str(DEV['NODE']),str(ROOT/'web/node_modules/@playwright/test/cli.js'),'test','auth.spec.ts']
+            if args.grep:command+=['--grep',args.grep]
+            result=subprocess.run(command,cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=240)
         browser_path=directory/'browser-report.json'
         report['browser']=json.loads(browser_path.read_text()) if browser_path.exists() else {'checks':[],'failed_before_report':True}
         report['sql']=json.loads(sql_text(fixture['config'],fixture['database'],"SELECT COUNT(*) AS Sessions,SUM(CASE WHEN ClientFingerprint IS NOT NULL THEN 1 ELSE 0 END) AS Fingerprints FROM Token.AuthSession FOR JSON PATH"))
