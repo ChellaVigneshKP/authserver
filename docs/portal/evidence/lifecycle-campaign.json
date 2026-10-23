@@ -1,11 +1,11 @@
 {
-  "source_commit": "212e059c44999554a67bddeedffb68a0b78cde8b",
-  "source_tree_sha256": "6fe43cd1a47ce0e660225ed180fc469e41eaea3a2cf6dc776f5532d516eb9f94",
-  "working_tree_dirty": true,
-  "tracked_diff_sha256": "006892d7fd98520882b415a0b1d2d0a5203cccb445aa70b245cb4319b563872c",
-  "database": "AuthserverLifecycle_251795a2aab6455298834893c698d7d6",
-  "app_base": "http://localhost:61345/services",
-  "artifact_sha256": "a713db4373145060b19b13d2717adadcd0156ee3f97bf93c282215a17f8f4fd8",
+  "source_commit": "93dc6048e13a0d76302be0d09b0a158d1ef56bd0",
+  "source_tree_sha256": "a00ac05ecef5bc9ad2806ff5f38170196e94ad59fd35d72d630c83b23ab140f1",
+  "working_tree_dirty": false,
+  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "database": "AuthserverLifecycle_74c78ab5fca64edfbf049a43aa931853",
+  "app_base": "http://localhost:50139/services",
+  "artifact_sha256": "99384413a80545e8574457ef2ec73c92ee53ae7d2e48b335e76647e785b08623",
   "provider": "unconfigured; no external provider success claimed",
   "redis_target": {
     "host": "127.0.0.1",
@@ -39,7 +39,7 @@
     "redis_databases": [
       {
         "database": 2,
-        "removed": 17,
+        "removed": 16,
         "remaining": 0
       },
       {
