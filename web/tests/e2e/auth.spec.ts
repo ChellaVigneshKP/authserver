@@ -415,6 +415,9 @@ test("Java outage fails closed while local sign-out succeeds with an SSO warning
     .toBe(503);
   check("Java outage produces controlled BFF503", true);
   await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Sign out", exact: true }),
+  ).toBeVisible({ timeout: 15000 });
   check(
     "account reload with a valid Redis session retains local sign-out during Java outage",
     await page

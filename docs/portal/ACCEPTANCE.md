@@ -71,3 +71,26 @@ python3 scripts/endpoint-inventory.py \
 The schema2 inventory has **109 source variants**: **61 positive**, **4 controlled views**, **3 exercised without positive completion**, and **41 unqualified**. It imports only the three fresh reports and retains their execution provenance/hashes. It does not infer qualification from test names or conflate backend acceptance with product readiness. See [inventory JSON](../recovery/ENDPOINT-INVENTORY.json) and [coverage table](../recovery/ENDPOINT-COVERAGE.md).
 
 The final evidence validation checked JSON structure, report links/hashes, unique observation IDs, matching source provenance, completed readbacks, actual status classification and obvious secret/private-key/JWT/body/header fields. This is a mechanical evidence/privacy check, not an external-provider or deployment audit.
+
+## F2 shell and additive local account forms — 24 October 2026
+
+This supplements earlier backend evidence; it does not rewrite the historical inventory campaign or claim F3–F7 completion. User approved the slate/light enterprise direction and reviewed hosted account security addendum. Final complete-screen visual acceptance remains F7.
+
+The settled source passed `python3 scripts/local-dev.py test`:257 Java tests,5 legacy JavaScript tests and19 Python tests, zero failures/skips. Frontend:60 unit/integration tests in9 files, TypeScript and production Next16.4.2 build passed; exact pinned dependency audit reports0 vulnerabilities. Private full gate log: `.local/portal-f2-full-backend-final.log`. Runtime artifact SHA256: `3b5b3bbae7ddd9a6c84c6a73944b0e54ecdea58583455b031fdf7d35fdb904b2`.
+
+Real loopback Chrome campaigns used separate portal127.0.0.1/issuerlocalhost, non-UTC Asia/Kolkata, fingerprint/Referer/signature checks enabled, owned UUID SQL databases/Redis prefixes and copied immutable JARs. No Java response interception or skipped hosted scenario was used. Each report confirms owned processes stopped, both configured Java Redis namespaces empty, portal Redis empty and owned database dropped.
+
+| Campaign | Actual result | Private report |
+|---|---|---|
+| Complete navigation |76 checks;4 tests; zero blocked/skipped | `.local/portal-runs/afe3b2073879462f95bd87b3c98de79b/report.json` |
+| New issuer forms plus their axe/keyboard qualification |37 checks; profile/password axe0 violations | `.local/portal-runs/3fdad7e9a71f4042acd0d5c03fdea0ed/report.json` |
+| Corrected shell/zoom capture |24 checks; actual chrome.tabs.getZoom2; CSS640/scroll640, devicePixelRatio2;6 axe reports0 violations | `.local/portal-runs/2f91ab8850c84775b4b039683e9c0074/report.json` |
+| Final F1 auth/privacy regression |43 checks | `.local/portal-runs/d8046affef4e4518800ec16047d8c7ab/report.json` |
+
+Hosted qualification includes manual Strict-cookie transition, roleless tenant using a platform-owned shared WEB client, portal A/issuer B mismatch (including same client), cancel with unchanged SQL, profile POST with changed SQL, wrong-current-password400 without reflection, password POST200, all affected human SQL sessions inactive, two real PKCE clients' old access tokens401, issuer SSO clearing, BFF opaque Redis cleanup only after Java401, unrelated admin preservation, old password rejection and new password login. HTML/script bodies, redirect headers, browser storage/cookies and application logs contained none of the actual OAuth/key/password material under test. The one303 redirect body is unavailable through Playwright and is explicitly recorded as such; its headers were checked.
+
+Focused Java/SQL tests additionally prove CSRF/Origin/session/fingerprint/identity/continuation negatives, nonce compare-and-consume and HTTP concurrency, five-minute expiry and bounded actual stalled Redis failure, provider-mode GET/POST denial, policy/history validation, exact same-profile same-source credential audit/history preservation, separate-brand same-username and machine preservation, rollback with original token still active, queued old-password login and deleted-human-grant fencing, and unrelated human/machine persistence while another credential lock is held. V14→V15 preserves business rows and repeat migration performs zero work; V1–V14 are unchanged.
+
+Sanitized shell images in the corrected capture directory above: `account-desktop.png`, `security-desktop.png`, `administration-desktop.png`, `account-narrow.png`, `account-200-percent.png` (640 CSS equivalent), and `account-native-200-percent.png` (actual native2x viewport after keyboard skip). Earlier full-page zoom images in afe3... were found cropped during image review and are superseded; runtime zoom/reflow checks in that campaign remain valid. New forms have separate axe evidence in3fdad...; Java credential-entry screens were not captured.
+
+Limits: no production TLS/container/deployment, external provider/MFA/recovery delivery, Firefox/WebKit or final all-screen visual acceptance is claimed. Existing legacy password writer ambiguity remains a mandatory F4 follow-up, recorded in the approved plan/spec and carryovers. Future feature pages are absent; only Account, Security and functional Administration overview navigation are included. Parent reviews the entire F2 range before pushing.

@@ -1,3 +1,5 @@
+import { requireSession } from "../../../server/auth";
+import { parseHostedContinuation } from "../../../server/hosted-actions";
 import {
   browserContext,
   cookie,
@@ -14,6 +16,21 @@ export async function GET(request: Request) {
   let name: string | undefined;
   try {
     const params = new URL(request.url).searchParams;
+    if (params.has("p")) {
+      const continuation = parseHostedContinuation(params);
+      await requireSession(request);
+      return new Response(null, {
+        status: 303,
+        headers: {
+          ...noStore,
+          Location:
+            getConfig().origin +
+            continuation.returnTo +
+            "?notice=" +
+            continuation.notice,
+        },
+      });
+    }
     const state = params.get("state") ?? "";
     name = transactionCookieName("login", state);
     if (

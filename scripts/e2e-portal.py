@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real Chrome + Next + Java acceptance using an owned UUID fixture; no response interception."""
+"""Real browser + Next + Java acceptance using an owned UUID fixture; no response interception."""
 import argparse
 import json
 import os
@@ -16,21 +16,21 @@ DEV=runpy.run_path(str(ROOT/'scripts/portal-dev.py'))
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase',choices=['auth'],default='auth')
-    parser.add_argument('--grep',help='Run only matching auth browser scenarios; reported with the evidence')
+    parser.add_argument('--phase',choices=['auth','navigation'],default='auth')
+    parser.add_argument('--grep',help='Run only matching browser scenarios; filter and blocked tests are reported with the evidence')
     args=parser.parse_args()
     passed=False
     with DEV['owned_portal']() as fixture:
         directory=fixture['directory'];report=fixture['report']
-        report['browser_filter']=args.grep or 'all auth scenarios'
+        report['browser_filter']=args.grep or 'all '+args.phase+' scenarios'
         config_path=directory/'dev.json'
         DEV['LIFECYCLE']['private_json'](config_path,fixture['config'])
         environment=os.environ|dict(PORTAL_E2E_CONFIG=str(fixture['private_path']),PORTAL_E2E_REPORT=str(directory/'browser-report.json'),
             PORTAL_NEXT_LOG=str(directory/'next.log'),PORTAL_REPO_ROOT=str(ROOT),PORTAL_OWNED_JAVA_PID=str(fixture['java'].pid),AUTH_E2E_CONFIG=str(config_path),
-            AUTH_E2E_BASE=report['issuer'],AUTH_E2E_DB=fixture['database'],NEXT_TELEMETRY_DISABLED='1')
+            PORTAL_SCREENSHOT_DIR=str(directory),AUTH_E2E_BASE=report['issuer'],AUTH_E2E_DB=fixture['database'],NEXT_TELEMETRY_DISABLED='1')
         with (directory/'browser.log').open('w') as log:
             os.chmod(log.name,0o600)
-            command=[str(DEV['NODE']),str(ROOT/'web/node_modules/@playwright/test/cli.js'),'test','auth.spec.ts']
+            command=[str(DEV['NODE']),str(ROOT/'web/node_modules/@playwright/test/cli.js'),'test',args.phase+'.spec.ts']
             if args.grep:command+=['--grep',args.grep]
             result=subprocess.run(command,cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=240)
         browser_path=directory/'browser-report.json'
@@ -52,9 +52,10 @@ def main():
                 body=json.load(error)
                 report['redis_outage']={'passed':error.code==503 and body.get('code')=='SESSION_UNAVAILABLE' and body.get('retryable') is True,'status':error.code,'code':body.get('code'),'no_store':'no-store' in error.headers.get('Cache-Control','')}
         finally:DEV['stop'](outage)
-        report['passed']=report['redis_outage']['passed'] and result.returncode==0 and bool(report['browser']['checks']) and all(v['passed'] for v in report['browser']['checks'])
+        report['blocked']=report['browser'].get('blocked',[])
+        report['passed']=not report['blocked'] and report['redis_outage']['passed'] and result.returncode==0 and bool(report['browser']['checks']) and all(v['passed'] for v in report['browser']['checks'])
         passed=report['passed']
-        print(('PASS' if passed else 'FAIL')+' portal auth: '+str(len(report['browser']['checks']))+' browser/API checks; SQL verified',flush=True)
+        print(('PASS' if passed else 'BLOCKED' if report['blocked'] and result.returncode==0 else 'FAIL')+' portal '+args.phase+': '+str(len(report['browser']['checks']))+' browser/API checks; SQL verified',flush=True)
     return 0 if passed else 1
 
 
