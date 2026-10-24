@@ -1,8 +1,8 @@
 # Hosted account forms security addendum
 
-Date: 24 October 2026. Status: **DRAFT — user approval required before implementation**.
+Date: 24 October 2026. Status: **approved in chat 2026-10-24; implement through the existing SDD workflow**.
 
-This amends only the hosted profile/password part of the approved identity portal design. The portal, enterprise visual direction, other features, and implementation plans remain approved. This proposal is the agent's recommendation, not a decision already approved by the user.
+This amends only the hosted profile/password part of the approved identity portal design. The portal, enterprise visual direction, other features, and implementation plans remain approved. The user approved this reviewed addendum in chat on 2026-10-24.
 
 ## Problem and intent
 
@@ -38,7 +38,7 @@ After a proven server-side profile result, return through the bounded registered
 
 ## Verification and limits
 
-Before implementation, review this addendum and obtain user approval. Then amend F2's plan/brief with exact interfaces and tests and execute through SDD.
+Approval was received in chat on 2026-10-24. Amend F2's plan/brief with exact interfaces and tests and execute through SDD.
 
 Required evidence includes CSRF/Origin rejection; missing/invalid/inactive SSO and identity; unknown client/callback/foreign continuation; altered UA/language/offset/Referer; missing/expired/replayed/cross-session/cross-action nonce; concurrent consume; bounded Redis outage; validation/history/provider failure; cancellation with unchanged SQL. Use real browser profile and password POSTs on separate portal/issuer hosts in a non-UTC timezone with checks enabled. Verify SQL state, new-password login and old-password rejection, all affected login sessions/token revocation and forced reauthentication, portal-session cleanup on confirmed401, safe return, and absence of OAuth/key material in DOM/network/storage/logs. Preserve legacy HMAC and ordinary API regressions and run the full backend gate once final Java changes settle.
 
@@ -52,6 +52,6 @@ This does not qualify production deployment, genuine provider delivery/MFA, reco
 - One outstanding nonce per action means opening another copy of the same form expires the earlier form.
 - Provider-SYNC accounts cannot mutate through these new forms until their external consistency/recovery flow is separately designed and qualified; legacy routes stay unchanged.
 
-These are recommendations included in the approval request, not prior user decisions. The independent builder check raised the first three topics; this text now settles the proposed behavior explicitly.
+These recommendations were included in the addendum approved by the user on 2026-10-24. The independent builder check raised the first three topics; this text now settles the proposed behavior explicitly.
 
 Builder follow-up identified the external-provider transaction boundary. The proposed resolution is explicit fail-closed exclusion of provider-SYNC writes on these additive routes; local password/revocation is a single SQL transaction.
