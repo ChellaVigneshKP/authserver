@@ -94,7 +94,10 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new LockedException("Account locked.");
         }
 
-        return new CustomUserDetails(userAuthDetails);
+        var principal = new CustomUserDetails(userAuthDetails);
+        principal.setLoginId(userService.getByUsernameAndBranding(userAuthDetails.getUserName(), usernameBrandArray[1])
+                .orElseThrow(() -> new UsernameNotFoundException("User identity is unavailable")).loginId());
+        return principal;
     }
 
     public String loadUsernameByBrand(String branding, Map<String, String> lookupFieldValuesMap) throws UniqueUsernameNotfoundException, InvalidBrandingException, ConflictUsernameLookupSearchException {

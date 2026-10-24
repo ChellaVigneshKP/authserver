@@ -35,7 +35,7 @@ import java.util.UUID;
 /** Keeps Spring's complete grant state and the application's token API in one transaction. */
 @Service
 public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationService {
-    static final String SESSION_ID = JdbcOAuth2AuthorizationService.class.getName() + ".sessionId";
+    public static final String SESSION_ID = JdbcOAuth2AuthorizationService.class.getName() + ".sessionId";
     private static final String PRESENTED_REFRESH = JdbcOAuth2AuthorizationService.class.getName() + ".refresh";
     private final OAuth2AuthorizationService authorizations;
     private final TokenService tokens;
@@ -45,20 +45,21 @@ public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationServic
     private final PkceService pkce;
     private final SigningKeyGenerator signingKeys;
     private final HttpSession httpSession;
+    private final com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock;
 
     @Autowired
     public JdbcOAuth2AuthorizationService(TokenService tokens, ApplicationService applications,
             AuthSessionService sessions, AuthCodeService codes, PkceService pkce,
             SigningKeyGenerator signingKeys, NamedParameterJdbcTemplate jdbc,
-            RegisteredClientRepository clients, HttpSession httpSession) {
-        this(tokens, applications, sessions, codes, pkce, signingKeys, httpSession,
+            RegisteredClientRepository clients, HttpSession httpSession, com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock) {
+        this(tokens, applications, sessions, codes, pkce, signingKeys, httpSession, credentialLock,
                 new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService(
                         jdbc.getJdbcTemplate(), clients));
     }
 
     JdbcOAuth2AuthorizationService(TokenService tokens, ApplicationService applications,
             AuthSessionService sessions, AuthCodeService codes, PkceService pkce,
-            SigningKeyGenerator signingKeys, HttpSession httpSession, OAuth2AuthorizationService authorizations) {
+            SigningKeyGenerator signingKeys, HttpSession httpSession, com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock, OAuth2AuthorizationService authorizations) {
         this.tokens = tokens;
         this.applications = applications;
         this.sessions = sessions;
@@ -66,6 +67,7 @@ public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationServic
         this.pkce = pkce;
         this.signingKeys = signingKeys;
         this.httpSession = httpSession;
+        this.credentialLock = credentialLock;
         this.authorizations = authorizations;
     }
 
@@ -74,7 +76,21 @@ public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationServic
     public void save(OAuth2Authorization authorization) {
         Application app = applications.getByClientId(authorization.getRegisteredClientId())
                 .orElseThrow(() -> new IllegalStateException("Registered application not found"));
-        OAuth2Authorization previous = authorizations.findById(authorization.getId());
+        OAuth2Authorization previous;
+        if (!AuthorizationGrantType.CLIENT_CREDENTIALS.equals(authorization.getAuthorizationGrantType())) {
+            String bound = authorization.getAttribute(SESSION_ID);
+            Object pending = bound != null ? bound : httpSession == null ? null : httpSession.getAttribute(ApplicationConstants.AUTH_SESSION_ID);
+            if (pending == null) throw invalidGrant();
+            AuthSession candidate = sessions.getBySessionId(UUID.fromString(pending.toString())).orElseThrow(this::invalidGrant);
+            credentialLock.lockForHumanSession(candidate);
+            // Never recreate a previously persisted human grant after revocation deleted it.
+            previous = authorizations.findById(authorization.getId());
+            if (bound != null && previous == null) throw invalidGrant();
+            AuthSession fresh = sessions.getBySessionId(candidate.getSessionId()).orElseThrow(this::invalidGrant);
+            if (fresh.getAuthSessionStatus() != AuthSessionStatusEnum.ACTIVE) throw invalidGrant();
+        } else {
+            previous = authorizations.findById(authorization.getId());
+        }
         UUID sessionId;
         try {
             if (previous == null) {

@@ -55,6 +55,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
     private final boolean useUpdatedLogin;
 
     private MFAService mfaService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialAuthenticationLock;
 
     public CustomAuthenticationSuccessHandler(UserService userService, ApplicationService applicationService, AuthSessionService authSessionService, SingleSignOnService singleSignOnService, BrandUrlMappingService brandUrlMappingService, PasswordEncoderManager passwordEncoderManager, @Value("${toggles.updated-login.enabled}") boolean useUpdatedLogin) {
         this.userService = userService;
@@ -72,7 +74,6 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         HttpSession session = request.getSession();
         String branding = (String) session.getAttribute(ApplicationConstants.BRANDING_INFO);
 
-        upgradePasswordVersion(request, authentication, branding);
 
         SavedRequest savedRequest = requestCache.getRequest(request, response);
         if (savedRequest == null) {
@@ -87,7 +88,23 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
 
         session.setAttribute(ApplicationConstants.LAST_LOGIN, userDetails.getLastLogin());
 
-        AuthSession authSession = createAuthSession(session, savedRequest, userDetails.getUsername());
+        AuthSession authSession;
+        try {
+            authSession = credentialAuthenticationLock.createInteractiveSession(userDetails, branding, () -> {
+                upgradePasswordVersion(request, authentication, branding);
+                return createAuthSession(session, savedRequest, userDetails.getUsername());
+            });
+        } catch (org.springframework.security.core.AuthenticationException stale) {
+            SecurityContextHolder.clearContext();
+            session.invalidate();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "The account changed. Sign in again.");
+            return;
+        } catch (Exception unavailable) {
+            SecurityContextHolder.clearContext();
+            session.invalidate();
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Sign-in is temporarily unavailable.");
+            return;
+        }
 
         try {
             var ssoCookie = singleSignOnService.generateCookie(authSession.getSessionId());

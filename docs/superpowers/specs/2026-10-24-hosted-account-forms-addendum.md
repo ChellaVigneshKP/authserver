@@ -55,3 +55,5 @@ This does not qualify production deployment, genuine provider delivery/MFA, reco
 These recommendations were included in the addendum approved by the user on 2026-10-24. The independent builder check raised the first three topics; this text now settles the proposed behavior explicitly.
 
 Builder follow-up identified the external-provider transaction boundary. The proposed resolution is explicit fail-closed exclusion of provider-SYNC writes on these additive routes; local password/revocation is a single SQL transaction.
+
+Implementation correction from source inspection after approval: the legacy UserService.updatePassword/Person.UpdateUserPassword_V2 persistence can update several credentials and choose the wrong audit credential on a shared profile. Preserve the approved validation/encoding/history behavior using a new exact-login/member/source SQL helper in additive V15 instead of inheriting that bug. This does not expand account authority or alter the approved nonce/session design. The legacy management path is a required F4 follow-up, with explicit ambiguous-target denial and audit-scope regressions before acceptance.

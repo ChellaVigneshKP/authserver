@@ -52,7 +52,9 @@ public class BiometricAuthenticationProvider implements AuthenticationProvider {
         var userAuthDetails = userService.getUserAuthDetailsByUsernameAndExternalSourceCode(userDetails.username(), branding).orElseThrow(() ->
                 new BiometricAuthenticationException("User linked to the biometric token not found."));
 
-        return this.createSuccessAuthentication(authentication, new CustomUserDetails(userAuthDetails));
+        var principal = new CustomUserDetails(userAuthDetails);
+        principal.setLoginId(userDetails.loginId());
+        return this.createSuccessAuthentication(authentication, principal);
     }
 
     @Override

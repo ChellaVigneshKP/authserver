@@ -34,9 +34,10 @@ class OAuthPersistenceRegressionTest {
     final AuthSessionService sessions = mock(AuthSessionService.class);
     final AuthCodeService codes = mock(AuthCodeService.class);
     final SigningKeyGenerator keys = mock(SigningKeyGenerator.class);
+    final com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock = mock(com.chellavignesh.authserver.session.CredentialAuthenticationLock.class);
     final InMemoryOAuth2AuthorizationService state = new InMemoryOAuth2AuthorizationService();
     final JdbcOAuth2AuthorizationService service = new JdbcOAuth2AuthorizationService(tokens, applications,
-            sessions, codes, null, keys, null, state);
+            sessions, codes, null, keys, null, credentialLock, state);
     final UUID sessionId = UUID.randomUUID();
     final Instant now = Instant.now();
     final RegisteredClient client = RegisteredClient.withId("client").clientId("client")
@@ -91,7 +92,7 @@ class OAuthPersistenceRegressionTest {
         browser.setAttribute(ApplicationConstants.AUTH_SESSION_ID, sessionId);
         browser.setAttribute(ApplicationConstants.AUTHENTICATED_BRANDING, "idp");
         browser.setAttribute(ApplicationConstants.BRANDING_INFO, "other");
-        var issuing = new JdbcOAuth2AuthorizationService(tokens, applications, sessions, codes, null, keys, browser, state);
+        var issuing = new JdbcOAuth2AuthorizationService(tokens, applications, sessions, codes, null, keys, browser, credentialLock, state);
         assertThrows(OAuth2AuthenticationException.class, () -> issuing.save(pending()));
         verifyNoInteractions(codes, tokens);
         assertNull(state.findById("grant"));

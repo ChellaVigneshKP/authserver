@@ -86,6 +86,8 @@ public class SpringSecurityConfig {
         http.cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authz -> authz.requestMatchers(HttpMethod.OPTIONS).permitAll()
                         .requestMatchers("/add-token-cookie").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/portal/account-action", "/portal/account/profile", "/portal/account/password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/portal/account/profile", "/portal/account/password").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/css/**", "/images/**", "/js/**").permitAll()
                         .requestMatchers("/oauth2/signature/**").authenticated()

@@ -37,6 +37,9 @@ public class CustomUserDetails implements UserDetails {
     @Setter
     private List<GrantedAuthority> authorities;
 
+    @Getter @Setter
+    private java.util.UUID loginId;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return new ArrayList<>();
