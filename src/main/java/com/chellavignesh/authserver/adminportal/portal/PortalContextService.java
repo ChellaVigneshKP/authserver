@@ -7,9 +7,11 @@ import com.chellavignesh.authserver.security.ManagementAccessPolicy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class PortalContextService {
@@ -30,7 +32,18 @@ public class PortalContextService {
 
     public PortalContextDto getContext(Authentication authentication) {
         var actor = policy.requireHumanActor(authentication);
-        var user = users.getByGuid(actor.userId()).orElseThrow(() -> new AccessDeniedException("Access denied"));
+        var bearer = (BearerTokenAuthentication) authentication; // requireHumanActor verified the principal.
+        UUID login;
+        try {
+            login = UUID.fromString(String.valueOf(bearer.getTokenAttributes().get("login_guid")));
+        } catch (IllegalArgumentException failure) {
+            throw new AccessDeniedException("Access denied");
+        }
+        var user = users.getByLoginId(login).orElseThrow(() -> new AccessDeniedException("Access denied"));
+        if (!actor.userId().equals(user.rowGuid()) || !actor.organizationId().equals(user.orgId())
+                || !user.username().equals(bearer.getTokenAttributes().get("sub"))
+                || !users.isManagementIdentityActive(actor.userId(), actor.organizationId(), login))
+            throw new AccessDeniedException("Access denied");
         var accessible = actor.platformAdmin() ? organizations.getAll() : organizations.getForMember(actor.userId());
         var permissions = actor.permissions();
         return new PortalContextDto(

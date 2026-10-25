@@ -171,19 +171,17 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         }
     }
 
-    private void upgradePasswordVersion(HttpServletRequest request, Authentication authentication, String branding) {
+    private void upgradePasswordVersion(HttpServletRequest request, Authentication authentication, String branding) throws Exception {
         if (!(authentication instanceof UsernamePasswordAuthenticationToken)) {
             return;
         }
 
-        try {
-            String rawPassword = request.getParameter("password");
-            String password = rawPassword != null ? new String(Base64.getDecoder().decode(rawPassword.getBytes())) : null;
+        String rawPassword = request.getParameter("password");
+        String password = rawPassword != null ? new String(Base64.getDecoder().decode(rawPassword.getBytes())) : null;
 
-            passwordEncoderManager.processPassword(authentication, password, branding);
-        } catch (Exception e) {
-            log.error("Error updating the user password hash and version", e);
-        }
+        // A legacy SQL upgrade may roll back the ambient physical transaction and its lock.
+        // Propagate every failure so no session is created after the freshness fence disappears.
+        passwordEncoderManager.processPassword(authentication, password, branding);
     }
 
     AuthSession createAuthSession(HttpSession session, SavedRequest savedRequest, String userName) throws BadRequestException{

@@ -3,6 +3,7 @@ import {
   expect,
   type Page,
   type BrowserContext,
+  type Browser,
   chromium,
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -1008,6 +1009,476 @@ test("account-only and viewer denials, tenant scope and live permission revocati
   );
   await guest.close();
   await tenant.close();
+});
+
+async function loginWithBrand(
+  page: Page,
+  username: string,
+  password: string,
+  branding: string,
+) {
+  if (branding === "idp") return login(page, username, password);
+  await page.goto(fixture.portal);
+  const start = await page.request.get(fixture.portal + "/auth/login", {
+    maxRedirects: 0,
+  });
+  const authorize = new URL(start.headers().location);
+  // Preserve the real BFF's state/PKCE/cookie transaction; branding is a public issuer input.
+  authorize.searchParams.set("branding", branding);
+  // This is an explicit other-brand protocol fixture, not a shipped portal source selector.
+  // Native navigation from the actual portal document supplies the browser's real Referer.
+  await page.evaluate(
+    (url) => window.location.assign(url),
+    authorize.toString(),
+  );
+  await expect(page.locator("#username")).toBeVisible({ timeout: 10000 });
+  await page.locator("#username").fill(username);
+  await page.locator("#password").fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL(fixture.portal + "/account");
+  await expect(
+    page.getByRole("heading", { name: "Your account", exact: true }),
+  ).toBeVisible();
+}
+for (const otherSource of [false, true]) {
+  test(`exact sibling credential browser login and hosted mutation ${otherSource ? "other source protocol fixture" : "same source shipped portal"}`, async ({
+    page,
+    context,
+    browser,
+  }) => {
+    await login(page);
+    const admin = await session(context);
+    const home = await (
+      await page.request.get(fixture.portal + "/api/context")
+    ).json();
+    const unique = randomBytes(6).toString("hex"),
+      username = "sibling_" + unique;
+    const targetUsername = otherSource ? username : username + "_second";
+    const branding = otherSource ? "portal-sibling" : "idp";
+    const user = await (
+      await mutation(page, admin, "/api/v1/users", {
+        firstName: "Sibling",
+        lastName: "Owned",
+        username,
+        email: username + "@example.test",
+        password: Buffer.from(fixture.secondPassword).toString("base64"),
+        phoneNumber: "+19999999998",
+        orgGuid: home.subject.organizationId,
+        branding: "idp",
+        syncFlag: false,
+      })
+    ).json();
+    await mutation(
+      page,
+      admin,
+      "/api/v1/users/" + user.id + "/security-settings",
+      { twoFactorEnabled: false },
+      "PUT",
+    );
+    const identity = JSON.parse(
+      execFileSync(
+        "python3",
+        [
+          "-c",
+          `
+import sys,json,uuid,re
+sys.path.insert(0,'scripts')
+from e2e_target import load_target,sql_text
+c,b,d=load_target();assert re.fullmatch(r'AuthserverLifecycle_[0-9a-f]{32}',d)
+v=json.loads(sys.stdin.read());u=str(uuid.UUID(v['user']));name=v['username'];brand=v['branding']
+assert re.fullmatch(r'sibling_[0-9a-f]{12}(?:_second)?',name)
+assert brand in ('idp','portal-sibling')
+q="""SET QUOTED_IDENTIFIER ON;
+DECLARE @profile INT=(SELECT ProfileId FROM Person.Profile WHERE RowGuid='"""+u+"""');
+DECLARE @original UNIQUEIDENTIFIER=(SELECT RowGuid FROM Person.Credential WHERE ProfileId=@profile);
+DECLARE @source UNIQUEIDENTIFIER='11111111-1111-1111-1111-111111111111';
+IF '"""+brand+"""'<>'idp' BEGIN
+ SET @source=NEWID(); INSERT dbo.ExternalSource(SourceId,SourceCode,ExternalTypeId) SELECT @source,'"""+brand+"""',ExternalTypeId FROM dbo.ExternalType WHERE ExternalTypeName='IDP';
+END;
+DECLARE @target UNIQUEIDENTIFIER=NEWID();
+INSERT Person.Credential(RowGuid,ProfileId,UserName,Password,Version,CredentialLocked,AccessFailedCount,DataOriginId,SyncFlag,ExternalId)
+SELECT @target,ProfileId,'"""+name+"""',Password,Version,0,0,DataOriginId,0,@source FROM Person.Credential WHERE RowGuid=@original;
+DECLARE @spoof NVARCHAR(36)=CONVERT(NVARCHAR(36),@original);
+EXEC Person.CreateMetadata @profile,'uuid_login_id',@spoof;
+EXEC Person.CreateMetadata @profile,'login_guid',@spoof;
+SELECT CONVERT(VARCHAR(36),@original) AS original,CONVERT(VARCHAR(36),@target) AS target FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
+print(sql_text(c,d,q))
+`,
+        ],
+        {
+          cwd: process.env.PORTAL_REPO_ROOT,
+          input: JSON.stringify({
+            user: user.id,
+            username: targetUsername,
+            branding,
+          }),
+          stdio: ["pipe", "pipe", "pipe"],
+        },
+      ).toString(),
+    );
+    const owned = await browser.newContext({
+      locale: "en-US",
+      userAgent: "PortalAcceptance/1.0",
+      extraHTTPHeaders: { "Accept-Language": "en-US" },
+      timezoneId: "Asia/Kolkata",
+    });
+    const target = await owned.newPage();
+    const next = "B8!" + randomBytes(20).toString("hex") + "qZ";
+    try {
+      await loginWithBrand(
+        target,
+        targetUsername,
+        fixture.secondPassword,
+        branding,
+      );
+      const dto = await (
+        await target.request.get(fixture.portal + "/api/context")
+      ).json();
+      check(
+        `real ${branding === "idp" ? "same-source" : "other-source"} sibling login context is exact`,
+        dto.subject.userId === user.id &&
+          dto.subject.loginId.toLowerCase() === identity.target.toLowerCase() &&
+          dto.subject.username === targetUsername,
+      );
+      const privateSession = await session(owned);
+      await openHosted(target, "Change profile");
+      await expect(
+        target.getByRole("heading", { name: "Change profile", exact: true }),
+      ).toBeVisible();
+      check(
+        "sibling hosted form excludes actual OAuth/key material",
+        ![
+          privateSession.accessToken,
+          privateSession.idToken,
+          privateSession.signingKey,
+        ]
+          .filter(Boolean)
+          .some((value) => target.url().includes(value)),
+      );
+      const html = await target.content();
+      check(
+        "sibling hosted HTML excludes actual OAuth/key material",
+        ![
+          privateSession.accessToken,
+          privateSession.idToken,
+          privateSession.signingKey,
+        ]
+          .filter(Boolean)
+          .some((value) => html.includes(value)),
+      );
+      await target
+        .getByLabel("First name", { exact: true })
+        .fill("Sibling updated");
+      await target
+        .getByRole("button", { name: "Update profile", exact: true })
+        .click();
+      await target.waitForURL(fixture.portal + "/account?notice=returned", {
+        timeout: 15000,
+      });
+      check(
+        "sibling actual hosted profile POST updates same profile",
+        ownedProfileSql(user.id, "firstName") === "Sibling updated",
+      );
+      await target.goto(fixture.portal + "/account/security");
+      await openHosted(target, "Change password");
+      await expect(
+        target.getByRole("heading", { name: "Change password", exact: true }),
+      ).toBeVisible();
+      const passwordHtml = await target.content();
+      check(
+        "sibling password HTML excludes actual OAuth/key material",
+        ![
+          privateSession.accessToken,
+          privateSession.idToken,
+          privateSession.signingKey,
+        ]
+          .filter(Boolean)
+          .some((value) => passwordHtml.includes(value)),
+      );
+      await target
+        .getByLabel("Current password", { exact: true })
+        .fill(fixture.secondPassword);
+      await target.getByLabel("New password", { exact: true }).fill(next);
+      await target
+        .getByLabel("Confirm new password", { exact: true })
+        .fill(next);
+      const saved = target.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname.endsWith("/portal/account/password"),
+      );
+      await target
+        .getByRole("button", { name: "Change password", exact: true })
+        .click();
+      check(
+        "sibling actual hosted password POST commits",
+        (await saved).status() === 200,
+      );
+      const ownedLogs =
+        readFileSync(process.env.PORTAL_NEXT_LOG!, "utf8") +
+        readFileSync(
+          join(process.env.PORTAL_SCREENSHOT_DIR!, "java.log"),
+          "utf8",
+        );
+      check(
+        "sibling application logs exclude actual OAuth key and password material",
+        ![
+          privateSession.accessToken,
+          privateSession.idToken,
+          privateSession.signingKey,
+          fixture.secondPassword,
+          next,
+        ]
+          .filter(Boolean)
+          .some((value) => ownedLogs.includes(value)),
+      );
+    } finally {
+      await owned.close();
+    }
+    for (const credential of [
+      {
+        username,
+        password: fixture.secondPassword,
+        branding: "idp",
+        login: identity.original,
+      },
+      {
+        username: targetUsername,
+        password: next,
+        branding,
+        login: identity.target,
+      },
+    ]) {
+      const fresh = await browser.newContext({
+        locale: "en-US",
+        userAgent: "PortalAcceptance/1.0",
+        extraHTTPHeaders: { "Accept-Language": "en-US" },
+        timezoneId: "Asia/Kolkata",
+      });
+      try {
+        const account = await fresh.newPage();
+        await loginWithBrand(
+          account,
+          credential.username,
+          credential.password,
+          credential.branding,
+        );
+        const dto = await (
+          await account.request.get(fixture.portal + "/api/context")
+        ).json();
+        check(
+          "sibling password remains usable and changed target reauthenticates exact login",
+          dto.subject.loginId.toLowerCase() === credential.login.toLowerCase(),
+        );
+      } finally {
+        await fresh.close();
+      }
+    }
+  });
+}
+
+async function partialReader(
+  page: Page,
+  context: BrowserContext,
+  browser: Browser,
+) {
+  await login(page);
+  const admin = await session(context);
+  const dto = await (
+    await page.request.get(fixture.portal + "/api/context")
+  ).json();
+  const createRole = async (name: string, permissionKeys: string[]) =>
+    (
+      await mutation(
+        page,
+        admin,
+        "/api/v1/organizations/" + dto.subject.organizationId + "/groups",
+        { name, description: "Owned partial revocation", permissionKeys },
+      )
+    ).json();
+  const unique = randomBytes(6).toString("hex");
+  const home = await createRole("Home " + unique, [
+    "idp-admin-app:read",
+    "idp-admin-user:read",
+  ]);
+  const single = await createRole("Single " + unique, ["idp-admin-app:read"]);
+  const adminRead = await createRole("Admin read " + unique, [
+    "idp-admin-admin:read",
+  ]);
+  const username = "partial_" + unique;
+  const user = await (
+    await mutation(page, admin, "/api/v1/users", {
+      firstName: "Partial",
+      lastName: "Reader",
+      username,
+      email: username + "@example.test",
+      password: Buffer.from(fixture.secondPassword).toString("base64"),
+      phoneNumber: "+19999999998",
+      orgGuid: dto.subject.organizationId,
+      branding: "idp",
+      syncFlag: false,
+    })
+  ).json();
+  await mutation(
+    page,
+    admin,
+    "/api/v1/users/" + user.id + "/security-settings",
+    { twoFactorEnabled: false },
+    "PUT",
+  );
+  const assign = async (role: any) =>
+    mutation(
+      page,
+      admin,
+      "/api/v1/organizations/" +
+        dto.subject.organizationId +
+        "/users/" +
+        user.id +
+        "/group",
+      { groupId: role.id },
+      "PUT",
+    );
+  await assign(home);
+  // The role API intentionally cannot create reserved switching grants. Install an imported,
+  // preexisting legacy role only in this runner's owned SQL fixture; revocation uses the API.
+  execFileSync(
+    "python3",
+    [
+      "-c",
+      `
+import sys,json,uuid,re
+sys.path.insert(0,'scripts')
+from e2e_target import load_target,sql_text
+c,b,d=load_target()
+assert re.fullmatch(r'AuthserverLifecycle_[0-9a-f]{32}',d)
+v=json.loads(sys.stdin.read());u=str(uuid.UUID(v['user']));o=str(uuid.UUID(v['org']));g=str(uuid.UUID(v['home']))
+q="""DECLARE @org INT=(SELECT OrganizationId FROM Partner.Organization WHERE RowGuid='"""+o+"""');
+INSERT Partner.OrganizationGroup(OrganizationId,GroupName) VALUES(@org,'Owned imported partial switch """+u+"""');
+DECLARE @group INT=SCOPE_IDENTITY();
+INSERT Partner.OrganizationGroupPermission(OrganizationGroupId,OrganizationId,PermissionName,PermissionKey)
+SELECT @group,@org,p.PermissionName,p.PermissionKey FROM Partner.OrganizationGroupPermission p JOIN Partner.OrganizationGroup g ON g.OrganizationGroupId=p.OrganizationGroupId WHERE g.RowGuid='"""+g+"""';
+INSERT Partner.OrganizationGroupPermission(OrganizationGroupId,OrganizationId,PermissionName,PermissionKey) VALUES(@group,@org,'Switch','idp-admin-org:switch');
+UPDATE pg SET OrganizationGroupId=@group FROM Person.ProfileGroup pg JOIN Person.Profile p ON p.ProfileId=pg.ProfileId WHERE p.RowGuid='"""+u+"""';"""
+sql_text(c,d,q,scalar=True)
+`,
+    ],
+    {
+      cwd: process.env.PORTAL_REPO_ROOT,
+      input: JSON.stringify({
+        user: user.id,
+        org: dto.subject.organizationId,
+        home: home.id,
+      }),
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  const owned = await browser.newContext({
+    locale: "en-US",
+    userAgent: "PortalAcceptance/1.0",
+    extraHTTPHeaders: { "Accept-Language": "en-US" },
+    timezoneId: "Asia/Kolkata",
+  });
+  const reader = await owned.newPage();
+  await login(reader, username, fixture.secondPassword);
+  return { reader, owned, admin, dto, assign, home, single, adminRead };
+}
+test("partial switch revocation denies selected foreign scope while home read survives", async ({
+  page,
+  context,
+  browser,
+}) => {
+  const f = await partialReader(page, context, browser);
+  try {
+    const foreign = await (
+      await mutation(page, f.admin, "/api/v1/organizations", {
+        name: "Partial scope",
+        description: "Owned scope revocation",
+      })
+    ).json();
+    await f.reader.goto(fixture.portal + "/admin?organizationId=" + foreign.id);
+    await expect(
+      f.reader.getByRole("heading", { name: "Partial scope", exact: true }),
+    ).toBeVisible();
+    await f.assign(f.home);
+    await f.reader.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(
+      f.reader.getByRole("heading", { name: "Access denied", exact: true }),
+    ).toBeVisible();
+    check(
+      "switch-only revocation removes stale foreign SSR content",
+      (await f.reader
+        .getByRole("heading", { name: "Partial scope", exact: true })
+        .count()) === 0,
+    );
+    check(
+      "switch-only revocation retains home Administration navigation",
+      (await f.reader
+        .getByRole("link", { name: "Administration", exact: true })
+        .count()) === 1,
+    );
+    check(
+      "foreign API denied after switch-only revocation",
+      (
+        await f.reader.request.get(
+          fixture.portal + "/api/clients?organizationId=" + foreign.id,
+        )
+      ).status() === 403,
+    );
+    await f.reader
+      .getByRole("link", { name: "Administration", exact: true })
+      .click();
+    await expect(
+      f.reader.getByRole("heading", { name: "Administration", exact: true }),
+    ).toBeVisible();
+    check(
+      "valid home read survives switch removal",
+      await f.reader
+        .locator("main li")
+        .getByText("Clients", { exact: true })
+        .isVisible(),
+    );
+  } finally {
+    await f.owned.close();
+  }
+});
+test("one-of-many read revocation refreshes SSR access and administrator-only read is recognized", async ({
+  page,
+  context,
+  browser,
+}) => {
+  const f = await partialReader(page, context, browser);
+  try {
+    await f.assign(f.home);
+    await f.reader.goto(fixture.portal + "/admin");
+    await expect(
+      f.reader.locator("main li").getByText("Users", { exact: true }),
+    ).toBeVisible();
+    await f.assign(f.single);
+    await f.reader.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(
+      f.reader.locator("main li").getByText("Users", { exact: true }),
+    ).toHaveCount(0);
+    check(
+      "single read revocation removes only stale SSR permission",
+      await f.reader
+        .locator("main li")
+        .getByText("Clients", { exact: true })
+        .isVisible(),
+    );
+    await f.assign(f.adminRead);
+    await f.reader.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(
+      f.reader.locator("main li").getByText("Administrators", { exact: true }),
+    ).toBeVisible();
+    check(
+      "administrator-read-only grant retains current overview",
+      (await f.reader
+        .getByRole("link", { name: "Administration", exact: true })
+        .count()) === 1,
+    );
+  } finally {
+    await f.owned.close();
+  }
 });
 
 test("native Chromium 200 percent zoom reflows with keyboard access", async () => {

@@ -474,14 +474,56 @@ public class UserRepository {
     }
 
     public Optional<UserAuthDetails> getUserAuthDetailsByUsernameAndExternalSourceCode(final String username, final String externalSourceCode) {
-        return namedParameterJdbcTemplate.query(
-                "{call Person.GetUserAuthDetailsByUserNameAndExternalSourceCode(:username, :sourceCode)}",
-                MapSqlParameterBuilder.of(
-                        "username", username,
-                        "sourceCode", externalSourceCode
-                ),
-                new UserAuthDetailsRowMapper()
-        ).stream().findFirst();
+        // Capture the stable credential with its password/version in the same SQL row.
+        var rows = namedParameterJdbcTemplate.query("""
+                SELECT p.*,c.RowGuid AS LoginId,c.UserName,c.Password,c.Version,c.AccessFailedCount,
+                       c.CredentialLocked,c.LastLogin,c.Status AS CredentialStatus
+                FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId
+                WHERE c.UserName=:username AND e.SourceCode=:sourceCode
+                """, MapSqlParameterBuilder.of("username",username,"sourceCode",externalSourceCode),
+                (row, index) -> {
+                    var details = UserAuthDetails.fromResult(row);
+                    details.setLoginId(UUID.fromString(row.getString("LoginId")));
+                    return details;
+                });
+        return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
+    }
+
+    public Optional<UserDetails> getDetailsByUsernameAndBranding(String username, String branding) {
+        var rows = namedParameterJdbcTemplate.query(
+                "{call Person.GetUserByUsernameAndBranding(:username, :branding)}",
+                new MapSqlParameterSource("username",username).addValue("branding",branding),
+                new UserDetailsRowMapper());
+        return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
+    }
+
+    /** Only biometric proofs lack a username; never choose an arbitrary sibling for them. */
+    public Optional<UserDetails> getUniqueBiometricIdentity(UUID userGuid, String branding) {
+        var identities = namedParameterJdbcTemplate.query("""
+                SELECT c.RowGuid,c.UserName FROM Person.Credential c
+                JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId
+                WHERE p.RowGuid=:userGuid AND e.SourceCode=:branding
+                  AND p.Status=1 AND c.Status=1 AND c.CredentialLocked=0
+                """,new MapSqlParameterSource("userGuid",userGuid.toString()).addValue("branding",branding),
+                (row,index) -> new String[]{row.getString("RowGuid"),row.getString("UserName")});
+        if (identities.size()!=1) return Optional.empty();
+        var identity=identities.getFirst();
+        return getDetailsByUsernameAndBranding(identity[1],branding)
+                .filter(user -> userGuid.equals(user.rowGuid()) && user.loginId().equals(UUID.fromString(identity[0])));
+    }
+
+    public Optional<UserDetails> getDetailsByLoginId(UUID loginId) {
+        var identities = namedParameterJdbcTemplate.query("""
+                SELECT c.UserName,e.SourceCode FROM Person.Credential c
+                JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId WHERE c.RowGuid=:loginId
+                """,new MapSqlParameterSource("loginId",loginId.toString()),
+                (row,index) -> new String[]{row.getString("UserName"),row.getString("SourceCode")});
+        if (identities.size()!=1) return Optional.empty();
+        var identity=identities.getFirst();
+        return getDetailsByUsernameAndBranding(identity[0],identity[1])
+                .filter(user -> loginId.equals(user.loginId()));
     }
 
     public Optional<ProfileOrganization> getProfileOrganizationByProfileId(final int profileId) {

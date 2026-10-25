@@ -421,8 +421,15 @@ public class UserService {
     }
 
     public Optional<UserDetails> getByUsernameAndBranding(String username, String branding) {
-        final var user = userRepository.getUserByUsernameAndBranding(username, branding);
-        return user.map(u -> this.getByGuidAndBranding(user.get().getRowGuid(), branding)).orElse(Optional.empty());
+        return userRepository.getDetailsByUsernameAndBranding(username, branding);
+    }
+
+    public Optional<UserDetails> getByLoginId(UUID loginId) {
+        return userRepository.getDetailsByLoginId(loginId);
+    }
+
+    public Optional<UserDetails> getUniqueBiometricIdentity(UUID userGuid, String branding) {
+        return userRepository.getUniqueBiometricIdentity(userGuid, branding);
     }
 
     public Optional<UserCredentials> getCredentialsByUsername(String username) {

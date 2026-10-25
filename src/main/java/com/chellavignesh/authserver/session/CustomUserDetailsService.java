@@ -95,8 +95,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         var principal = new CustomUserDetails(userAuthDetails);
-        principal.setLoginId(userService.getByUsernameAndBranding(userAuthDetails.getUserName(), usernameBrandArray[1])
-                .orElseThrow(() -> new UsernameNotFoundException("User identity is unavailable")).loginId());
+        if (userAuthDetails.getLoginId() == null) throw new UsernameNotFoundException("User identity is unavailable");
+        principal.setLoginId(userAuthDetails.getLoginId());
         return principal;
     }
 

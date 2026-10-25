@@ -4,6 +4,7 @@ import {
   canShow,
   canAdminister,
   selectableOrganizations,
+  requiresAdministrationRefresh,
 } from "../../src/features/account/permissions";
 const own = "00000000-0000-4000-8000-000000000001",
   other = "00000000-0000-4000-8000-000000000002";
@@ -60,8 +61,34 @@ describe("current permission navigation", () => {
     expect(canAdminister(c)).toBe(false);
     expect(canShow(c, "idp-admin-app:read", own)).toBe(false);
   });
+  it("recognizes only administrator read as current overview access without user mutation authority", () => {
+    const c = context(["idp-admin-admin:read"]);
+    expect(canAdminister(c)).toBe(true);
+    expect(canShow(c, "idp-admin-admin:read", own)).toBe(true);
+    expect(canShow(c, "idp-admin-user:read", own)).toBe(false);
+    expect(canShow(c, "idp-admin-user:update", own)).toBe(false);
+  });
   it("never accepts unknown action keys", () =>
     expect(canShow(context(["unknown:write"]), "unknown:write", own)).toBe(
       false,
     ));
+});
+
+describe("administration content freshness", () => {
+  it("reloads selected server content when only switching authority is revoked", () => {
+    const before = context(["idp-admin-org:switch", "idp-admin-app:read"]);
+    const after = context(["idp-admin-app:read"]);
+    after.organizations = [after.organizations[0]];
+    expect(canAdminister(after)).toBe(true);
+    expect(requiresAdministrationRefresh(before, after)).toBe(true);
+  });
+  it("reloads the read list when one permission is removed while another survives", () => {
+    const before = context(["idp-admin-app:read", "idp-admin-user:read"]);
+    const after = context(["idp-admin-app:read"]);
+    expect(canAdminister(after)).toBe(true);
+    expect(requiresAdministrationRefresh(before, after)).toBe(true);
+    expect(requiresAdministrationRefresh(after, structuredClone(after))).toBe(
+      false,
+    );
+  });
 });

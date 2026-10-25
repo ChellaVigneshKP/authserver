@@ -34,6 +34,7 @@ export default async function Administration({
   const areas = [
     { name: "Clients", permission: "idp-admin-app:read" },
     { name: "Users", permission: "idp-admin-user:read" },
+    { name: "Administrators", permission: "idp-admin-admin:read" },
     { name: "Roles", permission: "idp-admin-group:read" },
     { name: "Organization", permission: "idp-admin-org:read" },
     { name: "Resource catalog", permission: "idp-admin-resource:read" },

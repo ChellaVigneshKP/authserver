@@ -28,6 +28,7 @@ public class UserAuthDetails {
 
     private Integer id;
     private UUID rowGuid;
+    private UUID loginId;
     private String userName;
     private Integer userStatus;
     private String password;

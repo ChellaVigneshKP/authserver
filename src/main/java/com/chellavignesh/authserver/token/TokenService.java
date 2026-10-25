@@ -204,6 +204,8 @@ public class TokenService {
                 }
             }
 
+            // Reserved top-level identity is assigned after custom permission/metadata claims.
+            attributes.put("login_guid", user.loginId());
         } else {
             attributes.put("active", false);
         }
@@ -211,16 +213,14 @@ public class TokenService {
 
     private Map<String, Object> getUserMetadata(UserDetails user) {
         var metadata = new LinkedHashMap<String, Object>();
-        metadata.put("uuid_member_id", user.rowGuid());
-
-        metadata.put("uuid_login_id", user.loginId());
-
         try {
             metadata.putAll(userService.getMetadata(user.rowGuid()));
         } catch (UserNotFoundException _) {
             // No metadata found for this user
         }
 
+        metadata.put("uuid_member_id", user.rowGuid());
+        metadata.put("uuid_login_id", user.loginId());
         return metadata;
     }
 

@@ -13,6 +13,7 @@ const actions = new Set([
   "idp-admin-app:delete",
   "idp-admin-app:assign-resource",
   "idp-admin-user:read",
+  "idp-admin-admin:read",
   "idp-admin-user:create",
   "idp-admin-user:update",
   "idp-admin-user:delete",
@@ -81,4 +82,12 @@ export function canAdminister(
     (action) =>
       action !== "idp-admin-org:switch" && canShow(context, action, orgId),
   );
+}
+
+/** Server-rendered administration content must follow the latest authority and scope. */
+export function requiresAdministrationRefresh(
+  previous: PortalContext,
+  current: PortalContext,
+): boolean {
+  return JSON.stringify(previous) !== JSON.stringify(current);
 }

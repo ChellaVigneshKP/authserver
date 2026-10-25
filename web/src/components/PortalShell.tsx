@@ -17,7 +17,10 @@ import {
 } from "@mui/material";
 import type { PortalContext } from "../contracts/portal";
 import { PortalContextSchema } from "../contracts/portal";
-import { canAdminister } from "../features/account/permissions";
+import {
+  canAdminister,
+  requiresAdministrationRefresh,
+} from "../features/account/permissions";
 import { tokens } from "../theme/tokens";
 import { SignOut } from "../app/account/SignOut";
 import { ErrorPanel } from "./ErrorPanel";
@@ -32,6 +35,7 @@ export function PortalShell({
   const [current, setCurrent] = useState(context);
   const [open, setOpen] = useState(false);
   const [failure, setFailure] = useState("");
+  const [refreshingContent, setRefreshingContent] = useState(false);
   const refresh = useCallback(async () => {
     try {
       const response = await fetch("/api/context", { cache: "no-store" });
@@ -43,14 +47,24 @@ export function PortalShell({
         );
         return;
       }
-      setCurrent(PortalContextSchema.parse(await response.json()));
+      const fresh = PortalContextSchema.parse(await response.json());
+      setCurrent(fresh);
       setFailure("");
+      if (
+        pathname.startsWith("/admin") &&
+        requiresAdministrationRefresh(context, fresh)
+      ) {
+        // The selected scope and read list live in server children. Revalidate that same URL
+        // and conceal stale content until its protected server render has completed.
+        setRefreshingContent(true);
+        window.location.reload();
+      }
     } catch {
       setFailure(
         "Your access could not be checked. Refresh this page to try again.",
       );
     }
-  }, []);
+  }, [context, pathname]);
   useEffect(() => {
     setCurrent(context);
   }, [context]);
@@ -254,7 +268,9 @@ export function PortalShell({
               </Typography>
             )}
           </Breadcrumbs>
-          {failure ? (
+          {refreshingContent ? (
+            <Typography role="status">Updating your current access…</Typography>
+          ) : failure ? (
             <>
               <ErrorPanel title="Access unavailable" message={failure} retry />
               <Link href="/auth/login">Sign in</Link>

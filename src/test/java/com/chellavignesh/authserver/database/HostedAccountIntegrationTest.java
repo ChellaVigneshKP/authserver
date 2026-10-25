@@ -53,6 +53,7 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
     @Autowired CustomAuthenticationSuccessHandler successHandler;
     @Autowired CustomUserDetailsService userDetails;
     @Autowired PasswordEncoderFactory passwordFactory;
+    @MockitoSpyBean PasswordEncoderManager passwordEncoderManager;
     @Autowired com.chellavignesh.authserver.token.TokenService tokenService;
 
     @MockitoSpyBean
@@ -86,8 +87,346 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
 
     @AfterEach
     void resetSpies() {
-        reset(applicationService, revocations);
+        reset(applicationService, revocations, passwordEncoderManager);
         SecurityContextHolder.clearContext();
+    }
+
+    MockHttpServletRequest loginRequest(String branding, String password) {
+        var authorize = new MockHttpServletRequest("GET", "/services/oauth2/authorize");
+        authorize.addParameter("client_id", app.getClientId());
+        authorize.addParameter("scope", "openid profile");
+        var request = new MockHttpServletRequest("POST", "/services/login");
+        request.addParameter(
+                "password",
+                Base64.getEncoder()
+                        .encodeToString(password.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        request
+                .getSession()
+                .setAttribute(
+                        "SPRING_SECURITY_SAVED_REQUEST",
+                        new DefaultSavedRequest(
+                                authorize, new org.springframework.security.web.PortResolverImpl()));
+        request.getSession().setAttribute(ApplicationConstants.BRANDING_INFO, branding);
+        request
+                .getSession()
+                .setAttribute(ApplicationConstants.CLIENT_FINGERPRINT, new byte[] {1, 2, 3});
+        return request;
+    }
+
+    MockHttpServletResponse authenticateSnapshot(
+            CustomUserDetails captured, String branding, String password) throws Exception {
+        var response = new MockHttpServletResponse();
+        successHandler.onAuthenticationSuccess(
+                loginRequest(branding, password),
+                response,
+                UsernamePasswordAuthenticationToken.authenticated(captured, null, List.of()));
+        return response;
+    }
+
+    UUID siblingCredential(HostedFixture base, String username, UUID source) {
+        return UUID.fromString(
+                sql.queryForObject(
+                        "INSERT"
+                                + " Person.Credential(ProfileId,UserName,Password,Version,CredentialLocked,AccessFailedCount,DataOriginId,SyncFlag,ExternalId)"
+                                + " OUTPUT CONVERT(VARCHAR(36),INSERTED.RowGuid) SELECT"
+                                + " ProfileId,?,Password,Version,0,0,DataOriginId,0,? FROM Person.Credential WHERE"
+                                + " RowGuid=?",
+                        String.class,
+                        username,
+                        source,
+                        base.user().getLoginId()));
+    }
+
+    HostedFixture hostedFromCredential(
+            HostedFixture base, Fixture access, UUID login, String branding) throws Exception {
+        String id =
+                sql.queryForObject(
+                        "SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.Token WHERE Data=?",
+                        String.class,
+                        access.value());
+        byte[] fingerprint =
+                new com.chellavignesh.authserver.session.fingerprint.ClientFingerprint(
+                                ZoneOffset.UTC, "en-US", "PolicyIntegration/1.0", "127.0.0.1")
+                        .getBytes();
+        int redirect =
+                sql.queryForObject(
+                        "SELECT RedirectUriId FROM Client.RedirectUri WHERE ApplicationId=?",
+                        Integer.class,
+                        app.getId());
+        sql.update(
+                "UPDATE Token.AuthSession SET Branding=?,ClientFingerprint=?,RedirectUriId=? WHERE"
+                        + " SessionId=?",
+                branding,
+                fingerprint,
+                redirect,
+                id);
+        var browser = new HostedBrowser();
+        browser.cookies.put(
+                "ags-idp-session",
+                Base64.getEncoder()
+                        .encodeToString(sso.generateCookie(UUID.fromString(id)).encryptedSessionId()));
+        var fields = new LinkedHashMap<String, String>();
+        fields.put("action", "profile");
+        fields.put("clientId", app.getClientId());
+        fields.put("expectedLoginId", login.toString());
+        fields.put("returnTo", "http://127.0.0.1:3100/account");
+        fields.put("x-request-datetime", Instant.now().toString());
+        return new HostedFixture(
+                base.user(), browser, "/portal/account-action?" + encode(fields), access, base.password());
+    }
+
+    void siblingIdentityScenario(boolean otherSource) throws Exception {
+        var base = hosted("fix1-sibling-" + UUID.randomUUID().toString().substring(0, 8));
+        sql.update(
+                "UPDATE Person.Profile SET TwoFactorEnabled=0 WHERE ProfileId=?", base.user().getId());
+        var original = userService.getByGuid(base.user().getRowGuid()).orElseThrow();
+        String branding = otherSource ? "fix1-" + UUID.randomUUID().toString().substring(0, 8) : "idp";
+        UUID source = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        if (otherSource) {
+            source = UUID.randomUUID();
+            sql.update(
+                    "INSERT dbo.ExternalSource(SourceId,SourceCode,ExternalTypeId) SELECT ?,?,ExternalTypeId"
+                            + " FROM dbo.ExternalType WHERE ExternalTypeName='IDP'",
+                    source,
+                    branding);
+        }
+        String username = otherSource ? original.username() : original.username() + "-second";
+        UUID login = siblingCredential(base, username, source);
+        var captured =
+                (CustomUserDetails)
+                        userDetails.loadUserByUsername(username + System.lineSeparator() + branding);
+        assertThat(captured.getLoginId()).isEqualTo(login);
+        assertThat(
+                        passwordFactory.matches(
+                                Base64.getEncoder().encodeToString(base.password().getBytes()),
+                                captured.getUserAuthDetails().getPassword(),
+                                captured.getUserAuthDetails().getVersion()))
+                .isTrue();
+        assertThat(authenticateSnapshot(captured, branding, base.password()).getStatus())
+                .isEqualTo(302);
+        var access = token(app, username, "openid profile metadata idp-admin");
+        String session =
+                sql.queryForObject(
+                        "SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.Token WHERE Data=?",
+                        String.class,
+                        access.value());
+        sql.update("UPDATE Token.AuthSession SET Branding=? WHERE SessionId=?", branding, session);
+        sql.update(
+                "EXEC Person.CreateMetadata ?,?,?",
+                base.user().getId(),
+                "uuid_login_id",
+                original.loginId().toString());
+        sql.update(
+                "EXEC Person.CreateMetadata ?,?,?",
+                base.user().getId(),
+                "uuid_member_id",
+                UUID.randomUUID().toString());
+        sql.update(
+                "EXEC Person.CreateMetadata ?,?,?",
+                base.user().getId(),
+                "login_guid",
+                original.loginId().toString());
+        var claims =
+                tokenService.getClaimsForToken(
+                        tokenService
+                                .getByValue(
+                                        access.value(),
+                                        com.chellavignesh.authserver.enums.entity.TokenTypeEnum.ACCESS_TOKEN)
+                                .orElseThrow());
+        assertThat(claims.get("login_guid")).isEqualTo(login);
+        var response = call(access, "GET", "/api/v1/portal/context", null);
+        assertThat(response.statusCode()).isEqualTo(200);
+        var context = mapper.readTree(response.body());
+        assertThat(context.path("subject").path("loginId").asText()).isEqualTo(login.toString());
+        assertThat(context.path("subject").path("username").asText()).isEqualTo(username);
+        var f = hostedFromCredential(base, access, login, branding);
+        var profile =
+                f.browser()
+                        .send(
+                                "GET",
+                                continuePath(f.browser().send("GET", f.launch(), null, null).body()),
+                                null,
+                                null);
+        assertThat(profile.statusCode()).isEqualTo(200);
+        assertThat(
+                        f.browser()
+                                .send(
+                                        "POST",
+                                        "/portal/account/profile",
+                                        profileFields(profile.body()),
+                                        issuerOrigin())
+                                .statusCode())
+                .isEqualTo(303);
+        var password = f.browser().send("GET", passwordPath(f), null, null);
+        assertThat(password.statusCode()).isEqualTo(200);
+        String next = "X8!fR" + UUID.randomUUID().toString().replace("-", "") + "qZ";
+        assertThat(
+                        f.browser()
+                                .send(
+                                        "POST",
+                                        "/portal/account/password",
+                                        passwordFields(password.body(), base.password(), next),
+                                        issuerOrigin())
+                                .statusCode())
+                .isEqualTo(200);
+        assertThat(authenticateSnapshot(captured, branding, base.password()).getStatus())
+                .isEqualTo(401);
+        var sibling =
+                (CustomUserDetails)
+                        userDetails.loadUserByUsername(original.username() + System.lineSeparator() + "idp");
+        assertThat(sibling.getLoginId()).isEqualTo(original.loginId());
+        assertThat(
+                        passwordFactory.matches(
+                                Base64.getEncoder().encodeToString(base.password().getBytes()),
+                                sibling.getUserAuthDetails().getPassword(),
+                                sibling.getUserAuthDetails().getVersion()))
+                .isTrue();
+        assertThat(authenticateSnapshot(sibling, "idp", base.password()).getStatus()).isEqualTo(302);
+    }
+
+    @Test
+    void sameSourceSiblingLoginContextAndHostedMutationsUseExactCredential() throws Exception {
+        siblingIdentityScenario(false);
+    }
+
+    @Test
+    void differentSourceSiblingContextAndHostedMutationsIgnoreMutableMetadata() throws Exception {
+        siblingIdentityScenario(true);
+    }
+
+    @Test
+    void biometricProfileProofDeniesSameSourceAmbiguityButKeepsOtherSourcesAndProfileCrud()
+            throws Exception {
+        var base = hosted("fix1-biometric-" + UUID.randomUUID().toString().substring(0, 8));
+        assertThat(userService.getUniqueBiometricIdentity(base.user().getRowGuid(), "idp")).isPresent();
+        String brand = "bio-" + UUID.randomUUID().toString().substring(0, 8);
+        UUID source = UUID.randomUUID();
+        sql.update(
+                "INSERT dbo.ExternalSource(SourceId,SourceCode,ExternalTypeId) SELECT ?,?,ExternalTypeId"
+                        + " FROM dbo.ExternalType WHERE ExternalTypeName='IDP'",
+                source,
+                brand);
+        UUID other = siblingCredential(base, "bio-other-" + UUID.randomUUID(), source);
+        assertThat(userService.getUniqueBiometricIdentity(base.user().getRowGuid(), "idp"))
+                .get()
+                .extracting(com.chellavignesh.authserver.adminportal.user.entity.UserDetails::loginId)
+                .isEqualTo(base.user().getLoginId());
+        assertThat(userService.getUniqueBiometricIdentity(base.user().getRowGuid(), brand))
+                .get()
+                .extracting(com.chellavignesh.authserver.adminportal.user.entity.UserDetails::loginId)
+                .isEqualTo(other);
+        UUID ambiguous = siblingCredential(
+                base,
+                "bio-sibling-" + UUID.randomUUID(),
+                UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        assertThat(userService.getUniqueBiometricIdentity(base.user().getRowGuid(), "idp")).isEmpty();
+        assertThat(userService.getByGuid(base.user().getRowGuid())).isPresent();
+        assertThat(userService.getByGuidAndBranding(base.user().getRowGuid(), "idp")).isPresent();
+        assertThat(userService.getUniqueBiometricIdentity(base.user().getRowGuid(), brand)).isPresent();
+        sql.update("UPDATE Person.Credential SET CredentialLocked=1 WHERE RowGuid=?", ambiguous);
+        assertThat(userService.getUniqueBiometricIdentity(base.user().getRowGuid(), "idp")).isPresent();
+    }
+
+    @Test
+    void sqlUpgradeRollbackAbortsBeforeSessionEvenAfterConcurrentPasswordCommit() throws Exception {
+        var f = hosted("fix1-upgrade-fault-" + UUID.randomUUID().toString().substring(0, 8));
+        sql.update("UPDATE Person.Profile SET TwoFactorEnabled=0 WHERE ProfileId=?", f.user().getId());
+        // Valid legacy storage envelope: four-byte cipher index followed by opaque cipher bytes.
+        // This is a post-authenticated snapshot fixture, not external v0 password verification.
+        sql.update(
+                "UPDATE Person.Credential SET Password=0x00000007AABBCCDDEEFF00112233445566778899,Version=0"
+                        + " WHERE ProfileId=?",
+                f.user().getId());
+        var snapshot =
+                (CustomUserDetails)
+                        userDetails.loadUserByUsername(
+                                userService.getByGuid(f.user().getRowGuid()).orElseThrow().username()
+                                        + System.lineSeparator()
+                                        + "idp");
+        String username = snapshot.getUsername();
+        int initial =
+                sql.queryForObject(
+                        "SELECT COUNT(*) FROM Token.AuthSession WHERE SubjectId=?", Integer.class, username);
+        CountDownLatch rolledBack = new CountDownLatch(1), passwordCommitted = new CountDownLatch(1);
+        doAnswer(
+                        invocation -> {
+                            named.getJdbcTemplate().execute("ROLLBACK TRANSACTION");
+                            rolledBack.countDown();
+                            if (!passwordCommitted.await(10, TimeUnit.SECONDS))
+                                throw new IllegalStateException("Test barrier expired");
+                            throw new com.chellavignesh.authserver.session.exception
+                                    .FailedToProcessPasswordException("Injected upgrade SQL failure");
+                        })
+                .when(passwordEncoderManager)
+                .processPassword(any(), anyString(), eq("idp"));
+        MockHttpServletResponse result;
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var queued = executor.submit(() -> authenticateSnapshot(snapshot, "idp", f.password()));
+            assertThat(rolledBack.await(5, TimeUnit.SECONDS)).isTrue();
+            try {
+                new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                        .execute(
+                                status -> {
+                                    credentialLock.acquire(snapshot.getLoginId());
+                                    sql.update(
+                                            "UPDATE Person.Credential SET Password=0xAABBCCDD,Version=? WHERE RowGuid=?",
+                                            PasswordEncoderFactory.currentVersion,
+                                            snapshot.getLoginId());
+                                    revocations.revokeAllForLogin(snapshot.getLoginId());
+                                    return null;
+                                });
+            } finally {
+                passwordCommitted.countDown();
+            }
+            result = queued.get(15, TimeUnit.SECONDS);
+        } finally {
+            passwordCommitted.countDown();
+        }
+        assertThat(result.getStatus()).isEqualTo(503);
+        assertThat(result.getRedirectedUrl()).isNull();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM dbo.oauth2_authorization WHERE principal_name=?", Integer.class, username)).isZero();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Token.Token t JOIN Token.AuthSession s ON s.SessionId=t.SessionId WHERE s.SubjectId=? AND s.AuthSessionStatusId=1", Integer.class, username)).isZero();
+        assertThat(
+                        sql.queryForObject(
+                                "SELECT COUNT(*) FROM Token.AuthSession WHERE SubjectId=?",
+                                Integer.class,
+                                username))
+                .isEqualTo(initial);
+        assertThat(
+                        sql.queryForObject(
+                                "SELECT COUNT(*) FROM Token.AuthSession WHERE SubjectId=? AND"
+                                        + " AuthSessionStatusId=1",
+                                Integer.class,
+                                username))
+                .isZero();
+    }
+
+    @Test
+    void supportedOldVersionSnapshotSuccessfullyUpgradesAndCreatesSession() throws Exception {
+        var f = hosted("fix1-upgrade-ok-" + UUID.randomUUID().toString().substring(0, 8));
+        sql.update("UPDATE Person.Profile SET TwoFactorEnabled=0 WHERE ProfileId=?", f.user().getId());
+        // Valid legacy storage envelope: four-byte cipher index followed by opaque cipher bytes.
+        // This is a post-authenticated snapshot fixture, not external v0 password verification.
+        sql.update(
+                "UPDATE Person.Credential SET Password=0x00000007AABBCCDDEEFF00112233445566778899,Version=0"
+                        + " WHERE ProfileId=?",
+                f.user().getId());
+        String username = userService.getByGuid(f.user().getRowGuid()).orElseThrow().username();
+        var snapshot =
+                (CustomUserDetails)
+                        userDetails.loadUserByUsername(username + System.lineSeparator() + "idp");
+        assertThat(authenticateSnapshot(snapshot, "idp", f.password()).getStatus()).isEqualTo(302);
+        var fresh =
+                (CustomUserDetails)
+                        userDetails.loadUserByUsername(username + System.lineSeparator() + "idp");
+        assertThat(fresh.getUserAuthDetails().getVersion())
+                .isEqualTo(PasswordEncoderFactory.currentVersion);
+        assertThat(
+                        passwordFactory.matches(
+                                Base64.getEncoder().encodeToString(f.password().getBytes()),
+                                fresh.getUserAuthDetails().getPassword(),
+                                fresh.getUserAuthDetails().getVersion()))
+                .isTrue();
     }
 
     @Test
