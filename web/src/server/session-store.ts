@@ -132,6 +132,35 @@ export class SessionStore {
     };
     return (await this.replaceWizard(owner, org, current, next)) ? next : null;
   }
+  async settleRejectedWizard(
+    owner: string,
+    org: string,
+    attemptId: string,
+    restore?: WizardStateDto,
+  ): Promise<boolean> {
+    z.uuid().parse(attemptId);
+    const prior = restore ? WizardState.parse(restore) : undefined;
+    if (
+      prior &&
+      (prior.phase !== "uncertain" ||
+        prior.applicationId ||
+        prior.expiresAt <= this.now())
+    )
+      throw invalid();
+    // Compare attempt identity, not its phase snapshot: a concurrent read may mark
+    // this same attempt uncertain. Never erase a newer attempt or selected app.
+    return (
+      (await this.dependency(() =>
+        this.redis.eval(
+          "local raw=redis.call('GET',KEYS[1]); if not raw then return 0 end; local current=cjson.decode(raw); if current.attemptId~=ARGV[1] or current.applicationId or (current.phase~='creating' and current.phase~='uncertain') then return 0 end; if ARGV[2]~='' then local prior=cjson.decode(ARGV[2]); if prior.expiresAt~=current.expiresAt then return 0 end; redis.call('SET',KEYS[1],ARGV[2],'KEEPTTL'); else redis.call('DEL',KEYS[1]); end; return 1",
+          {
+            keys: [this.wizardKey(owner, org)],
+            arguments: [attemptId, prior ? JSON.stringify(prior) : ""],
+          },
+        ),
+      )) === 1
+    );
+  }
   async removeWizard(
     owner: string,
     org: string,

@@ -51,6 +51,11 @@ export function ClientWizard({ orgId }: { orgId: string }) {
       setState(await requestJson<State>(api + "/wizard", "POST", input));
     } catch (e) {
       setError(actionMessage(e));
+      try {
+        setState(await requestJson<State>(api + "/wizard"));
+      } catch {
+        /* Preserve the last correlation when current state cannot be read. */
+      }
     } finally {
       setPending(false);
     }

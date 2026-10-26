@@ -3,9 +3,12 @@ import { randomUUID } from "node:crypto";
 import { z, type ZodType } from "zod";
 import { requireSession, boundedBody } from "../../server/auth";
 import { requireMutation } from "../../server/csrf";
-import { javaRequest } from "../../server/java-api";
+import {
+  javaRequest,
+  VerifiedClientCreateRejection,
+} from "../../server/java-api";
 import { getPortalContext } from "../../server/portal-context";
-import { getStore } from "../../server/session-store";
+import { getStore, type SessionStore } from "../../server/session-store";
 import {
   PortalFailure,
   errorResponse,
@@ -24,6 +27,7 @@ import {
   CredentialCreate,
   CredentialCreated,
   type ClientCreateInput,
+  type ClientSummaryDto,
   type WizardStateDto,
 } from "../../contracts/clients";
 import {
@@ -206,6 +210,56 @@ export async function readWizard(
   );
   return { state, candidates };
 }
+async function uncertainWizard(
+  store: SessionStore,
+  owner: string,
+  organizationId: string,
+  attempt: WizardStateDto,
+): Promise<never> {
+  // If a known application or a newer attempt already won, this CAS leaves it intact.
+  await store.replaceWizard(owner, organizationId, attempt, {
+    ...attempt,
+    phase: "uncertain",
+  });
+  throw new PortalFailure(
+    503,
+    "CLIENT_CREATION_UNCERTAIN",
+    "Creation may have completed. Read the current onboarding state before taking another action. No creation request was retried.",
+    false,
+  );
+}
+async function rejectedOrUncertainWizard(
+  store: SessionStore,
+  owner: string,
+  organizationId: string,
+  attempt: WizardStateDto,
+  error: unknown,
+  priorUncertain?: WizardStateDto,
+): Promise<never> {
+  if (!(error instanceof VerifiedClientCreateRejection))
+    return uncertainWizard(store, owner, organizationId, attempt);
+  if (
+    !(await store.settleRejectedWizard(
+      owner,
+      organizationId,
+      attempt.attemptId,
+      priorUncertain,
+    ))
+  )
+    throw new PortalFailure(
+      409,
+      "WIZARD_CHANGED",
+      "Onboarding changed. Read the current state before taking another action.",
+    );
+  const message = priorUncertain
+    ? "This retry was rejected. The earlier creation is still uncertain. Read current onboarding state and review matching clients before taking another action."
+    : error.status === 409
+      ? "Client creation was rejected. A client with that name may already exist; edit the name and try again."
+      : error.status === 400
+        ? "Client creation was rejected. Edit the name, type or authentication method and try again."
+        : error.message;
+  throw new PortalFailure(error.status, error.code, message, false);
+}
 export async function startWizard(request: Request, organizationId: string) {
   const { session } = await authorize(
     request,
@@ -237,14 +291,32 @@ export async function startWizard(request: Request, organizationId: string) {
       "WIZARD_EXISTS",
       "Resume the existing onboarding request before creating another client.",
     );
+  let created: ClientSummaryDto;
   try {
-    const created = await createClient(session, organizationId, identity);
+    created = await createClient(session, organizationId, identity);
+  } catch (error) {
+    return rejectedOrUncertainWizard(
+      store,
+      session.id,
+      organizationId,
+      state,
+      error,
+    );
+  }
+  // Success has crossed the commit boundary. No subsequent Redis/readback error
+  // may retire this identity, even if its HTTP status would reject a create.
+  try {
     const next = {
       ...state,
       applicationId: created.id,
       phase: "created" as const,
     };
-    await store.replaceWizard(session.id, organizationId, state, next);
+    if (!(await store.replaceWizard(session.id, organizationId, state, next)))
+      throw new PortalFailure(
+        409,
+        "WIZARD_CHANGED",
+        "Onboarding changed. Read its current state.",
+      );
     const detail = await javaRequest(
       session,
       { kind: "clientGet", organizationId, applicationId: created.id },
@@ -253,16 +325,7 @@ export async function startWizard(request: Request, organizationId: string) {
     );
     return { state: next, candidates: [], detail };
   } catch {
-    await store.replaceWizard(session.id, organizationId, state, {
-      ...state,
-      phase: "uncertain",
-    });
-    throw new PortalFailure(
-      503,
-      "CLIENT_CREATION_UNCERTAIN",
-      "Creation may have completed. Read the current onboarding state before taking another action. No creation request was retried.",
-      false,
-    );
+    return uncertainWizard(store, session.id, organizationId, state);
   }
 }
 export async function reconcileWizard(
@@ -336,25 +399,36 @@ export async function reconcileWizard(
       "WIZARD_PENDING",
       "This creation attempt is still pending or changed. Read current state before explicitly reviewing a retry.",
     );
+  let created: ClientSummaryDto;
   try {
-    const created = await createClient(session, organizationId, state.identity);
-    await store.replaceWizard(session.id, organizationId, next, {
-      ...next,
-      applicationId: created.id,
-      phase: "created",
-    });
-    return readWizard(session, organizationId);
-  } catch {
-    await store.replaceWizard(session.id, organizationId, next, {
-      ...next,
-      phase: "uncertain",
-    });
-    throw new PortalFailure(
-      503,
-      "CLIENT_CREATION_UNCERTAIN",
-      "Creation may have completed. Read current state again. No automatic retry was made.",
-      false,
+    created = await createClient(session, organizationId, state.identity);
+  } catch (error) {
+    // A rejected retry proves nothing about the earlier genuinely uncertain call.
+    return rejectedOrUncertainWizard(
+      store,
+      session.id,
+      organizationId,
+      next,
+      error,
+      state,
     );
+  }
+  try {
+    if (
+      !(await store.replaceWizard(session.id, organizationId, next, {
+        ...next,
+        applicationId: created.id,
+        phase: "created",
+      }))
+    )
+      throw new PortalFailure(
+        409,
+        "WIZARD_CHANGED",
+        "Onboarding changed. Read its current state.",
+      );
+    return await readWizard(session, organizationId);
+  } catch {
+    return uncertainWizard(store, session.id, organizationId, next);
   }
 }
 export async function clientAction(

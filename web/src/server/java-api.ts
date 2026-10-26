@@ -7,6 +7,9 @@ import { getStore, type SessionStore } from "./session-store";
 import { boundedBody, transportUrl, upstreamFetch } from "./auth";
 import { PortalFailure, signin } from "./errors";
 import type { PortalSession } from "./types";
+// Only a verified noncommitting response from the create call carries this authority.
+// Transport/signature errors, early unverified401 and later reads must never use it.
+export class VerifiedClientCreateRejection extends PortalFailure {}
 type ClientScope = { organizationId: string; applicationId: string };
 export type JavaOperation =
   | { kind: "context" }
@@ -194,6 +197,11 @@ export async function javaRequestWith<T>(
       "UPSTREAM_FAILURE",
       "The identity service could not complete the request.",
     ];
+    if (
+      operation.kind === "clientCreate" &&
+      [400, 403, 404, 409].includes(response.status)
+    )
+      throw new VerifiedClientCreateRejection(response.status, code, message);
     throw new PortalFailure(
       response.status in messages ? response.status : 502,
       code,

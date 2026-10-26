@@ -1601,3 +1601,234 @@ test("RHF forms preserve dirty unrelated edits, validate fields and reset only a
     ).state,
   );
 });
+
+test("definite initial duplicate rejection restores editable identity and permits exactly one corrected creation", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  const s = await session(context),
+    home = await (await java(page, s, "/api/v1/portal/context")).json(),
+    org = home.subject.organizationId;
+  const existing = await java(
+    page,
+    s,
+    "/api/v1/organizations/" + org + "/applications",
+    "POST",
+    {
+      name: "Definite duplicate",
+      description: "Owned preexisting fixture",
+      type: "WEB",
+      authMethod: "PKCE",
+    },
+  );
+  check("duplicate fixture real Java201", existing.status() === 201);
+  const path = "/services/api/v1/organizations/" + org + "/applications";
+  const before = existsSync(fixture.faultEvents)
+    ? JSON.parse(readFileSync(fixture.faultEvents, "utf8")).filter(
+        (v: { method: string; path: string }) =>
+          v.method === "POST" && v.path === path,
+      ).length
+    : 0;
+  await page.goto(
+    fixture.portal + "/admin/organizations/" + org + "/clients/new",
+  );
+  await page.getByLabel("Client name").fill("Definite duplicate");
+  const rejected = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname ===
+        "/api/admin/organizations/" + org + "/clients" &&
+      r.request().method() === "POST",
+  );
+  await page
+    .getByRole("button", { name: "Create identity", exact: true })
+    .click();
+  check(
+    "definite existing-name rejection remains409",
+    (await rejected).status() === 409,
+  );
+  check(
+    "duplicate rejection inserts no SQL row",
+    sql(
+      "SELECT COUNT(*) AS n FROM Client.Application WHERE Name='Definite duplicate' FOR JSON PATH",
+    )[0].n === 1,
+  );
+  await expect(page.getByLabel("Client name")).toBeVisible();
+  await expect(page.getByLabel("Client name")).toHaveValue(
+    "Definite duplicate",
+  );
+  await expect(
+    page.getByRole("alert").filter({ hasText: /edit|different name/i }),
+  ).toBeVisible();
+  check(
+    "definite initial rejection retires the noncommitting wizard",
+    !(
+      await (
+        await page.request.get(
+          fixture.portal +
+            "/api/admin/organizations/" +
+            org +
+            "/clients/wizard",
+        )
+      ).json()
+    ).state,
+  );
+  await page.getByLabel("Client name").fill("Corrected unique identity");
+  const accepted = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname ===
+        "/api/admin/organizations/" + org + "/clients" &&
+      r.request().method() === "POST",
+  );
+  await page
+    .getByRole("button", { name: "Create identity", exact: true })
+    .click();
+  check("corrected identity creates201", (await accepted).status() === 201);
+  await expect(
+    page.getByRole("link", { name: "Continue configuration", exact: true }),
+  ).toBeVisible();
+  check(
+    "corrected identity creates exactly one SQL row",
+    sql(
+      "SELECT COUNT(*) AS n FROM Client.Application WHERE Name='Corrected unique identity' FOR JSON PATH",
+    )[0].n === 1,
+  );
+  const events = JSON.parse(readFileSync(fixture.faultEvents, "utf8"))
+    .filter(
+      (v: { method: string; path: string }) =>
+        v.method === "POST" && v.path === path,
+    )
+    .slice(before);
+  check(
+    "one rejected and exactly one successful create with no automatic replay",
+    events.length === 2 && events[0].status === 409 && events[1].status === 201,
+  );
+});
+
+test("definite retry rejection preserves and reconciles the earlier genuinely uncertain creation", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  const s = await session(context),
+    home = await (await java(page, s, "/api/v1/portal/context")).json(),
+    org = home.subject.organizationId;
+  const baseline = await (
+    await java(
+      page,
+      s,
+      "/api/v1/organizations/" + org + "/applications",
+      "POST",
+      {
+        name: "Retry baseline occupant",
+        description: "Owned baseline fixture",
+        type: "WEB",
+        authMethod: "PKCE",
+      },
+    )
+  ).json();
+  const api = "/api/admin/organizations/" + org + "/clients",
+    path = "/services/api/v1/organizations/" + org + "/applications";
+  await page.goto(
+    fixture.portal + "/admin/organizations/" + org + "/clients/new",
+  );
+  await page.getByLabel("Client name").fill("Prior uncertain identity");
+  writeFileSync(
+    fixture.faultControl,
+    JSON.stringify({ method: "POST", path }),
+    { mode: 0o600 },
+  );
+  await page
+    .getByRole("button", { name: "Create identity", exact: true })
+    .click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Creation is uncertain." }),
+  ).toBeVisible({ timeout: 20000 });
+  const prior = (
+    await (await page.request.get(fixture.portal + api + "/wizard")).json()
+  ).state;
+  const original = (
+    await (
+      await java(page, s, "/api/v1/organizations/" + org + "/applications")
+    ).json()
+  ).find((v: { name: string }) => v.name === "Prior uncertain identity");
+  sql(
+    "UPDATE Client.Application SET Name='Previously uncertain renamed' WHERE RowGuid='" +
+      original.id +
+      "'; UPDATE Client.Application SET Name='Prior uncertain identity' WHERE RowGuid='" +
+      baseline.id +
+      "'; SELECT 1 AS n FOR JSON PATH",
+  );
+  await page
+    .getByRole("button", { name: "Read current onboarding state", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Review retry", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Review retry", exact: true }).click();
+  const rejected = page.waitForResponse(
+    (r) =>
+      new URL(r.url()).pathname === api + "/wizard" &&
+      r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Create once", exact: true }).click();
+  check(
+    "definite retry prewrite rejection remains409",
+    (await rejected).status() === 409,
+  );
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /earlier creation is still uncertain/i }),
+  ).toBeVisible();
+  const restored = (
+    await (await page.request.get(fixture.portal + api + "/wizard")).json()
+  ).state;
+  check(
+    "retry rejection restores prior attempt correlation and fixed expiry",
+    restored.attemptId === prior.attemptId &&
+      restored.identity.name === prior.identity.name &&
+      restored.expiresAt === prior.expiresAt &&
+      restored.phase === "uncertain" &&
+      restored.baseline.includes(baseline.id),
+  );
+  check(
+    "prior possibly committed application survives retry rejection",
+    sql(
+      "SELECT COUNT(*) AS n FROM Client.Application WHERE RowGuid='" +
+        original.id +
+        "' AND Name='Previously uncertain renamed' AND Active=1 FOR JSON PATH",
+    )[0].n === 1,
+  );
+  check(
+    "prior real uncertainty is never cleared into a fresh editable form",
+    (await page.getByLabel("Client name").count()) === 0,
+  );
+  sql(
+    "UPDATE Client.Application SET Name='Retry baseline occupant' WHERE RowGuid='" +
+      baseline.id +
+      "'; UPDATE Client.Application SET Name='Prior uncertain identity' WHERE RowGuid='" +
+      original.id +
+      "'; SELECT 1 AS n FOR JSON PATH",
+  );
+  await page
+    .getByRole("button", { name: "Read current onboarding state", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Use this client " + original.clientId,
+      exact: true,
+    })
+    .click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Continue configuration", exact: true }),
+  ).toHaveAttribute(
+    "href",
+    "/admin/organizations/" + org + "/clients/" + original.id,
+  );
+  check(
+    "preserved prior uncertain identity can still be explicitly reconciled",
+    true,
+  );
+});
