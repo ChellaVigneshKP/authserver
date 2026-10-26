@@ -81,7 +81,7 @@ class HostedAccountMigrationTest {
                         + " VALUES(?,0xAABBCC,12)",
                     credential);
             byte[] before = snapshot(sql);
-            var flyway = Flyway.configure().dataSource(ds).load();
+            var flyway = Flyway.configure().dataSource(ds).target("15").load();
             assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
             assertThat(Arrays.equals(before, snapshot(sql))).isTrue();
             assertThat(

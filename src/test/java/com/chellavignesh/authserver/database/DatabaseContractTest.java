@@ -49,7 +49,7 @@ class DatabaseContractTest {
         new JdbcTemplate(admin).execute("CREATE DATABASE [" + database + "]");
         SQLServerDataSource db = source(System.getenv("AUTH_DB_IT_URL") + ";databaseName=" + database);
         Flyway flyway = Flyway.configure().dataSource(db).locations("classpath:db/migration").cleanDisabled(true).load();
-        assertEquals(15, flyway.migrate().migrationsExecuted);
+        assertEquals(16, flyway.migrate().migrationsExecuted);
         flyway.validate();
         assertEquals(0, flyway.migrate().migrationsExecuted, "Second migration must leave the schema unchanged");
         jdbc = new JdbcTemplate(db);
@@ -108,6 +108,7 @@ class DatabaseContractTest {
         var detail = applications.getApplicationDetailById(app.getId()).orElseThrow();
         assertEquals(120, detail.getAuthCodeTimeToLive());
         assertEquals(20, detail.getMaxRequestTransitTime());
+        assertEquals(false, detail.getReuseRefreshTokens());
         new RedirectUriRepository(named, new SecurityUtil()).createRedirectUris(1,app.getId(),List.of("http://localhost/callback"));
         PostLogoutRedirectUriRepository logout = new PostLogoutRedirectUriRepository(named,new SecurityUtil());
         logout.createPostLogoutRedirectUris(1,app.getId(),List.of("http://localhost/logout"));

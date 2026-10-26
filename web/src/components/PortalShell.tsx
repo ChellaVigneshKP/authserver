@@ -19,6 +19,7 @@ import type { PortalContext } from "../contracts/portal";
 import { PortalContextSchema } from "../contracts/portal";
 import {
   canAdminister,
+  canShow,
   requiresAdministrationRefresh,
 } from "../features/account/permissions";
 import { tokens } from "../theme/tokens";
@@ -86,6 +87,9 @@ export function PortalShell({
   const organization = current.organizations.find(
     (o) => o.id === current.subject.organizationId,
   );
+  const scope =
+    /^\/admin\/organizations\/([0-9a-f-]{36})\//i.exec(pathname)?.[1] ??
+    current.subject.organizationId;
   const navigation = (
     <Stack
       sx={{
@@ -105,6 +109,21 @@ export function PortalShell({
             { label: "Security", path: "/account/security" },
             ...(admin && !failure
               ? [{ label: "Administration", path: "/admin" }]
+              : []),
+            ...(admin &&
+            !failure &&
+            canShow(current, "idp-admin-app:read", scope)
+              ? [
+                  {
+                    label: "Clients",
+                    path: "/admin/organizations/" + scope + "/clients",
+                  },
+                ]
+              : []),
+            ...(admin &&
+            !failure &&
+            canShow(current, "idp-admin-resource:read", scope)
+              ? [{ label: "Resource catalog", path: "/admin/resources" }]
               : []),
           ].map((item) => (
             <ListItem key={item.path} disablePadding>

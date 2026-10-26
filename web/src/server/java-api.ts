@@ -7,9 +7,117 @@ import { getStore, type SessionStore } from "./session-store";
 import { boundedBody, transportUrl, upstreamFetch } from "./auth";
 import { PortalFailure, signin } from "./errors";
 import type { PortalSession } from "./types";
+type ClientScope = { organizationId: string; applicationId: string };
 export type JavaOperation =
   | { kind: "context" }
-  | { kind: "clients"; organizationId: string };
+  | { kind: "clients" | "clientCreate"; organizationId: string }
+  | ({
+      kind:
+        | "clientGet"
+        | "clientUpdate"
+        | "clientDeactivate"
+        | "clientUrlsGet"
+        | "clientUrlsPut"
+        | "clientSettingsPut"
+        | "credentialList"
+        | "credentialCreate"
+        | "assignmentList"
+        | "assignmentCreate";
+    } & ClientScope)
+  | ({
+      kind: "credentialStatus" | "credentialDelete";
+      credentialId: string;
+    } & ClientScope)
+  | ({ kind: "assignmentDelete"; resourceId: string } & ClientScope)
+  | { kind: "resourceList" | "resourceCreate" }
+  | { kind: "resourceGet" | "resourceUpdate"; resourceId: string };
+function operationRoute(operation: JavaOperation): {
+  path: string;
+  method: string;
+  body: boolean;
+} {
+  const org =
+    "organizationId" in operation
+      ? z.uuid().parse(operation.organizationId)
+      : undefined;
+  const base = "/api/v1/organizations/" + org + "/applications";
+  const app =
+    "applicationId" in operation
+      ? base + "/" + z.uuid().parse(operation.applicationId)
+      : base;
+  switch (operation.kind) {
+    case "context":
+      return { path: "/api/v1/portal/context", method: "GET", body: false };
+    case "clients":
+      return { path: base, method: "GET", body: false };
+    case "clientCreate":
+      return { path: base, method: "POST", body: true };
+    case "clientGet":
+      return { path: app, method: "GET", body: false };
+    case "clientUpdate":
+      return { path: app, method: "PUT", body: true };
+    case "clientDeactivate":
+      return { path: app, method: "DELETE", body: false };
+    case "clientUrlsGet":
+      return { path: app + "/urls", method: "GET", body: false };
+    case "clientUrlsPut":
+      return { path: app + "/urls", method: "PUT", body: true };
+    case "clientSettingsPut":
+      return { path: app + "/settings", method: "PUT", body: true };
+    case "credentialList":
+      return {
+        path: app.replace("/api/v1/", "/api/v2/") + "/credentials",
+        method: "GET",
+        body: false,
+      };
+    case "credentialCreate":
+      return { path: app + "/credentials", method: "POST", body: true };
+    case "credentialStatus":
+      return {
+        path: app + "/credentials/" + z.uuid().parse(operation.credentialId),
+        method: "PUT",
+        body: true,
+      };
+    case "credentialDelete":
+      return {
+        path: app + "/credentials/" + z.uuid().parse(operation.credentialId),
+        method: "DELETE",
+        body: false,
+      };
+    case "assignmentList":
+      return { path: app + "/endpoints", method: "GET", body: false };
+    case "assignmentCreate":
+      return { path: app + "/endpoints", method: "POST", body: true };
+    case "assignmentDelete":
+      return {
+        path: app + "/endpoints/" + z.uuid().parse(operation.resourceId),
+        method: "DELETE",
+        body: false,
+      };
+    case "resourceList":
+      return { path: "/api/v1/endpoints", method: "GET", body: false };
+    case "resourceCreate":
+      return { path: "/api/v1/endpoints", method: "POST", body: true };
+    case "resourceGet":
+      return {
+        path: "/api/v1/endpoints/" + z.uuid().parse(operation.resourceId),
+        method: "GET",
+        body: false,
+      };
+    case "resourceUpdate":
+      return {
+        path: "/api/v1/endpoints/" + z.uuid().parse(operation.resourceId),
+        method: "PUT",
+        body: true,
+      };
+    default:
+      throw new PortalFailure(
+        400,
+        "INVALID_OPERATION",
+        "This operation is unavailable.",
+      );
+  }
+}
 export async function javaRequestWith<T>(
   config: Config,
   store: SessionStore,
@@ -22,38 +130,27 @@ export async function javaRequestWith<T>(
     await store.deleteSession(session.id);
     throw signin();
   }
-  let path: string;
-  switch (operation.kind) {
-    case "context":
-      path = "/api/v1/portal/context";
-      break;
-    case "clients":
-      path =
-        "/api/v1/organizations/" +
-        z.uuid().parse(operation.organizationId) +
-        "/applications";
-      break;
-    default:
-      throw new PortalFailure(
-        400,
-        "INVALID_OPERATION",
-        "This operation is unavailable.",
-      );
-  }
-  if (input !== undefined)
+  const route = operationRoute(operation);
+  if (
+    (!route.body && input !== undefined) ||
+    (route.body && input === undefined)
+  )
     throw new PortalFailure(
       400,
       "INVALID_INPUT",
-      "This operation does not accept input.",
+      "This operation received invalid input.",
     );
-  const raw = Buffer.alloc(0);
+  const raw = route.body ? Buffer.from(JSON.stringify(input)) : Buffer.alloc(0);
   const signature = createHmac("sha256", session.signingKey)
     .update(raw)
     .digest("base64");
   const response = await upstreamFetch(
-    transportUrl(config, config.issuer + path),
+    transportUrl(config, config.issuer + route.path),
     {
+      method: route.method,
+      body: route.body ? raw : undefined,
       headers: {
+        ...(route.body ? { "Content-Type": "application/json" } : {}),
         Authorization: "Bearer " + session.accessToken,
         "User-Agent": session.browserContext.userAgent,
         "Accept-Language": session.browserContext.acceptLanguage,
@@ -105,7 +202,9 @@ export async function javaRequestWith<T>(
     );
   }
   try {
-    return schema.parse(JSON.parse(Buffer.from(bytes).toString()));
+    return schema.parse(
+      bytes.length ? JSON.parse(Buffer.from(bytes).toString()) : undefined,
+    );
   } catch {
     throw new PortalFailure(
       502,

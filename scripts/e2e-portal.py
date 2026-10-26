@@ -16,23 +16,23 @@ DEV=runpy.run_path(str(ROOT/'scripts/portal-dev.py'))
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase',choices=['auth','navigation'],default='auth')
+    parser.add_argument('--phase',choices=['auth','navigation','clients'],default='auth')
     parser.add_argument('--grep',help='Run only matching browser scenarios; filter and blocked tests are reported with the evidence')
     args=parser.parse_args()
     passed=False
-    with DEV['owned_portal']() as fixture:
+    with DEV['owned_portal'](transport_faults=args.phase=='clients') as fixture:
         directory=fixture['directory'];report=fixture['report']
         report['browser_filter']=args.grep or 'all '+args.phase+' scenarios'
         config_path=directory/'dev.json'
         DEV['LIFECYCLE']['private_json'](config_path,fixture['config'])
         environment=os.environ|dict(PORTAL_E2E_CONFIG=str(fixture['private_path']),PORTAL_E2E_REPORT=str(directory/'browser-report.json'),
             PORTAL_NEXT_LOG=str(directory/'next.log'),PORTAL_REPO_ROOT=str(ROOT),PORTAL_OWNED_JAVA_PID=str(fixture['java'].pid),AUTH_E2E_CONFIG=str(config_path),
-            PORTAL_SCREENSHOT_DIR=str(directory),AUTH_E2E_BASE=report['issuer'],AUTH_E2E_DB=fixture['database'],NEXT_TELEMETRY_DISABLED='1')
+            PORTAL_SCREENSHOT_DIR=str(directory),AUTH_E2E_BASE=report['issuer'],AUTH_E2E_DB=fixture['database'],NEXT_TELEMETRY_DISABLED='1',PLAYWRIGHT_NO_COPY_PROMPT='1')
         with (directory/'browser.log').open('w') as log:
             os.chmod(log.name,0o600)
             command=[str(DEV['NODE']),str(ROOT/'web/node_modules/@playwright/test/cli.js'),'test',args.phase+'.spec.ts']
             if args.grep:command+=['--grep',args.grep]
-            result=subprocess.run(command,cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=240)
+            result=subprocess.run(command,cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=600)
         browser_path=directory/'browser-report.json'
         report['browser']=json.loads(browser_path.read_text()) if browser_path.exists() else {'checks':[],'failed_before_report':True}
         report['sql']=json.loads(sql_text(fixture['config'],fixture['database'],"SELECT COUNT(*) AS Sessions,SUM(CASE WHEN ClientFingerprint IS NOT NULL THEN 1 ELSE 0 END) AS Fingerprints FROM Token.AuthSession FOR JSON PATH"))

@@ -1,5 +1,7 @@
 import "server-only";
-import { randomBytes } from "node:crypto";
+import { z } from "zod";
+import { WizardState, type WizardStateDto } from "../contracts/clients";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "redis";
 import { getConfig } from "./config";
 import { PortalFailure } from "./errors";
@@ -63,6 +65,89 @@ export class SessionStore {
         true,
       );
     }
+  }
+  private wizardKey(owner: string, org: string) {
+    return this.key("wizard", owner) + ":" + z.uuid().parse(org);
+  }
+  async beginWizard(
+    owner: string,
+    org: string,
+    state: WizardStateDto,
+  ): Promise<boolean> {
+    const safe = WizardState.parse(state);
+    const ttl = Math.min(safe.expiresAt - this.now(), 1800000);
+    if (ttl <= 0) throw invalid();
+    return (
+      (await this.dependency(() =>
+        this.redis.set(this.wizardKey(owner, org), JSON.stringify(safe), {
+          PX: Math.floor(ttl),
+          NX: true,
+        }),
+      )) === "OK"
+    );
+  }
+  async getWizard(owner: string, org: string): Promise<WizardStateDto | null> {
+    const raw = await this.dependency(() =>
+      this.redis.get(this.wizardKey(owner, org)),
+    );
+    if (!raw) return null;
+    const state = WizardState.parse(JSON.parse(raw));
+    return state.expiresAt > this.now() ? state : null;
+  }
+  async replaceWizard(
+    owner: string,
+    org: string,
+    previous: WizardStateDto,
+    next: WizardStateDto,
+  ): Promise<boolean> {
+    const safe = WizardState.parse(next);
+    if (safe.expiresAt !== previous.expiresAt || safe.expiresAt <= this.now())
+      throw invalid();
+    return (
+      (await this.dependency(() =>
+        this.redis.eval(
+          "if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end; redis.call('SET',KEYS[1],ARGV[2],'KEEPTTL'); return 1",
+          {
+            keys: [this.wizardKey(owner, org)],
+            arguments: [
+              JSON.stringify(WizardState.parse(previous)),
+              JSON.stringify(safe),
+            ],
+          },
+        ),
+      )) === 1
+    );
+  }
+  async claimWizardRetry(
+    owner: string,
+    org: string,
+    current: WizardStateDto,
+  ): Promise<WizardStateDto | null> {
+    if (current.phase !== "uncertain" || current.applicationId) return null;
+    const next = {
+      ...current,
+      phase: "creating" as const,
+      attemptId: randomUUID(),
+      startedAt: this.now(),
+    };
+    return (await this.replaceWizard(owner, org, current, next)) ? next : null;
+  }
+  async removeWizard(
+    owner: string,
+    org: string,
+    state: WizardStateDto,
+  ): Promise<boolean> {
+    return (
+      (await this.dependency(() =>
+        this.redis.eval(
+          "if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end; return redis.call('DEL',KEYS[1])",
+          {
+            keys: [this.wizardKey(owner, org)],
+            arguments: [JSON.stringify(WizardState.parse(state))],
+          },
+        ),
+      )) === 1
+    );
   }
   async createLoginTransaction(
     returnTo: string,

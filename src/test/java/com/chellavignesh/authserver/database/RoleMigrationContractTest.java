@@ -31,7 +31,7 @@ class RoleMigrationContractTest {
             sql.update("INSERT Person.ProfileGroup(ProfileId,OrganizationGroupId) VALUES(?,1),(?,2)",profile,profile);
             var members=sql.queryForList("SELECT * FROM Person.ProfileGroup ORDER BY ProfileGroupId");
             var profiles=sql.queryForList("SELECT * FROM Person.Profile ORDER BY ProfileId");
-            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
             assertThat(sql.queryForMap("SELECT RowGuid,GroupName,GroupTemplateId FROM Partner.OrganizationGroup WHERE OrganizationGroupId=1")).isEqualTo(builtin);
             assertThat(sql.queryForList("SELECT GroupTemplateId,RowGuid FROM dbo.GroupTemplate ORDER BY GroupTemplateId")).isEqualTo(templateIds);
             assertThat(sql.queryForList("SELECT OrganizationGroupPermissionId,RowGuid,PermissionKey FROM Partner.OrganizationGroupPermission WHERE OrganizationGroupPermissionId<=? ORDER BY OrganizationGroupPermissionId",permissionIds.size())).isEqualTo(permissionIds);
@@ -68,7 +68,7 @@ class RoleMigrationContractTest {
             var memberships=sql.queryForList("SELECT * FROM Person.ProfileOrganization ORDER BY ProfileOrganizationId");
             var groups=sql.queryForList("SELECT * FROM Person.ProfileGroup ORDER BY ProfileGroupId");
             var permissions=sql.queryForList("SELECT * FROM Partner.OrganizationGroupPermission ORDER BY OrganizationGroupPermissionId");
-            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+            var flyway=Flyway.configure().dataSource(ds).load();assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
             assertThat(sql.queryForList("SELECT * FROM Person.Profile ORDER BY ProfileId")).isEqualTo(profiles);
             assertThat(sql.queryForList("SELECT * FROM Person.Credential ORDER BY Id")).usingRecursiveComparison().isEqualTo(credentials);
             assertThat(sql.queryForList("SELECT * FROM Person.ProfileOrganization ORDER BY ProfileOrganizationId")).isEqualTo(memberships);

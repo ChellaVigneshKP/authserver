@@ -130,3 +130,13 @@ Password transactions acquire the existing management lock, then `authserver:cre
 Focused upgrade evidence: `HostedAccountMigrationTest` populates V14 credential/profile/audit rows, compares business-row digests after V15, validates migration and proves repeat migration performs zero work. Historical RoleMigrationContract13→14 remains explicitly targeted to14; latest migration counts now include15. Full final gate and browser evidence are recorded separately in the F2 report.
 
 The F2 review fixes require no additional migration or data rewrite. Exact username/source authentication captures the stable credential GUID with the same password/version SQL row, and portal context uses reserved top-level `login_guid` correlated with current SQL identity. Reserved token metadata UUIDs are canonical even if custom metadata stores the same keys. An old-version hash-upgrade failure now ends that sign-in with503 before any new session; no automatic write retry or fallback encoder is added. The unchanged legacy V2 writer/audit ambiguity, its PasswordEncoderManager consumer and username-reuse/session-revocation closure remain mandatory F4 work, as recorded in the task brief and final-review carryovers.
+
+
+### V16 client token settings readback
+
+`V16__Application_refresh_reuse_readback.sql` adds persisted `ReuseRefreshTokens` to the first result set of `Client.GetApplicationDetailById`, preserving existing columns and the username-criteria second result set. No existing row or published migration is rewritten. Application detail exposes nullable `reuseRefreshTokens`; the portal reads it instead of assuming a default.
+
+Resource assignment identifier clarification: the existing application-resource list `id` is already the public catalog GUID, not the SQL assignment row GUID. The portal maps it explicitly to `catalogResourceId` and drops inherited numeric SQL identifiers. Removal uses that public catalog GUID; this documentation correction does not change the legacy wire response.
+
+
+`ClientSettingsMigrationTest` qualifies populated V15→V16 preservation of client/token/username rows, both existing result sets, persisted true/false reuse and zero-work repeat migration. The historical V14→V15 hosted test now pins15; V13→V14 remains pinned14, while latest-version tests include16. The current118-check F3 browser campaign additionally verifies real settings write/readback and unchanged owned data across upgrade/repeat startup; see [ACCEPTANCE.md](ACCEPTANCE.md). No schema downgrade or data rewrite is part of frontend rollback.

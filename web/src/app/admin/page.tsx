@@ -32,12 +32,20 @@ export default async function Administration({
       </PortalShell>
     );
   const areas = [
-    { name: "Clients", permission: "idp-admin-app:read" },
+    {
+      name: "Clients",
+      permission: "idp-admin-app:read",
+      href: "/admin/organizations/" + selected + "/clients",
+    },
     { name: "Users", permission: "idp-admin-user:read" },
     { name: "Administrators", permission: "idp-admin-admin:read" },
     { name: "Roles", permission: "idp-admin-group:read" },
     { name: "Organization", permission: "idp-admin-org:read" },
-    { name: "Resource catalog", permission: "idp-admin-resource:read" },
+    {
+      name: "Resource catalog",
+      permission: "idp-admin-resource:read",
+      href: "/admin/resources",
+    },
   ].filter((item) => canShow(context, item.permission, selected));
   return (
     <PortalShell context={context}>
@@ -123,7 +131,15 @@ export default async function Administration({
         {areas.length ? (
           <Box component="ul" sx={{ m: 0, pl: 3 }}>
             {areas.map((item) => (
-              <li key={item.permission}>{item.name}</li>
+              <li key={item.permission}>
+                {"href" in item ? (
+                  <Button component="a" href={item.href}>
+                    {item.name}
+                  </Button>
+                ) : (
+                  item.name
+                )}
+              </li>
             ))}
           </Box>
         ) : (

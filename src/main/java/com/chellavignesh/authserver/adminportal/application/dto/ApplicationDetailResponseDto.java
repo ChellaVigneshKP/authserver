@@ -28,6 +28,7 @@ public class ApplicationDetailResponseDto {
     private Integer deviceCodeTimeToLive;
     private Integer refreshTokenTimeToLive;
     private Integer maxRequestTransitTime;
+    private Boolean reuseRefreshTokens;
     private UsernameTypeEnum usernameType;
     private Boolean allowForgotUsername;
     private List<ForgotUsernameSettingResponseDto> forgotUsernameSettings;
@@ -57,6 +58,7 @@ public class ApplicationDetailResponseDto {
                 a.getDeviceCodeTimeToLive(),
                 a.getRefreshTokenTimeToLive(),
                 a.getMaxRequestTransitTime(),
+                a.getReuseRefreshTokens(),
                 a.getUsernameType(),
                 a.getAllowForgotUsername(),
                 forgotUsernameSettings,

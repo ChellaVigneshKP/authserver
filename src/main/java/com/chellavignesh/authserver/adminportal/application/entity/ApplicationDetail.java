@@ -33,6 +33,7 @@ public class ApplicationDetail {
     private Integer deviceCodeTimeToLive;
     private Integer refreshTokenTimeToLive;
     private Integer maxRequestTransitTime;
+    private Boolean reuseRefreshTokens;
     private UsernameTypeEnum usernameType;
     private Boolean allowForgotUsername;
     private ArrayList<UsernameLookupCriteria> usernameLookupCriteria;
@@ -57,6 +58,8 @@ public class ApplicationDetail {
         app.setDeviceCodeTimeToLive(result.getInt("DeviceCodeTimeToLive"));
         app.setRefreshTokenTimeToLive(result.getInt("RefreshTokenTimeToLive"));
         app.setMaxRequestTransitTime(result.getInt("MaxRequestTransitTime"));
+        app.setReuseRefreshTokens(result.getBoolean("ReuseRefreshTokens"));
+        if (result.wasNull()) app.setReuseRefreshTokens(null);
         app.setPinTimeToLive(result.getInt("PinTimeToLive"));
 
         int retrievedUsernameType = result.getInt("UsernameType");
