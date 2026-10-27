@@ -173,6 +173,21 @@ public class ManagementAccessPolicy {
         return allowed(() -> { requireUserCreation(authentication, org, group); return true; });
     }
 
+    /** Audit identity for the existing, authorized schema-sync path only. */
+    public com.chellavignesh.authserver.adminportal.user.ReactivationAuditActor reactivationActor(
+            Authentication authentication, UUID organization, UUID member) {
+        requireUserCreation(authentication, organization, null);
+        requireUserCreationTarget(authentication, organization, member);
+        if (!isMachine(authentication)) {
+            return com.chellavignesh.authserver.adminportal.user.ReactivationAuditActor.human(
+                    actorForAccess(authentication).userId());
+        }
+        machineOrganization(authentication);
+        String client = principal(authentication).getAttribute("client_id");
+        var application = applications.getByClientId(client).orElseThrow(ManagementAccessPolicy::denied);
+        return com.chellavignesh.authserver.adminportal.user.ReactivationAuditActor.machine(application.getRowGuid());
+    }
+
     public void requireUserCreation(Authentication authentication, UUID org, UUID group) {
         if (org == null) throw denied();
         requireOrganizationScope(authentication, org);

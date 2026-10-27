@@ -52,11 +52,9 @@ public class CredentialAuthenticationLock {
 
     /** A lookup before the lock chooses only its key; authority is re-read after acquiring it. */
     public void lockForHumanSession(AuthSession session) {
-        var before = identity(session.getSubjectId(), session.getBranding());
-        acquire(before.loginId());
-        if (!before.loginId()
-                .equals(identity(session.getSubjectId(), session.getBranding()).loginId()))
-            throw stale();
+        if (session.getLoginId() == null) throw stale();
+        acquire(session.getLoginId());
+        if (!session.getLoginId().equals(identity(session.getSubjectId(),session.getBranding()).loginId())) throw stale();
     }
 
     @Transactional(rollbackFor = Exception.class)

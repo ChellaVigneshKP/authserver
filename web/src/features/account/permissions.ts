@@ -14,6 +14,8 @@ const actions = new Set([
   "idp-admin-app:assign-resource",
   "idp-admin-user:read",
   "idp-admin-admin:read",
+  "idp-admin-admin:update",
+  "idp-admin-admin:delete",
   "idp-admin-user:create",
   "idp-admin-user:update",
   "idp-admin-user:delete",

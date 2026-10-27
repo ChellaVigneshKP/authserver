@@ -32,6 +32,7 @@ public class HostedAccountRevocationRepository {
                                         rs.getString("SourceCode")));
         if (targets.size() != 1) throw HostedAccountFailure.denied();
         var parameters = new HashMap<String, Object>(targets.getFirst());
+        parameters.put("login", loginId.toString());
         parameters.put("inactive", AuthSessionStatusEnum.INACTIVE.getValue());
         // Interactive/recovery sessions have canonical branding; machine sessions do not.
         // Spring grants additionally require non-machine type and exact session/client/principal
@@ -44,38 +45,34 @@ public class HostedAccountRevocationRepository {
                 JOIN Token.AuthSession auth ON TRY_CONVERT(UNIQUEIDENTIFIER,
                   JSON_VALUE(CASE WHEN ISJSON(grantState.attributes)=1 THEN grantState.attributes ELSE N'{}' END,:bindingPath))=auth.SessionId
                 JOIN Client.Application client ON client.ApplicationId=auth.ApplicationId
-                WHERE auth.SubjectId=:username AND auth.Branding=:source
+                WHERE auth.LoginId=:login
                   AND grantState.principal_name=auth.SubjectId AND grantState.registered_client_id=client.ClientId
                   AND grantState.authorization_grant_type<>'client_credentials'
                 """,
                 parameters);
         sql.update(
                 "DELETE cookie FROM Token.SSO cookie JOIN Token.AuthSession auth ON"
-                    + " auth.SessionId=cookie.SessionId WHERE auth.SubjectId=:username AND"
-                    + " auth.Branding=:source",
+                    + " auth.SessionId=cookie.SessionId WHERE auth.LoginId=:login",
                 parameters);
         sql.update(
                 "UPDATE token SET ConsumedOn=COALESCE(token.ConsumedOn,SYSUTCDATETIME()) FROM"
                     + " Token.Token token JOIN Token.AuthSession auth ON"
-                    + " auth.SessionId=token.SessionId WHERE auth.SubjectId=:username AND"
-                    + " auth.Branding=:source",
+                    + " auth.SessionId=token.SessionId WHERE auth.LoginId=:login",
                 parameters);
         sql.update(
                 "UPDATE code SET ConsumedOn=COALESCE(code.ConsumedOn,SYSUTCDATETIME()) FROM"
                     + " Token.AuthCode code JOIN Token.AuthSession auth ON"
-                    + " auth.SessionId=code.SessionId WHERE auth.SubjectId=:username AND"
-                    + " auth.Branding=:source",
+                    + " auth.SessionId=code.SessionId WHERE auth.LoginId=:login",
                 parameters);
         sql.update(
                 "UPDATE proof SET ConsumedOn=COALESCE(proof.ConsumedOn,SYSUTCDATETIME()) FROM"
                     + " Token.Pkce proof JOIN Token.AuthSession auth ON"
-                    + " auth.SessionId=proof.SessionId WHERE auth.SubjectId=:username AND"
-                    + " auth.Branding=:source",
+                    + " auth.SessionId=proof.SessionId WHERE auth.LoginId=:login",
                 parameters);
         sql.update(
                 "UPDATE Token.AuthSession SET"
                     + " AuthSessionStatusId=:inactive,ModifiedOn=SYSUTCDATETIME() WHERE"
-                    + " SubjectId=:username AND Branding=:source",
+                    + " LoginId=:login",
                 parameters);
     }
 }

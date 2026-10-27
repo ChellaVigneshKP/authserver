@@ -134,7 +134,7 @@ public class ChangeUserProfileController {
         if (changeProfileDto != null) {
             request.getSession().removeAttribute("changeProfileDto");
         } else {
-            UserDetails userDetails = userService.getByUsernameAndBranding(session.getSubjectId(), session.getBranding()).orElseThrow(() -> new InvalidUserSessionException("User not found"));
+            UserDetails userDetails = userService.getByLoginId(session.getLoginId()).orElseThrow(() -> new InvalidUserSessionException("User not found"));
 
             changeProfileDto = new ChangeProfileDto();
             changeProfileDto.setFirstName(userDetails.firstName());
@@ -277,7 +277,7 @@ public class ChangeUserProfileController {
         try {
             String branding = authSession.getBranding();
 
-            var userDetails = userService.getByUsernameAndBranding(authSession.getSubjectId(), branding).orElseThrow(() -> new UserNotFoundException("User not found"));
+            var userDetails = userService.getByLoginId(authSession.getLoginId()).orElseThrow(() -> new UserNotFoundException("User not found"));
 
             String primaryPhone = changeProfileDto.getPhoneNumber();
             changeProfileDto.setPhoneNumber(PhoneNumberUtil.transformPhoneNumberToE164(primaryPhone));

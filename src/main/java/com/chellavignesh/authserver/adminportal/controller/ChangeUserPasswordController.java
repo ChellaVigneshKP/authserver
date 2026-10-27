@@ -127,7 +127,7 @@ public class ChangeUserPasswordController {
             throw new InvalidUserSessionException("Error while validating the request");
         }
 
-        userService.getByUsernameAndBranding(session.getSubjectId(), session.getBranding()).orElseThrow(() -> new InvalidUserSessionException("User not found"));
+        userService.getByLoginId(session.getLoginId()).orElseThrow(() -> new InvalidUserSessionException("User not found"));
 
         String surl = parameters.get(SOURCE_RELATIVE_PATH_PARAMETER);
         String mt = parameters.get(METADATA_PARAMETER);
@@ -250,7 +250,7 @@ public class ChangeUserPasswordController {
         }
 
         try {
-            UserAuthDetails userAuthDetails = userService.getUserAuthDetailsByUsernameAndExternalSourceCode(authSession.getSubjectId(), authSession.getBranding()).orElseThrow(() -> new UserNotFoundException("User not found."));
+            UserAuthDetails userAuthDetails = userService.getAuthDetailsByLoginId(authSession.getLoginId()).orElseThrow(() -> new UserNotFoundException("User not found."));
 
             // Validate current password
             if (!passwordEncoderFactory.matches(changePasswordDto.getCurrentPassword(), userAuthDetails.getPassword(), userAuthDetails.getVersion())) {
@@ -274,9 +274,9 @@ public class ChangeUserPasswordController {
             dto.setPassword(changePasswordDto.getNewPassword());
             dto.setBranding(authSession.getBranding());
 
-            passwordValidatorService.validatePassword(dto.getPassword(), userAuthDetails.getRowGuid());
+            passwordValidatorService.validatePasswordForLogin(dto.getPassword(), authSession.getLoginId());
 
-            var userDetails = userService.getByUsernameAndBranding(authSession.getSubjectId(), authSession.getBranding()).orElseThrow(() -> new UserNotFoundException("User not found"));
+            var userDetails = userService.getByLoginId(authSession.getLoginId()).orElseThrow(() -> new UserNotFoundException("User not found"));
 
             String clientId = getClientIdFromRequestSession(request);
             Application application = forgotPasswordService.checkClientId(clientId).get();
@@ -307,13 +307,13 @@ public class ChangeUserPasswordController {
 
                 Map<String, String> sourceHeaders = Map.of(ApplicationConstants.REQUEST_ID_HEADER, requestId, ApplicationConstants.AUTHORIZATION_HEADER, authHeader, ApplicationConstants.REQUEST_DATETIME_HEADER, requestDatetime);
 
-                userService.updatePasswordAndNotify(dto, userDetails.rowGuid(), false, sourceHeaders);
+                userService.updatePasswordForLoginAndNotify(dto, userDetails.rowGuid(), authSession.getLoginId(), false, sourceHeaders);
 
             } else {
-                userService.updatePassword(dto, userDetails.rowGuid());
+                userService.updatePasswordForLogin(dto, userDetails.rowGuid(), authSession.getLoginId(), false);
             }
 
-        } catch (UserNotFoundException | UserUpdateFailedException | InvalidBrandingException | AccountSyncException e) {
+        } catch (UserNotFoundException | UserUpdateFailedException | AccountSyncException e) {
             return this.redirectToChangePasswordPageWithError(request, surl, mt, "Something went wrong. Please try again.", authSession.getBranding());
         } catch (PasswordValidationException e) {
             return this.redirectToChangePasswordPageWithError(request, surl, mt, e.getMessage(), authSession.getBranding());

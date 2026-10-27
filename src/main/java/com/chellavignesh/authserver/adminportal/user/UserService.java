@@ -46,9 +46,11 @@ public class UserService {
     private final GlobalConfigCache globalConfigCache;
     private final OnPremAccountServiceClient onPremAccountService;
     private final AccountSyncType accountSyncType;
+    private final CredentialMutationService credentialMutations;
+    private final com.chellavignesh.authserver.adminportal.util.SecurityUtil securityUtil;
 
     @Autowired
-    public UserService(UserRepository userRepository, ExternalSourceService externalSourceService, PasswordEncoderFactory passwordEncoderFactory, NotificationService notificationService, GlobalConfigCache globalConfigCache, OnPremAccountServiceClient onPremAccountService, @Value("${toggles.account.sync.type:none}") AccountSyncType accountSyncType) {
+    public UserService(UserRepository userRepository, ExternalSourceService externalSourceService, PasswordEncoderFactory passwordEncoderFactory, NotificationService notificationService, GlobalConfigCache globalConfigCache, OnPremAccountServiceClient onPremAccountService, @Value("${toggles.account.sync.type:none}") AccountSyncType accountSyncType, CredentialMutationService credentialMutations, com.chellavignesh.authserver.adminportal.util.SecurityUtil securityUtil) {
         this.userRepository = userRepository;
         this.externalSourceService = externalSourceService;
         this.passwordEncoderFactory = passwordEncoderFactory;
@@ -56,6 +58,8 @@ public class UserService {
         this.globalConfigCache = globalConfigCache;
         this.onPremAccountService = onPremAccountService;
         this.accountSyncType = accountSyncType;
+        this.credentialMutations = credentialMutations;
+        this.securityUtil = securityUtil;
     }
 
     public UserResponseDto toResponse(UserDetails user) {
@@ -112,7 +116,7 @@ public class UserService {
         return user;
     }
 
-    public User createOrReactivateUser(CreateUserProfileDto createUserProfileDto, CreateUserDto createUserDto, Map<String, String> sourceHeaders, ExternalSource externalSource, CreateUserNotificationConfig notificationConfig) throws UserSyncFailedException, InvalidBrandingException, UserCreationFailedException {
+    public User createOrReactivateUser(CreateUserProfileDto createUserProfileDto, CreateUserDto createUserDto, Map<String, String> sourceHeaders, ExternalSource externalSource, CreateUserNotificationConfig notificationConfig, ReactivationAuditActor actualActor) throws UserSyncFailedException, InvalidBrandingException, UserCreationFailedException {
 
         var includeIdpSyncDttm = !Objects.requireNonNullElse(createUserProfileDto.getProfile().getIdpSyncDttm(), "").isEmpty();
         var deletedUserOptional = getByGuidAndBranding(createUserDto.getMemberId(), externalSource.getSourceCode());
@@ -123,7 +127,7 @@ public class UserService {
 
         if ((includeIdpSyncDttm && deletedUserOptional.isPresent()) && deletedUserOptional.get().status() == UserStatus.Inactive) {
             log.info("Inactive user found in idp database. Attempting to reactivate.");
-            return reactivateAccountWithPasswordAndNotify(createUserProfileDto, deletedUserOptional.get().rowGuid(), externalSource, LibCryptoPasswordEncoder.ENCODER_ID, 1, notificationConfig, createUserProfileDto.getIntent(), sourceHeaders);
+            return reactivateAccountWithPasswordAndNotify(createUserProfileDto, deletedUserOptional.get().rowGuid(), externalSource, LibCryptoPasswordEncoder.ENCODER_ID, 1, notificationConfig, createUserProfileDto.getIntent(), sourceHeaders, actualActor);
         } else if (!includeIdpSyncDttm && deletedUserOptional.isPresent() && deletedUserOptional.get().status() == UserStatus.Inactive) {
             log.error("IdpSyncDto intent is not null & deleted user found in idp database. Could not complete request.");
             throw new UserSyncFailedException("Error with profile creation.");
@@ -131,6 +135,18 @@ public class UserService {
             // Create new user
             return create(createUserDto, 0, true, createUserProfileDto.getIntent(), sourceHeaders, notificationConfig);
         }
+    }
+
+    /** Only the configured provider lookup calls this entry, before password authentication. */
+    public User syncFromAuthoritativeSource(String requestedUsername, CreateUserProfileDto response,
+            CreateUserDto mapped, Map<String,String> headers, ExternalSource source,
+            CreateUserNotificationConfig notifications) throws UserSyncFailedException, InvalidBrandingException, UserCreationFailedException {
+        if (response.getCredential() == null || !Objects.equals(requestedUsername,response.getCredential().getUsername())
+                || !Objects.equals(source.getSourceCode(),response.getBranding())
+                || !Objects.equals(response.getOrgId(),mapped.getOrgGuid())) {
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        }
+        return createOrReactivateUser(response,mapped,headers,source,notifications,ReactivationAuditActor.source(source.getSourceId()));
     }
 
     private void validateIfUserExists(CreateUserDto dto, final String branding, @NotNull ExternalSource externalSource, String notificationIntent, Map<String, String> headers, CreateUserNotificationConfig notificationConfig) {
@@ -190,11 +206,11 @@ public class UserService {
         }
     }
 
-    public User reactivateAccountWithPasswordAndNotify(CreateUserProfileDto dto, UUID userGuid, ExternalSource externalSource, int passwordVersion, int unlockAccount, CreateUserNotificationConfig notificationConfig, @NotNull String notificationIntent, Map<String, String> sourceHeaders) throws UserSyncFailedException {
+    public User reactivateAccountWithPasswordAndNotify(CreateUserProfileDto dto, UUID userGuid, ExternalSource externalSource, int passwordVersion, int unlockAccount, CreateUserNotificationConfig notificationConfig, @NotNull String notificationIntent, Map<String, String> sourceHeaders, ReactivationAuditActor actualActor) throws UserSyncFailedException {
 
         String password = UserDtoMapper.assemblePassword(dto.getCredential().getPasswordHash(), dto.getCredential().getcIndex());
         dto.getCredential().setPasswordHash(password);
-        User user = userRepository.reactivateAccountWithPassword(dto, userGuid, externalSource.getSourceId(), passwordVersion, unlockAccount);
+        User user = userRepository.reactivateAccountWithPassword(dto, userGuid, externalSource.getSourceId(), passwordVersion, unlockAccount, actualActor);
 
         notifyProfileSync(user, externalSource, notificationIntent, sourceHeaders, notificationConfig);
 
@@ -383,9 +399,10 @@ public class UserService {
         return user;
     }
 
-    public User updateUsername(UpdateUsernameDto dto, UUID userGuid, ExternalSource externalSource, Map<String, String> sourceHeaders) throws UserUpdateFailedException {
+    @org.springframework.transaction.annotation.Transactional(rollbackFor=Exception.class)
+    public User updateUsername(UpdateUsernameDto dto, UUID userGuid, UUID loginId, ExternalSource externalSource, Map<String, String> sourceHeaders) throws UserUpdateFailedException {
 
-        User user = userRepository.updateUsername(dto, userGuid, externalSource.getSourceId());
+        User user = credentialMutations.rename(userGuid, externalSource.getSourceCode(), loginId, dto.getUsername(), requireManagementActor());
         if (user == null) {
             throw new UserUpdateFailedException("Failed to update user password.");
         }
@@ -395,23 +412,54 @@ public class UserService {
         return user;
     }
 
+    private UUID requireManagementActor() {
+        UUID actor=securityUtil.getTokenUserGuid();
+        if(actor==null)throw new org.springframework.security.access.AccessDeniedException("An authenticated audit actor is required.");
+        return actor;
+    }
+
     private User savePasswordWithExternalSource(UpdateUserPasswordDto dto, UUID userGuid, ExternalSource externalSource, boolean unlockAccount) throws UserUpdateFailedException {
+        return credentialMutations.password(userGuid, externalSource == null ? null : externalSource.getSourceCode(), null, dto.getPassword(), unlockAccount, requireManagementActor());
+    }
 
-        UUID externalId;
-        if (externalSource == null) {
-            externalId = null;
-        } else {
-            externalId = externalSource.getSourceId();
-        }
+    public User updatePasswordForLogin(UpdateUserPasswordDto dto, UUID userGuid, UUID loginId, boolean unlockAccount) {
+        return credentialMutations.password(userGuid, dto.getBranding(), loginId, dto.getPassword(), unlockAccount, userGuid);
+    }
 
-        Integer disallowedRecentPasswordCount = globalConfigCache.getGlobalConfig(GlobalConfigTypeEnum.DISALLOWED_RECENT_PASSWORD_COUNT);
+    public User updatePasswordForLoginAndNotify(NotifiableUpdateUserPasswordDto dto, UUID userGuid, UUID loginId, boolean unlock, Map<String,String> headers) throws UserUpdateFailedException {
+        var branding=resolveBrandingFrom(dto);
+        var user=credentialMutations.password(userGuid,branding.getSourceCode(),loginId,dto.getPassword(),unlock,userGuid);
+        notificationService.send(NotificationContext.createFor(dto,branding,user,headers),
+                (channel,context)->channel.notifyPasswordChange(context,dto.getPassword()));
+        return user;
+    }
 
-        return userRepository.updatePassword(dto, userGuid, passwordEncoderFactory.encode(Base64.getEncoder().encodeToString(dto.getPassword().getBytes())), PasswordEncoderFactory.currentVersion, externalId, unlockAccount, disallowedRecentPasswordCount);
+    public Optional<UserAuthDetails> getAuthDetailsByLoginId(UUID loginId) {
+        return userRepository.getAuthDetailsByLoginId(loginId);
+    }
+
+    public Optional<UserDetails> getManagementDetails(UUID profileId,UUID loginId) {
+        return userRepository.getManagementDetails(profileId,loginId);
+    }
+    public UUID lockCredentialForMutation(UUID profileId,String branding,UUID selected) {
+        return credentialMutations.lock(profileId,branding,selected);
+    }
+    public User updateManagementPassword(UpdateUserPasswordDto dto,UUID profileId,UUID selected) {
+        return credentialMutations.password(profileId,dto.getBranding(),selected,dto.getPassword(),false,requireManagementActor());
+    }
+    public User updateManagementPasswordAndNotify(NotifiableUpdateUserPasswordDto dto,UUID profileId,UUID selected,Map<String,String> headers) throws UserUpdateFailedException {
+        var branding=resolveBrandingFrom(dto);
+        var user=credentialMutations.password(profileId,branding.getSourceCode(),selected,dto.getPassword(),false,requireManagementActor());
+        notificationService.send(NotificationContext.createFor(dto,branding,user,headers),(channel,context)->channel.notifyPasswordChange(context,dto.getPassword()));
+        return user;
+    }
+
+    public UUID resolvePasswordLogin(UUID profileId, String branding) {
+        return credentialMutations.resolve(profileId, branding, null);
     }
 
     public User savePassword(UpdateUserPasswordDto dto, UUID userGuid, boolean unlockAccount) throws UserUpdateFailedException {
-        Integer disallowedRecentPasswordCount = globalConfigCache.getGlobalConfig(GlobalConfigTypeEnum.DISALLOWED_RECENT_PASSWORD_COUNT);
-        return userRepository.updatePassword(dto, userGuid, passwordEncoderFactory.encode(Base64.getEncoder().encodeToString(dto.getPassword().getBytes())), PasswordEncoderFactory.currentVersion, unlockAccount, disallowedRecentPasswordCount);
+        return credentialMutations.password(userGuid, dto.getBranding(), null, dto.getPassword(), unlockAccount, requireManagementActor());
     }
 
     // fetches only Active users(Person.Profile.Status = 1)

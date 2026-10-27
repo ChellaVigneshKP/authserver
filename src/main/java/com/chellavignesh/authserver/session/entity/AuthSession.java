@@ -23,6 +23,7 @@ public class AuthSession {
     private Integer applicationId;
     private UUID sessionId;
     private String subjectId;
+    private UUID loginId;
     private Set<String> scopes;
     private AuthSessionStatusEnum authSessionStatus;
     private AuthFlowEnum authFlow;
@@ -36,6 +37,8 @@ public class AuthSession {
             authSession.setApplicationId(result.getInt("ApplicationId"));
             authSession.setSessionId(UUID.fromString(result.getString("SessionId")));
             authSession.setSubjectId(result.getString("SubjectId"));
+            String login = result.getString("LoginId");
+            authSession.setLoginId(login == null ? null : UUID.fromString(login));
             String scope = result.getString("Scope");
             authSession.setScopes(scope == null || scope.isBlank() ? Set.of()
                     : Arrays.stream(scope.trim().split("\\s+")).collect(Collectors.toSet()));

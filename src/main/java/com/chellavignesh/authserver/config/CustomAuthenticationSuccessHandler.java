@@ -92,7 +92,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         try {
             authSession = credentialAuthenticationLock.createInteractiveSession(userDetails, branding, () -> {
                 upgradePasswordVersion(request, authentication, branding);
-                return createAuthSession(session, savedRequest, userDetails.getUsername());
+                return createAuthSession(session, savedRequest, userDetails.getUsername(), userDetails.getLoginId());
             });
         } catch (org.springframework.security.core.AuthenticationException stale) {
             SecurityContextHolder.clearContext();
@@ -184,7 +184,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         passwordEncoderManager.processPassword(authentication, password, branding);
     }
 
-    AuthSession createAuthSession(HttpSession session, SavedRequest savedRequest, String userName) throws BadRequestException{
+    AuthSession createAuthSession(HttpSession session, SavedRequest savedRequest, String userName, java.util.UUID loginId) throws BadRequestException{
 
         Map<String, String[]> params = savedRequest.getParameterMap();
 
@@ -201,6 +201,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         CreateAuthSessionDto dto = new CreateAuthSessionDto();
         dto.setApplicationId(application.get().getId());
         dto.setSubjectId(userName);
+        dto.setLoginId(loginId);
         dto.setScope(scopes);
         dto.setAuthFlow(application.get().getAuthFlow());
         dto.setClientFingerprint(getClientFingerprint(session));

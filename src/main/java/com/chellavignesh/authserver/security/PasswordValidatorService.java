@@ -58,12 +58,16 @@ public class PasswordValidatorService {
             PasswordIncorrectSemanticException,
             PasswordRecentlyUsedException {
 
-        UserDetails data = userService.getByGuid(userGuid).orElseThrow();
+        return validatePasswordForLogin(password, userService.resolvePasswordLogin(userGuid, null));
+    }
 
+    public boolean validatePasswordForLogin(String password, UUID loginId)
+            throws PasswordBlackListedException, PasswordInvalidSyntaxException, PasswordIncorrectSemanticException, PasswordRecentlyUsedException {
+        UserDetails data = userService.getByLoginId(loginId).orElseThrow();
         return validatePassword(password)
                 && validSemantic(password, data.username(), data.firstName(), data.lastName(), data.email())
                 && passwordNotBlackListed(password)
-                && validateRecentUsages(password, userGuid);
+                && validateRecentUsagesForLogin(password, loginId);
     }
 
     /**
@@ -78,9 +82,11 @@ public class PasswordValidatorService {
     public boolean validateRecentUsages(String password, UUID userGuid)
             throws PasswordRecentlyUsedException {
 
-        UserDetails data = userService.getByGuid(userGuid).orElseThrow();
+        return validateRecentUsagesForLogin(password, userService.resolvePasswordLogin(userGuid, null));
+    }
 
-        List<PasswordHistoryData> passwordHistoryData = passwordHistoryRepository.getHistoricPasswords(data.id());
+    public boolean validateRecentUsagesForLogin(String password, UUID loginId) throws PasswordRecentlyUsedException {
+        List<PasswordHistoryData> passwordHistoryData = passwordHistoryRepository.getHistoricPasswordsForLogin(loginId);
         if (passwordHistoryData.isEmpty()) {
             return true;
         }

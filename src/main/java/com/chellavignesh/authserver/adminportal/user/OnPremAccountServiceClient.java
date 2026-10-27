@@ -180,16 +180,10 @@ public class OnPremAccountServiceClient {
             requestId = UUID.randomUUID().toString();
         }
 
+        String syncSchema = resolveSyncSchema(branding);
+
         try {
             log.info("Syncing profile for user: {}", userDetails.loginId());
-
-            var externalSource = externalSourceService.findBySourceCode(branding).orElseThrow(() -> new InvalidBrandingException("External source record not found for brand: %s".formatted(branding)));
-
-            String syncSchema = externalSource.getExternalType().syncSchema();
-
-            if (StringUtils.isEmpty(syncSchema)) {
-                throw new InvalidBrandingException("Invalid Sync schema: %s, branding: %s".formatted(syncSchema, branding));
-            }
 
             UserProfileSyncPayload profileSyncPayload = this.createProfileSyncPayload(userDetails, dto, branding, metadata);
 
@@ -240,15 +234,9 @@ public class OnPremAccountServiceClient {
             requestId = UUID.randomUUID().toString();
         }
 
+        String syncSchema = resolveSyncSchema(branding);
+
         try {
-            var externalSource = externalSourceService.findBySourceCode(branding).orElseThrow(() -> new InvalidBrandingException("External source record not found for brand: %s".formatted(branding)));
-
-            String syncSchema = externalSource.getExternalType().syncSchema();
-
-            if (StringUtils.isEmpty(syncSchema)) {
-                throw new InvalidBrandingException("Invalid Sync schema: %s, branding: %s".formatted(syncSchema, branding));
-            }
-
             UserPasswordSyncPayload passwordSyncPayload = this.createPasswordSyncPayload(userDetails, newPassword, branding, metadata);
 
             var accessToken = authClient.getAccessToken();
@@ -265,6 +253,21 @@ public class OnPremAccountServiceClient {
         } catch (Exception ex) {
             throw new AccountSyncException("Failed to sync password changes with downstream systems", ex);
         }
+    }
+
+    /**
+     * The downstream sync provider is server configuration, not caller input: a missing source or
+     * schema is an unavailable dependency. It must not surface as an invalid-branding client error.
+     */
+    private String resolveSyncSchema(String branding) throws AccountSyncException {
+        var externalSource = externalSourceService.findBySourceCode(branding)
+                .orElseThrow(() -> new AccountSyncException("Sync provider is not configured for brand: " + branding));
+        String syncSchema = externalSource.getExternalType().syncSchema();
+        if (StringUtils.isEmpty(syncSchema)) {
+            log.warn("Sync provider has no sync schema configured for brand: {}", branding);
+            throw new AccountSyncException("Sync provider is not configured for brand: " + branding);
+        }
+        return syncSchema;
     }
 
     private UserPasswordSyncPayload createPasswordSyncPayload(UserDetails userDetails, String newPassword, String branding, OutgoingMetadataDto metadata) {

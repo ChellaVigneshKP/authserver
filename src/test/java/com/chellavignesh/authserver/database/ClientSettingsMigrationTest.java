@@ -45,7 +45,7 @@ class ClientSettingsMigrationTest {
                 int id=applications.create(1,app,settings,new ForgotUsernameSetting(List.of()),AccessTokenFormatEnum.REFERENCE).getId();ids.add(id);
                 sql.update("INSERT Client.ForgetUserNameSetting(OrganizationId,ApplicationId,ParamPriority,ParamJson) VALUES(1,?,0,'{\"lookupCriteria\":[\"email\"]}')",id);
             }
-            byte[] before=snapshot(sql);var flyway=Flyway.configure().dataSource(ds).load();assertEquals(1,flyway.migrate().migrationsExecuted);
+            byte[] before=snapshot(sql);var flyway=Flyway.configure().dataSource(ds).target("16").load();assertEquals(1,flyway.migrate().migrationsExecuted);
             assertTrue(Arrays.equals(before,snapshot(sql)),"V16 must preserve existing client settings and username rows");
             for(int index=0;index<ids.size();index++) {
                 var detail=applications.getApplicationDetailById(ids.get(index)).orElseThrow();assertEquals(index==1,detail.getReuseRefreshTokens());assertEquals(120,detail.getAuthCodeTimeToLive());assertEquals(1,detail.getUsernameLookupCriteria().size());

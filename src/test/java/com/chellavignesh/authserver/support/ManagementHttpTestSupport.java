@@ -64,6 +64,8 @@ public abstract class ManagementHttpTestSupport {
     @Autowired protected UserRepository users;
     @Autowired protected RedirectUriRepository redirects;
     @Autowired protected ObjectMapper mapper;
+    @Autowired protected com.chellavignesh.authserver.adminportal.application.ApplicationService registeredApplications;
+    @Autowired protected org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository registeredClients;
     @Autowired @Qualifier("redisTemplate") protected RedisTemplate<String,Object> sessionRedis;
     @Autowired @Qualifier("cacheRedisTemplate") protected RedisTemplate<String,Object> cacheRedis;
     @LocalServerPort protected int port;
@@ -94,10 +96,19 @@ public abstract class ManagementHttpTestSupport {
     }
     protected Fixture token(Application client,String subject,String scope) throws Exception {
         byte[] fingerprint=new ClientFingerprint(ZoneOffset.UTC,"en-US","PolicyIntegration/1.0",null).getBytes();
-        int session=sql.queryForObject("EXEC Token.CreateAuthSession ?,?,?,?,?,?,?",Integer.class,client.getId(),subject,scope,client.getAuthFlow().getValue(),fingerprint,client.getClientId(),"idp");
+        var logins=sql.queryForList("SELECT CONVERT(VARCHAR(36),c.RowGuid) FROM Person.Credential c JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId WHERE c.UserName=? AND e.SourceCode='idp'",String.class,subject);
+        String login=logins.size()==1?logins.getFirst():null;
+        int session=sql.queryForObject("EXEC Token.CreateAuthSession ?,?,?,?,?,?,?,?",Integer.class,client.getId(),subject,scope,client.getAuthFlow().getValue(),fingerprint,client.getClientId(),"idp",login);
         String sessionId=sql.queryForObject("SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.AuthSession WHERE AuthSessionId=?",String.class,session);
         String value="policy-"+UUID.randomUUID();byte[] key=new byte[32];new java.security.SecureRandom().nextBytes(key);
         sql.queryForObject("EXEC Token.CreateTokenWithHash ?,?,?,?,?,?,?,?,?",Integer.class,TokenTypeEnum.ACCESS_TOKEN.getValue(),client.getId(),subject,sessionId,true,value,key,600,MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        if (login == null && client.getType() == ApplicationTypeEnum.SERVER && subject.equals(client.getClientId())) {
+            var grant=org.springframework.security.oauth2.server.authorization.OAuth2Authorization.withRegisteredClient(registeredApplications.getRegisteredClientById(client.getId()))
+                    .principalName(client.getClientId()).authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.CLIENT_CREDENTIALS)
+                    .attribute(com.chellavignesh.authserver.config.JdbcOAuth2AuthorizationService.SESSION_ID,sessionId)
+                    .accessToken(new org.springframework.security.oauth2.core.OAuth2AccessToken(org.springframework.security.oauth2.core.OAuth2AccessToken.TokenType.BEARER,value,Instant.now(),Instant.now().plusSeconds(600))).build();
+            new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService(sql,registeredClients).save(grant);
+        }
         observationActors.put(value, com.chellavignesh.authserver.support.ManagementObservations.actor(sql, subject));
         return new Fixture(value,key);
     }

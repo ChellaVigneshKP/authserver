@@ -37,6 +37,7 @@ class TokenIdentityClaimsTest {
     var session = new AuthSession();
     session.setApplicationId(1);
     session.setSubjectId("second");
+    session.setLoginId(login);
     session.setBranding("idp");
     session.setScopes(Set.of("openid", "metadata", "idp-admin"));
     session.setAuthSessionStatus(AuthSessionStatusEnum.ACTIVE);
@@ -82,7 +83,7 @@ class TokenIdentityClaimsTest {
             org,
             false,
             false);
-    when(users.getByUsernameAndBranding("second", "idp")).thenReturn(Optional.of(user));
+    when(users.getByLoginId(login)).thenReturn(Optional.of(user));
     when(users.isManagementIdentityActive(profile, org, login)).thenReturn(true);
     when(users.getMetadata(profile))
         .thenReturn(

@@ -88,7 +88,7 @@ export function PortalShell({
     (o) => o.id === current.subject.organizationId,
   );
   const scope =
-    /^\/admin\/organizations\/([0-9a-f-]{36})\//i.exec(pathname)?.[1] ??
+    /^\/admin\/organizations\/([0-9a-f-]{36})(?:\/|$)/i.exec(pathname)?.[1] ??
     current.subject.organizationId;
   const navigation = (
     <Stack
@@ -120,6 +120,9 @@ export function PortalShell({
                   },
                 ]
               : []),
+            ...(admin && !failure && (canShow(current,"idp-admin-user:read",scope)||canShow(current,"idp-admin-admin:read",scope)) ? [{label:"Users",path:"/admin/organizations/"+scope+"/users"}] : []),
+            ...(admin && !failure && canShow(current,"idp-admin-org:read",scope) ? [{label:"Organization",path:"/admin/organizations/"+scope}] : []),
+            ...(admin && !failure && canShow(current,"idp-admin-org:list",scope) ? [{label:"Organizations",path:"/admin/organizations"}] : []),
             ...(admin &&
             !failure &&
             canShow(current, "idp-admin-resource:read", scope)

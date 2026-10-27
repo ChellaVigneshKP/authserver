@@ -67,6 +67,7 @@ class HostedAccountAccessPolicyTest {
         session.setSessionId(UUID.randomUUID());
         session.setApplicationId(7);
         session.setSubjectId("owned");
+        session.setLoginId(login);
         session.setBranding("idp");
         session.setAuthSessionStatus(AuthSessionStatusEnum.ACTIVE);
         session.setRedirectUri(callback.toString());
@@ -98,7 +99,7 @@ class HostedAccountAccessPolicyTest {
                         org,
                         false,
                         false);
-        when(users.getByUsernameAndBranding("owned", "idp")).thenReturn(Optional.of(user));
+        when(users.getByLoginId(login)).thenReturn(Optional.of(user));
         when(users.isManagementIdentityActive(profile, org, login)).thenReturn(true);
         when(sources.findAllByBrandingSourceCode(List.of("idp")))
                 .thenReturn(
@@ -298,8 +299,7 @@ class HostedAccountAccessPolicyTest {
                             user.profileOrgId(),
                             credential,
                             false);
-            when(users.getByUsernameAndBranding("owned", "idp"))
-                    .thenReturn(Optional.of(synchronizedUser));
+            when(users.getByLoginId(login)).thenReturn(Optional.of(synchronizedUser));
             var failure =
                     catchThrowableOfType(
                             HostedAccountFailure.class,

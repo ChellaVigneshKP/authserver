@@ -26,4 +26,12 @@ public class PasswordHistoryRepository {
                 new PasswordHistoryDataRowMapper()
         );
     }
+    public List<PasswordHistoryData> getHistoricPasswordsForLogin(java.util.UUID loginId) {
+        return namedParameterJdbcTemplate.query("""
+            SELECT CONVERT(VARCHAR(MAX),a.Password,2) AS Password,a.Version
+            FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId
+            WHERE c.RowGuid=:login
+            """,new MapSqlParameterSource("login",loginId.toString()),new PasswordHistoryDataRowMapper());
+    }
+
 }

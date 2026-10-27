@@ -73,6 +73,11 @@ public class HostedAccountPasswordRepository {
     }
 
     public void update(HostedAccountActor actor, byte[] encoded, int version, int auditLimit) {
+        update(actor,encoded,version,auditLimit,actor.profileId());
+    }
+
+    public void update(HostedAccountActor actor, byte[] encoded, int version, int auditLimit, UUID actualActor) {
+        java.util.Objects.requireNonNull(actualActor,"Password audit actor required");
         var parameters =
                 new org.springframework.jdbc.core.namedparam.MapSqlParameterSource(
                                 "login", actor.loginId().toString())
@@ -80,11 +85,11 @@ public class HostedAccountPasswordRepository {
                         .addValue("source", actor.branding())
                         .addValue("password", encoded, Types.VARBINARY)
                         .addValue("version", version)
-                        .addValue("limit", auditLimit);
+                        .addValue("limit", auditLimit).addValue("actor",actualActor.toString());
         var ids =
                 sql.query(
                         "{call"
-                            + " Person.UpdateHostedAccountPassword(:login,:member,:source,:password,:version,:limit)}",
+                            + " Person.UpdateHostedAccountPassword(:login,:member,:source,:password,:version,:limit,:actor)}",
                         parameters,
                         (rs, n) -> rs.getInt("CredentialId"));
         if (ids.size() != 1) throw HostedAccountFailure.denied();

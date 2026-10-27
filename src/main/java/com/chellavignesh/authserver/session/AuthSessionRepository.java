@@ -31,7 +31,7 @@ public class AuthSessionRepository {
 
     public AuthSession create(CreateAuthSessionDto dto) throws AuthSessionCreationFailedException {
 
-        var parameters = new MapSqlParameterSource().addValue("applicationId", dto.getApplicationId()).addValue("subjectId", dto.getSubjectId()).addValue("scope", dto.getScope()).addValue("authFlowId", dto.getAuthFlow().getValue()).addValue("clientId", dto.getClientId()).addValue("branding", dto.getBranding());
+        var parameters = new MapSqlParameterSource().addValue("applicationId", dto.getApplicationId()).addValue("subjectId", dto.getSubjectId()).addValue("scope", dto.getScope()).addValue("authFlowId", dto.getAuthFlow().getValue()).addValue("clientId", dto.getClientId()).addValue("branding", dto.getBranding()).addValue("loginId", dto.getLoginId() == null ? null : dto.getLoginId().toString());
 
         if (dto.getClientFingerprint() != null) {
             parameters.addValue("clientFingerprint", dto.getClientFingerprint());
@@ -39,7 +39,7 @@ public class AuthSessionRepository {
             parameters.addValue("clientFingerprint", null, Types.VARBINARY);
         }
 
-        Optional<Integer> sessionId = jdbcTemplate.query("{call Token.CreateAuthSession(:applicationId, :subjectId, :scope, :authFlowId, :clientFingerprint, :clientId, :branding)}", parameters, (rs, rowNum) -> rs.getInt("ID")).stream().findFirst();
+        Optional<Integer> sessionId = jdbcTemplate.query("{call Token.CreateAuthSession(:applicationId, :subjectId, :scope, :authFlowId, :clientFingerprint, :clientId, :branding, :loginId)}", parameters, (rs, rowNum) -> rs.getInt("ID")).stream().findFirst();
 
         if (sessionId.isPresent()) {
             return getById(sessionId.get()).orElseThrow(() -> new AuthSessionCreationFailedException("Created session is missing"));
@@ -93,4 +93,33 @@ public class AuthSessionRepository {
             throw new FailedToUpdateSessionException("Something went wrong while updating the session in the database", e);
         }
     }
+    public boolean isHumanIdentityCurrent(AuthSession session) {
+        if(session.getLoginId()==null || session.getSubjectId()==null || session.getBranding()==null) return false;
+        return Integer.valueOf(1).equals(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM Person.Credential c
+            JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+            JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId
+            WHERE c.RowGuid=:login AND c.UserName=:subject AND e.SourceCode=:branding
+              AND c.Status=1 AND p.Status=1
+            """, new MapSqlParameterSource("login",session.getLoginId().toString())
+                    .addValue("subject",session.getSubjectId()).addValue("branding",session.getBranding()), Integer.class));
+    }
+
+    /** A null binding is never proof of a machine. Require the persisted, correlated grant. */
+    public boolean isProvenMachine(AuthSession session) {
+        if(session.getLoginId()!=null) return false;
+        return Integer.valueOf(1).equals(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM dbo.oauth2_authorization grantState
+            JOIN Token.AuthSession auth ON TRY_CONVERT(UNIQUEIDENTIFIER,
+              JSON_VALUE(CASE WHEN ISJSON(grantState.attributes)=1 THEN grantState.attributes ELSE N'{}' END,:bindingPath))=auth.SessionId
+            JOIN Client.Application client ON client.ApplicationId=auth.ApplicationId
+            WHERE auth.SessionId=:session AND auth.LoginId IS NULL
+              AND auth.SubjectId=client.ClientId
+              AND grantState.principal_name=client.ClientId
+              AND grantState.registered_client_id=client.ClientId
+              AND grantState.authorization_grant_type='client_credentials'
+            """,new MapSqlParameterSource("session",session.getSessionId().toString())
+                .addValue("bindingPath","$.\""+com.chellavignesh.authserver.config.JdbcOAuth2AuthorizationService.SESSION_ID+"\""),Integer.class));
+    }
+
 }

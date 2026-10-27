@@ -192,6 +192,7 @@ public class AccountAccessController {
         CreateAuthSessionDto sessionDto = new CreateAuthSessionDto();
         sessionDto.setApplicationId(application.getId());
         sessionDto.setSubjectId(userDetails.username());
+        sessionDto.setLoginId(userDetails.loginId());
         sessionDto.setScope("forgot-password");
         sessionDto.setAuthFlow(AuthFlowEnum.PKCE);
         sessionDto.setClientFingerprint(null);
@@ -310,7 +311,7 @@ public class AccountAccessController {
 
             UserDetails user = forgotPasswordService.getUser(UUID.fromString(sessionId), clientId, branding);
 
-            passwordValidatorService.validatePassword(resetUserPasswordDto.getPassword(), user.rowGuid());
+            passwordValidatorService.validatePasswordForLogin(resetUserPasswordDto.getPassword(), user.loginId());
 
             Application application = forgotPasswordService.checkClientId(clientId).get();
 
@@ -336,10 +337,10 @@ public class AccountAccessController {
 
             } else if (Boolean.TRUE.equals(user.credSyncFlag()) && AccountSyncType.ASYNC == accountSyncType) {
 
-                forgotPasswordService.resetUserPasswordAndNotify(resetUserPasswordDto, user.rowGuid(), branding, headers);
+                forgotPasswordService.resetUserPasswordAndNotify(resetUserPasswordDto, user.rowGuid(), user.loginId(), branding, headers);
 
             } else {
-                forgotPasswordService.resetUserPassword(resetUserPasswordDto, user.rowGuid(), branding);
+                forgotPasswordService.resetUserPassword(resetUserPasswordDto, user.rowGuid(), user.loginId(), branding);
             }
 
             userService.unlockAccount(user.username(), user.branding());

@@ -6,6 +6,7 @@ import { getConfig, type Config } from "./config";
 import { getStore, type SessionStore } from "./session-store";
 import { boundedBody, transportUrl, upstreamFetch } from "./auth";
 import { PortalFailure, signin } from "./errors";
+import { UserPageQuery } from "../contracts/users";
 import type { PortalSession } from "./types";
 // Only a verified noncommitting response from the create call carries this authority.
 // Transport/signature errors, early unverified401 and later reads must never use it.
@@ -13,6 +14,11 @@ export class VerifiedClientCreateRejection extends PortalFailure {}
 type ClientScope = { organizationId: string; applicationId: string };
 export type JavaOperation =
   | { kind: "context" }
+  | { kind: "organizationList" | "organizationCreate" }
+  | { kind: "organizationGet" | "organizationUpdate" | "primaryContact" | "secondaryContact"; organizationId: string }
+  | { kind: "userList"; organizationId: string; query: import("../contracts/users").UserQuery }
+  | { kind: "userCreate" }
+  | { kind: "userGet" | "userDelete" | "userProfile" | "userEmail" | "userUsername" | "userPassword" | "userSecurity" | "userStatus" | "userMetadataGet" | "userMetadataPut"; userId: string; loginId?: string }
   | { kind: "clients" | "clientCreate"; organizationId: string }
   | ({
       kind:
@@ -49,6 +55,26 @@ function operationRoute(operation: JavaOperation): {
       ? base + "/" + z.uuid().parse(operation.applicationId)
       : base;
   switch (operation.kind) {
+    case "organizationList": return {path:"/api/v1/organizations",method:"GET",body:false};
+    case "organizationCreate": return {path:"/api/v1/organizations",method:"POST",body:true};
+    case "organizationGet": return {path:"/api/v1/organizations/"+org,method:"GET",body:false};
+    case "organizationUpdate": return {path:"/api/v1/organizations/"+org,method:"PUT",body:true};
+    case "primaryContact": return {path:"/api/v1/organizations/"+org+"/primary-contact",method:"PUT",body:true};
+    case "secondaryContact": return {path:"/api/v1/organizations/"+org+"/secondary-contact",method:"PUT",body:true};
+    case "userList": {
+      const q=UserPageQuery.parse(operation.query);
+      const params=new URLSearchParams({organizationId:org!,offset:String(q.offset),resultsPerPage:String(q.limit)});
+      for(const field of ["search","status","type"] as const) if(q[field])params.set(field,q[field]);
+      return {path:"/api/v1/users?"+params,method:"GET",body:false};
+    }
+    case "userCreate": return {path:"/api/v1/users",method:"POST",body:true};
+    case "userGet": return {path:"/api/v1/users/"+z.uuid().parse(operation.userId)+(operation.loginId?"?loginId="+z.uuid().parse(operation.loginId):""),method:"GET",body:false};
+    case "userDelete": return {path:"/api/v1/users/"+z.uuid().parse(operation.userId),method:"DELETE",body:false};
+    case "userProfile": case "userEmail": case "userUsername": case "userPassword": case "userSecurity": case "userStatus": case "userMetadataGet": case "userMetadataPut": {
+      const suffix={userProfile:"profile",userEmail:"email",userUsername:"username",userPassword:"password",userSecurity:"security-settings",userStatus:"status",userMetadataGet:"metadata",userMetadataPut:"metadata"}[operation.kind];
+      const read=operation.kind==="userMetadataGet";
+      return {path:"/api/v1/users/"+z.uuid().parse(operation.userId)+"/"+suffix+((operation.kind==="userPassword"||operation.kind==="userUsername")&&operation.loginId?"?loginId="+z.uuid().parse(operation.loginId):""),method:read?"GET":"PUT",body:!read};
+    }
     case "context":
       return { path: "/api/v1/portal/context", method: "GET", body: false };
     case "clients":

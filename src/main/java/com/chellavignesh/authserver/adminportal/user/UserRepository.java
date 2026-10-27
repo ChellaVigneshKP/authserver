@@ -165,78 +165,6 @@ public class UserRepository {
         }
     }
 
-    // Overloaded method – calls v1 of Person.UpdateUserPassword
-    public User updatePassword(UpdateUserPasswordDto dto, UUID userGuid, String hashPassword, Integer version, boolean unlockAccount, Integer disallowedRecentPasswordCount) throws UserUpdateFailedException {
-
-        var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
-                .addValue("password", java.util.HexFormat.of().parseHex(hashPassword), Types.VARBINARY)
-                .addValue("version", version)
-                .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("unlockAccount", unlockAccount ? 1 : 0)
-                .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount);
-
-        Optional<Integer> appId = namedParameterJdbcTemplate.query(
-                "{call Person.UpdateUserPassword(:userGuid, :password, :version, :modifiedOn, :modifiedBy, :unlockAccount, :disallowedRecentPasswordCount)}",
-                parameters,
-                (rs, rowNum) -> rs.getInt("ID")
-        ).stream().findFirst();
-
-        if (appId.isPresent()) {
-            return getById(appId.get()).get();
-        } else {
-            throw new UserUpdateFailedException("User does not exist.");
-        }
-    }
-
-    // Overloaded method – calls v2 of Person.UpdateUserPassword (with externalId)
-    public User updatePassword(UpdateUserPasswordDto dto, UUID userGuid, String hashPassword, Integer version, UUID externalId, boolean unlockAccount, Integer disallowedRecentPasswordCount) throws UserUpdateFailedException {
-
-        var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
-                .addValue("password", java.util.HexFormat.of().parseHex(hashPassword), Types.VARBINARY)
-                .addValue("version", version)
-                .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("externalId", externalId == null ? null : externalId.toString())
-                .addValue("unlockAccount", unlockAccount ? 1 : 0)
-                .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount);
-
-        Optional<Integer> appId = namedParameterJdbcTemplate.query(
-                "{call Person.UpdateUserPassword_V2(:userGuid, :password, :version, :modifiedOn, :modifiedBy, :externalId, :unlockAccount, :disallowedRecentPasswordCount)}",
-                parameters,
-                (rs, rowNum) -> rs.getInt("ID")
-        ).stream().findFirst();
-
-        if (appId.isPresent()) {
-            return getById(appId.get()).get();
-        } else {
-            throw new UserUpdateFailedException("User does not exist.");
-        }
-    }
-
-    public User updateUsername(UpdateUsernameDto dto, UUID userGuid, UUID externalId) throws UserUpdateFailedException {
-        var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
-                .addValue("username", dto.getUsername())
-                .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("externalId", externalId == null ? null : externalId.toString());
-
-        Optional<Integer> userId = namedParameterJdbcTemplate.query(
-                "{call Person.UpdateUsername(:userGuid, :username, :externalId, :modifiedOn, :modifiedBy)}",
-                parameters,
-                (rs, rowNum) -> rs.getInt("ID")
-        ).stream().findFirst();
-
-        if (userId.isPresent()) {
-            return getById(userId.get()).get();
-        } else {
-            throw new UserUpdateFailedException("User does not exist.");
-        }
-    }
-
     public User updateSecuritySettings(UpdateUserSecuritySettingsDto dto, UUID userGuid) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
@@ -490,6 +418,19 @@ public class UserRepository {
         return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
     }
 
+    public Optional<UserAuthDetails> getAuthDetailsByLoginId(UUID loginId) {
+        var rows=namedParameterJdbcTemplate.query("""
+                SELECT p.*,c.RowGuid AS LoginId,c.UserName,c.Password,c.Version,c.AccessFailedCount,
+                  c.CredentialLocked,c.LastLogin,c.Status AS CredentialStatus
+                FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                WHERE c.RowGuid=:login
+                """,new MapSqlParameterSource("login",loginId.toString()),(row,index)->{
+                    var details=UserAuthDetails.fromResult(row);
+                    details.setLoginId(UUID.fromString(row.getString("LoginId")));return details;
+                });
+        return rows.size()==1?Optional.of(rows.getFirst()):Optional.empty();
+    }
+
     public Optional<UserDetails> getDetailsByUsernameAndBranding(String username, String branding) {
         var rows = namedParameterJdbcTemplate.query(
                 "{call Person.GetUserByUsernameAndBranding(:username, :branding)}",
@@ -512,6 +453,31 @@ public class UserRepository {
         var identity=identities.getFirst();
         return getDetailsByUsernameAndBranding(identity[1],branding)
                 .filter(user -> userGuid.equals(user.rowGuid()) && user.loginId().equals(UUID.fromString(identity[0])));
+    }
+
+    /** Management selection is explicit and may read an otherwise authorized inactive profile. */
+    public Optional<UserDetails> getManagementDetails(UUID profileId, UUID loginId) {
+        var parameters=new MapSqlParameterSource("profile",profileId.toString())
+                .addValue("login",loginId==null?null:loginId.toString());
+        var rows=namedParameterJdbcTemplate.query("""
+            SELECT COUNT(*) OVER() AS Results,p.ProfileId,p.FirstName,p.LastName,c.UserName,p.RowGuid,p.Email,p.Title,p.MiddleInitial,p.Suffix,
+            p.PhoneNumber,p.TwoFactorEnabled,p.Status,p.SecondaryPhoneNumber,p.SyncFlag,c.SyncFlag AS CredSyncFlag,
+            c.RowGuid AS LoginId,es.SourceCode AS Branding,po.OrganizationId AS ProfileOrgId,
+            o.RowGuid AS ProfileOrgGuid,o.RowGuid AS OrgId,og.RowGuid AS GroupGuid,og.GroupName
+            FROM Person.Profile p JOIN Person.Credential c ON c.ProfileId=p.ProfileId
+            JOIN dbo.ExternalSource es ON es.SourceId=c.ExternalId
+            JOIN Person.ProfileOrganization po ON po.ProfileId=p.ProfileId AND po.Status=1
+            JOIN Partner.Organization o ON o.OrganizationId=po.OrganizationId AND o.Status=1
+            OUTER APPLY(SELECT g.* FROM Person.ProfileGroup pg JOIN Partner.OrganizationGroup g ON g.OrganizationGroupId=pg.OrganizationGroupId
+                WHERE pg.ProfileId=p.ProfileId AND g.Status=1 AND g.OrganizationId=po.OrganizationId) og
+            WHERE p.RowGuid=:profile AND (:login IS NULL OR c.RowGuid=:login)
+            """,parameters,new UserDetailsRowMapper());
+        if(rows.size()>1)throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        if(rows.size()==1 && !Integer.valueOf(1).equals(namedParameterJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM Person.Credential WHERE RowGuid=:login",
+                new MapSqlParameterSource("login",rows.getFirst().loginId().toString()),Integer.class)))
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        return rows.stream().findFirst();
     }
 
     public Optional<UserDetails> getDetailsByLoginId(UUID loginId) {
@@ -631,16 +597,38 @@ public class UserRepository {
      * If the user does not exist, or the status of the user is 1 (active user),
      * the user will not be updated.
      */
-    public User reactivateAccountWithPassword(CreateUserProfileDto dto, UUID userGuid, UUID externalId, int passwordVersion, int unlockAccount) throws UserSyncFailedException {
+    @Transactional(rollbackFor=Exception.class)
+    public User reactivateAccountWithPassword(CreateUserProfileDto dto, UUID userGuid, UUID externalId, int passwordVersion, int unlockAccount, ReactivationAuditActor actualActor) throws UserSyncFailedException {
 
+        if (actualActor == null) throw new org.springframework.security.access.AccessDeniedException("An authenticated audit actor is required.");
+        new com.chellavignesh.authserver.security.ManagementMutationLock(namedParameterJdbcTemplate.getJdbcTemplate()).acquire();
+        var selection=new MapSqlParameterSource("profile",userGuid.toString())
+                .addValue("source",externalId.toString())
+                .addValue("organization",dto.getOrgId()==null?null:dto.getOrgId().toString())
+                .addValue("login",dto.getCredential().getLoginId()==null?null:dto.getCredential().getLoginId().toString());
+        if(dto.getProfile().getMemberId()!=null && !userGuid.equals(dto.getProfile().getMemberId()))
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        var matches=namedParameterJdbcTemplate.query("""
+            SELECT c.RowGuid FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+            JOIN Person.ProfileOrganization po ON po.ProfileId=p.ProfileId AND po.Status=1
+            JOIN Partner.Organization o ON o.OrganizationId=po.OrganizationId AND o.Status=1 AND o.RowGuid=:organization
+            WHERE p.RowGuid=:profile AND p.Status=0 AND c.ExternalId=:source AND (:login IS NULL OR c.RowGuid=:login)
+            """,selection,(rs,n)->UUID.fromString(rs.getString(1)));
+        if(matches.size()!=1)throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        UUID selected=matches.getFirst();
+        new com.chellavignesh.authserver.session.CredentialAuthenticationLock(namedParameterJdbcTemplate).acquire(selected);
+        if(!Integer.valueOf(1).equals(namedParameterJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM Person.Credential WHERE RowGuid=:login",new MapSqlParameterSource("login",selected.toString()),Integer.class)))
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        new com.chellavignesh.authserver.adminportal.hosted.HostedAccountRevocationRepository(namedParameterJdbcTemplate).revokeAllForLogin(selected);
         var parameters = new MapSqlParameterSource()
                 .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("firstName", dto.getProfile().getFirstName())
                 .addValue("lastName", dto.getProfile().getLastName())
                 .addValue("email", dto.getProfile().getEmail())
                 .addValue("phoneNumber", dto.getProfile().getPhoneNumber())
-                .addValue("memberGuid", dto.getProfile().getMemberId())
-                .addValue("loginGuid", dto.getCredential().getLoginId())
+                .addValue("memberGuid", userGuid.toString())
+                .addValue("loginGuid", selected.toString())
                 .addValue("secondaryPhoneNumber", dto.getProfile().getSecondaryPhoneNumber())
                 .addValue("username", dto.getCredential().getUsername())
                 .addValue("password", java.util.HexFormat.of().parseHex(dto.getCredential().getPasswordHash()), Types.VARBINARY)
@@ -649,7 +637,7 @@ public class UserRepository {
                 .addValue("unlockAccount", unlockAccount)
                 .addValue("passwordAuditLimit", 12)
                 .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid());
+                .addValue("modifiedBy", actualActor.value());
 
         Optional<Integer> userId = namedParameterJdbcTemplate.query(
                 "{call Person.ReactivateUserWithPassword(" +

@@ -35,6 +35,11 @@ public class RoleFailure extends RuntimeException {
         return new RoleFailure(409, "LAST_PLATFORM_ADMIN", "The final active platform administrator and platform organization must remain active.");
     }
 
+    public static RoleFailure credential() {
+        return new RoleFailure(409, "CREDENTIAL_REQUIRES_REVIEW",
+                "The account must have one matching login before this operation.");
+    }
+
     public String code() { return code; }
     public int status() { return status; }
 }

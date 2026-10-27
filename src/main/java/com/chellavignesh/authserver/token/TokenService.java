@@ -139,11 +139,8 @@ public class TokenService {
             addUrlPermissions(attributes, application, session, client);
 
             // Subject-level claims
-            if (!Objects.equals(session.getSubjectId(), client.getId())) {
-                addUserClaims(attributes, session.getScopes(), session.getSubjectId(), client.getId(), session.getBranding());
-                if (!"idp".equals(session.getBranding())) {
-                    attributes.put("org_guid", organization.getRowGuid());
-                }
+            if (session.getLoginId() != null) {
+                addUserClaims(attributes, session);
             } else {
                 attributes.put("active", true);
                 attributes.put("org_guid", organization.getRowGuid());
@@ -171,9 +168,13 @@ public class TokenService {
     // USER CLAIM FILLING
     // ============================================
 
-    private void addUserClaims(Map<String, Object> attributes, Set<String> scopes, String subjectId, String clientId, String branding) {
-
-        UserDetails user = userService.getByUsernameAndBranding(subjectId, branding).orElseThrow(); // TODO: handle better
+    private void addUserClaims(Map<String, Object> attributes, AuthSession session) {
+        Set<String> scopes=session.getScopes(); String subjectId=session.getSubjectId();
+        UserDetails user=userService.getByLoginId(session.getLoginId()).orElse(null);
+        if(user==null || !Objects.equals(user.username(),subjectId)
+                || !Objects.equals(user.branding(),session.getBranding())) {
+            attributes.put("active",false); return;
+        }
         attributes.put("org_guid", user.orgId());
         if (user.status() == UserStatus.Active && userService.isManagementIdentityActive(user.rowGuid(), user.orgId(), user.loginId())) {
             attributes.put("active", true);

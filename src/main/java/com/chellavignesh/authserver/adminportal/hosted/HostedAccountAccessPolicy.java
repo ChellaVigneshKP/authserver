@@ -180,13 +180,13 @@ public class HostedAccountAccessPolicy {
     private HostedAccountActor resolveActor(
             com.chellavignesh.authserver.session.entity.AuthSession session,
             ValidatedLaunch current) {
-        if (session.getAuthSessionStatus() != AuthSessionStatusEnum.ACTIVE
+        if (session.getLoginId() == null || session.getAuthSessionStatus() != AuthSessionStatusEnum.ACTIVE
                 || session.getAuthSessionId() == null
                 || !Objects.equals(session.getApplicationId(), current.applicationId())
                 || !current.callback().toString().equals(session.getRedirectUri()))
             throw HostedAccountFailure.denied();
         var user =
-                users.getByUsernameAndBranding(session.getSubjectId(), session.getBranding())
+                users.getByLoginId(session.getLoginId())
                         .orElseThrow(HostedAccountFailure::denied);
         if (user.status() != UserStatus.Active
                 || !current.expectedLoginId().equals(user.loginId())

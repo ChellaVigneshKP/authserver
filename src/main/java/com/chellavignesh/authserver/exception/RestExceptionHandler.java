@@ -199,6 +199,17 @@ public class RestExceptionHandler {
                         "UPLOAD_TOO_LARGE", "Certificate upload exceeds the 1 MiB limit", java.util.UUID.randomUUID().toString(), false));
     }
 
+    /** Downstream provider sync is a dependency failure, never a client input rejection. */
+    @ExceptionHandler(AccountSyncException.class)
+    protected ResponseEntity<Object> handleAccountSyncException(AccountSyncException ex, HttpServletRequest request) {
+        logger.error("Account sync dependency unavailable in request handler", ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .header("Cache-Control", "no-store")
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem("UPSTREAM_FAILURE",
+                        "The identity provider could not complete the account sync.",
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request), false));
+    }
+
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<Object> handleOtherException(Exception ex) {
         logger.error("Unhandled request exception", ex);

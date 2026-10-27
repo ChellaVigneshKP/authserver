@@ -89,11 +89,11 @@ public class SingleSignOnService {
             log.warn("AuthSession NOT FOUND in database for UUID: {}", cookie.sessionId());
         }
 
-        return session;
+        return session.filter(s -> s.getLoginId()!=null && s.getAuthSessionStatus()==AuthSessionStatusEnum.ACTIVE);
     }
 
     public boolean isValidAuthSession(AuthSession authSession, HttpServletRequest request) {
-        if (authSession.getAuthSessionStatus().equals(AuthSessionStatusEnum.INACTIVE)) {
+        if (authSession.getLoginId()==null || authSession.getAuthSessionStatus().equals(AuthSessionStatusEnum.INACTIVE)) {
             return false;
         }
 
@@ -101,7 +101,7 @@ public class SingleSignOnService {
     }
 
     public void validateSessionFingerprintAndThrow(AuthSession authSession, HttpServletRequest request, String requestDatetime) throws FingerprintFailedException, InactiveAuthSessionException {
-        if (authSession.getAuthSessionStatus().equals(AuthSessionStatusEnum.INACTIVE)) {
+        if (authSession.getLoginId()==null || authSession.getAuthSessionStatus().equals(AuthSessionStatusEnum.INACTIVE)) {
             throw new InactiveAuthSessionException("Session inactive.");
         }
 

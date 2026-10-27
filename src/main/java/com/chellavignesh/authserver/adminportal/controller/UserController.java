@@ -192,7 +192,8 @@ public class UserController {
 
         notificationConfig.setAlwaysSendNotification(true);
 
-        User user = userService.createOrReactivateUser(createUserProfileDto, createUserDto, headers, externalSource.get(), notificationConfig);
+        User user = userService.createOrReactivateUser(createUserProfileDto, createUserDto, headers, externalSource.get(), notificationConfig,
+                managementAccessPolicy.reactivationActor(actor, createUserProfileDto.getOrgId(), createUserProfileDto.getProfile().getMemberId()));
 
         return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.LOCATION, brandUrlMappingService.getUrlByBrand(createUserProfileDto.getBranding()) + "/api/v1/users/profile/" + user.getRowGuid().toString()).body(new CreateUserResponse(user.getRowGuid()));
     }
@@ -277,7 +278,7 @@ public class UserController {
     @SkipInitBinder
     @Transactional(rollbackFor = Exception.class)
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> updateUserPassword(@Valid @RequestBody NotifiableUpdateUserPasswordDto updateUserPasswordDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, PasswordValidationException, UserNotFoundException, AccountSyncException {
+    public ResponseEntity<?> updateUserPassword(@Valid @RequestBody NotifiableUpdateUserPasswordDto updateUserPasswordDto, @Valid @PathVariable UUID userGuid, @RequestParam(required=false) UUID loginId, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, PasswordValidationException, UserNotFoundException, AccountSyncException {
 
         mutations.acquire();
         managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
@@ -288,11 +289,13 @@ public class UserController {
             throw new InvalidBrandingException("Invalid branding: " + updateUserPasswordDto.getBranding() + ".");
         }
 
-        var user = userService.getByGuidAndBranding(userGuid, updateUserPasswordDto.getBranding()).orElseThrow(() -> new UserNotFoundException("User not found for the branding"));
+        UUID selected=userService.lockCredentialForMutation(userGuid,updateUserPasswordDto.getBranding(),loginId);
+        var user = userService.getByLoginId(selected).orElseThrow(() -> new UserNotFoundException("User not found for the branding"));
 
         updateUserPasswordDto.setPassword(new String(Base64.getDecoder().decode(updateUserPasswordDto.getPassword())));
 
-        passwordValidatorService.validatePassword(updateUserPasswordDto.getPassword(), userGuid);
+        passwordValidatorService.validatePasswordForLogin(updateUserPasswordDto.getPassword(),
+                selected);
 
         if (user.credSyncFlag() && AccountSyncType.SYNC == accountSyncType && !"idp".equals(updateUserPasswordDto.getIntent().getId())) {
 
@@ -302,9 +305,9 @@ public class UserController {
 
             headers.put(ApplicationConstants.REQUEST_VERB_HEADER, HttpVerb.PUT.name());
 
-            userService.updatePasswordAndNotify(updateUserPasswordDto, userGuid, false, headers);
+            userService.updateManagementPasswordAndNotify(updateUserPasswordDto, userGuid, selected, headers);
         } else {
-            userService.updatePassword(updateUserPasswordDto, userGuid);
+            userService.updateManagementPassword(updateUserPasswordDto, userGuid, selected);
         }
 
         return ResponseEntity.noContent().build();
@@ -318,7 +321,7 @@ public class UserController {
     @SkipInitBinder
     @Transactional(rollbackFor = Exception.class)
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameDto dto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, UsernameExistsException, UserNotFoundException {
+    public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameDto dto, @Valid @PathVariable UUID userGuid, @RequestParam(required=false) UUID loginId, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, UsernameExistsException, UserNotFoundException {
 
         mutations.acquire();
         managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
@@ -329,7 +332,7 @@ public class UserController {
             throw new InvalidBrandingException("Invalid branding: " + dto.getBranding() + ".");
         }
 
-        userService.getByGuidAndBranding(userGuid, dto.getBranding()).orElseThrow(() -> new UserNotFoundException("User not found for the branding"));
+        userService.lockCredentialForMutation(userGuid, dto.getBranding(), loginId);
 
         Optional<UserCredentialsWithBranding> credentials = userService.getCredentialsByUsernameAndBranding(dto.getUsername(), dto.getBranding());
 
@@ -339,7 +342,7 @@ public class UserController {
 
         headers.put(ApplicationConstants.REQUEST_VERB_HEADER, HttpVerb.PUT.name());
 
-        userService.updateUsername(dto, userGuid, oExternalSource.get(), headers);
+        userService.updateUsername(dto, userGuid, loginId, oExternalSource.get(), headers);
 
         return ResponseEntity.noContent().build();
     }
@@ -392,9 +395,9 @@ public class UserController {
 
     @GetMapping("/{userGuid}")
     @PreAuthorize("@managementAccessPolicy.canReadUser(authentication, #userGuid)")
-    public ResponseEntity<?> getUserByGuid(@PathVariable UUID userGuid) {
+    public ResponseEntity<?> getUserByGuid(@PathVariable UUID userGuid, @RequestParam(required=false) UUID loginId) {
 
-        Optional<UserDetails> userDetails = userService.getByGuid(userGuid);
+        Optional<UserDetails> userDetails = userService.getManagementDetails(userGuid,loginId);
         if (userDetails.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or user does not have permissions.");
         }
@@ -502,8 +505,12 @@ public class UserController {
     }
 
     @ExceptionHandler(UserSyncFailedException.class)
-    public ResponseEntity<?> handleUserSyncFailedException(UserSyncFailedException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+    public ResponseEntity<?> handleUserSyncFailedException(UserSyncFailedException e, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .header("Cache-Control", "no-store")
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem("UPSTREAM_FAILURE",
+                        "The identity provider could not complete the account sync.",
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request), false));
     }
 
 }

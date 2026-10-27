@@ -64,6 +64,9 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
     @Autowired NamedParameterJdbcTemplate named;
     @Autowired RegisteredClientRepository clients;
     @Autowired CredentialAuthenticationLock credentialLock;
+    @Autowired com.chellavignesh.authserver.security.ManagementAccessPolicy managementPolicy;
+    @Autowired com.chellavignesh.authserver.adminportal.externalsource.ExternalSourceService externalSources;
+    @Autowired com.chellavignesh.authserver.adminportal.credential.CredentialService machineCredentials;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
     @MockitoSpyBean ApplicationService applicationService;
     @Autowired com.chellavignesh.authserver.session.sso.SingleSignOnService sso;
@@ -154,8 +157,9 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
                         Integer.class,
                         app.getId());
         sql.update(
-                "UPDATE Token.AuthSession SET Branding=?,ClientFingerprint=?,RedirectUriId=? WHERE"
+                "UPDATE Token.AuthSession SET LoginId=?,Branding=?,ClientFingerprint=?,RedirectUriId=? WHERE"
                         + " SessionId=?",
+                login,
                 branding,
                 fingerprint,
                 redirect,
@@ -210,7 +214,7 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
                         "SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.Token WHERE Data=?",
                         String.class,
                         access.value());
-        sql.update("UPDATE Token.AuthSession SET Branding=? WHERE SessionId=?", branding, session);
+        sql.update("UPDATE Token.AuthSession SET Branding=?,LoginId=? WHERE SessionId=?", branding, login, session);
         sql.update(
                 "EXEC Person.CreateMetadata ?,?,?",
                 base.user().getId(),
@@ -427,6 +431,273 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
                                 fresh.getUserAuthDetails().getPassword(),
                                 fresh.getUserAuthDetails().getVersion()))
                 .isTrue();
+    }
+
+    @Test
+    void f4UsernameRenameAndReuseCannotRebindBearerSsoOrPersistedGrant() throws Exception {
+        String name="f4-reuse-"+UUID.randomUUID().toString().substring(0,8);
+        var old=hosted(name);
+        var oldBearer=token(old.user());
+        String grantId=installGrant(old.access(),name,AuthorizationGrantType.AUTHORIZATION_CODE);
+        var snapshot=grants.findById(grantId);
+        var administrator=user(orgA,group(orgA,"f4-operator-"+UUID.randomUUID(),List.of("idp-admin-user:update")),"f4-admin-"+UUID.randomUUID());
+        var response=call(token(administrator),"PUT","/api/v1/users/"+old.user().getRowGuid()+"/username",
+                mapper.writeValueAsString(Map.of("branding","idp","intent","idp","metadata",Map.of(),"username",name+"-renamed")));
+        assertThat(response.statusCode()).isEqualTo(204);
+        var other=hosted(name,organization("F4 reused name tenant "+UUID.randomUUID()));
+        assertThat(other.user().getRowGuid()).isNotEqualTo(old.user().getRowGuid());
+        assertThat(call(oldBearer,"GET","/api/v1/portal/context",null).statusCode()).isEqualTo(401);
+        assertThat(grants.findById(grantId)).isNull();
+        assertThatThrownBy(()->grants.save(snapshot)).isInstanceOf(RuntimeException.class);
+        String launch=old.launch().replace(old.user().getLoginId().toString(),other.user().getLoginId().toString());
+        var continuation=old.browser().send("GET",launch,null,null);
+        if(continuation.statusCode()==200) {
+            assertThat(old.browser().send("GET",continuePath(continuation.body()),null,null).statusCode()).isEqualTo(403);
+        } else assertThat(continuation.statusCode()).isEqualTo(403);
+        assertThat(call(token(other.user()),"GET","/api/v1/portal/context",null).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void f4UnboundHumanAndUnprovenMachineFailClosedEvenWhenNameEqualsClientId() throws Exception {
+        var f=hosted(app.getClientId());
+        var token=tokenService.getByValue(f.access().value(),com.chellavignesh.authserver.enums.entity.TokenTypeEnum.ACCESS_TOKEN).orElseThrow();
+        var claims=tokenService.getClaimsForToken(token);
+        assertThat(claims.get("login_guid")).isEqualTo(f.user().getLoginId());
+        sql.update("UPDATE Token.AuthSession SET LoginId=NULL WHERE SessionId=?",token.getSessionId());
+        assertThat(tokenService.getClaimsForToken(token).get("active")).isEqualTo(false);
+        // A real persisted client-credentials grant is the required positive machine proof.
+        String machine=installGrant(f.access(),app.getClientId(),AuthorizationGrantType.CLIENT_CREDENTIALS);
+        assertThat(tokenService.getClaimsForToken(token).get("active")).isEqualTo(true);
+        assertThat(tokenService.getClaimsForToken(token).containsKey("login_guid")).isFalse();
+        sql.update("UPDATE dbo.oauth2_authorization SET attributes=N'not-json' WHERE id=?",machine);
+        assertThat(tokenService.getClaimsForToken(token).get("active")).isEqualTo(false);
+    }
+
+    @Test
+    void f4ExactManagementSelectorPreservesSiblingsAndTargetOnlyHistory() throws Exception {
+        var target=hosted("f4-exact-"+UUID.randomUUID().toString().substring(0,8));
+        UUID sibling=siblingCredential(target,"f4-exact-sibling-"+UUID.randomUUID(),UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        var actor=user(orgA,group(orgA,"f4-exact-role-"+UUID.randomUUID(),List.of("idp-admin-user:read","idp-admin-user:update")),"f4-exact-admin-"+UUID.randomUUID());
+        var access=token(actor);
+        String path="/api/v1/users/"+target.user().getRowGuid();
+        assertThat(call(access,"GET",path,null).statusCode()).isEqualTo(409);
+        var detail=call(access,"GET",path+"?loginId="+sibling,null);
+        assertThat(detail.statusCode()).isEqualTo(200);
+        assertThat(sibling.toString().equalsIgnoreCase(mapper.readTree(detail.body()).path("loginId").asText())).isTrue();
+        assertThat(call(access,"GET",path+"?loginId="+actor.getLoginId(),null).statusCode()).isEqualTo(404);
+        String next="K9!qY"+UUID.randomUUID().toString().replace("-","")+"vT";
+        byte[] siblingHistory=HexFormat.of().parseHex(passwordFactory.encode(Base64.getEncoder().encodeToString(next.getBytes())));
+        sql.update("INSERT Person.CredentialAudit(CredentialId,Password,Version) SELECT Id,?,? FROM Person.Credential WHERE RowGuid=?",siblingHistory,PasswordEncoderFactory.currentVersion,sibling);
+        byte[] before=sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,sibling);
+        int audit=sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=?",Integer.class,sibling);
+        var body=Map.of("branding","idp","intent","idp","metadata",Map.of(),"password",Base64.getEncoder().encodeToString(next.getBytes()));
+        assertThat(call(access,"PUT",path+"/password?loginId="+target.user().getLoginId(),mapper.writeValueAsString(body)).statusCode()).isEqualTo(204);
+        assertThat(Arrays.equals(before,sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,sibling))).isTrue();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=?",Integer.class,sibling)).isEqualTo(audit);
+        var changed=userService.getAuthDetailsByLoginId(target.user().getLoginId()).orElseThrow();
+        assertThat(passwordFactory.matches(Base64.getEncoder().encodeToString(next.getBytes()),changed.getPassword(),changed.getVersion())).isTrue();
+        assertThat(passwordFactory.matches(Base64.getEncoder().encodeToString(target.password().getBytes()),changed.getPassword(),changed.getVersion())).isFalse();
+        assertThat(call(access,"PUT",path+"/password?loginId="+target.user().getLoginId(),mapper.writeValueAsString(body)).statusCode()).isEqualTo(400);
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",target.user().getId());
+        assertThat(call(access,"GET",path+"?loginId="+sibling,null).statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void f4ImportedReactivationTargetsOnlyTheSuppliedExistingLogin() throws Exception {
+        var f=hosted("f4-reactivate-"+UUID.randomUUID().toString().substring(0,8));
+        UUID source=UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID selected=siblingCredential(f,"f4-reactivate-selected-"+UUID.randomUUID(),source);
+        int preservedId=sql.queryForObject("SELECT Id FROM Person.Credential WHERE RowGuid=?",Integer.class,f.user().getLoginId());
+        byte[] preserved=sql.queryForObject("SELECT Password FROM Person.Credential WHERE Id=?",byte[].class,preservedId);
+        int history=sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit WHERE CredentialId=?",Integer.class,preservedId);
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",f.user().getId());
+        var dto=new com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto();
+        var profile=new com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto.Profile();
+        profile.setMemberId(f.user().getRowGuid());profile.setFirstName("Owned");profile.setLastName("Reactivated");
+        profile.setPhoneNumber("+19999999998");profile.setEmail("reactivated@example.test");dto.setProfile(profile);
+        var credential=new com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto.Credential();
+        credential.setLoginId(selected);credential.setUsername("f4-reactivated-"+UUID.randomUUID());
+        credential.setPasswordHash(passwordFactory.encode(Base64.getEncoder().encodeToString(("W9!qZ"+UUID.randomUUID()+"mV").getBytes())));
+        dto.setCredential(credential);dto.setOrgId(orgA.getRowGuid());
+        assertThatThrownBy(() -> users.reactivateAccountWithPassword(dto,f.user().getRowGuid(),source,PasswordEncoderFactory.currentVersion,1,null))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        var actor=user(orgA,group(orgA,"f4-reactivate-role-"+UUID.randomUUID(),List.of("idp-admin-user:update")),"f4-reactivate-actor-"+UUID.randomUUID());
+        for (UUID invalid : Arrays.asList(null,UUID.randomUUID(),actor.getLoginId())) {
+            credential.setLoginId(invalid);
+            assertThatThrownBy(() -> users.reactivateAccountWithPassword(dto,f.user().getRowGuid(),source,PasswordEncoderFactory.currentVersion,1,com.chellavignesh.authserver.adminportal.user.ReactivationAuditActor.human(actor.getRowGuid())))
+                    .isInstanceOf(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.class);
+            assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?",Integer.class,f.user().getId())).isZero();
+        }
+        credential.setLoginId(selected);
+        profile.setMemberId(UUID.randomUUID());
+        assertThatThrownBy(() -> users.reactivateAccountWithPassword(dto,f.user().getRowGuid(),source,PasswordEncoderFactory.currentVersion,1,com.chellavignesh.authserver.adminportal.user.ReactivationAuditActor.human(actor.getRowGuid())))
+                .isInstanceOf(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.class);
+        profile.setMemberId(f.user().getRowGuid());
+        users.reactivateAccountWithPassword(dto,f.user().getRowGuid(),source,PasswordEncoderFactory.currentVersion,1,com.chellavignesh.authserver.adminportal.user.ReactivationAuditActor.human(actor.getRowGuid()));
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?",Integer.class,f.user().getId())).isEqualTo(1);
+        assertThat(actor.getRowGuid().toString().equalsIgnoreCase(sql.queryForObject("SELECT ModifiedBy FROM Person.Credential WHERE RowGuid=?",String.class,selected))).isTrue();
+        assertThat(actor.getRowGuid().toString().equalsIgnoreCase(sql.queryForObject("SELECT TOP 1 a.ModifiedBy FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=? ORDER BY a.CredentialAuditId DESC",String.class,selected))).isTrue();
+        assertThat(Arrays.equals(preserved,sql.queryForObject("SELECT Password FROM Person.Credential WHERE Id=?",byte[].class,preservedId))).isTrue();
+        assertThat(f.user().getLoginId().toString().equalsIgnoreCase(sql.queryForObject("SELECT CONVERT(VARCHAR(36),RowGuid) FROM Person.Credential WHERE Id=?",String.class,preservedId))).isTrue();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit WHERE CredentialId=?",Integer.class,preservedId)).isEqualTo(history);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Credential WHERE RowGuid=?",Integer.class,selected)).isEqualTo(1);
+    }
+
+    @Test
+    void f4SchemaReactivationRejectsReplacementLoginBeforeWrites() throws Exception {
+        var f=hosted("f4-schema-"+UUID.randomUUID().toString().substring(0,8));
+        UUID source=UUID.randomUUID(); String brand="f4-schema-"+UUID.randomUUID();
+        sql.update("INSERT dbo.ExternalSource(SourceId,SourceCode,ExternalTypeId) SELECT ?,?,ExternalTypeId FROM dbo.ExternalType WHERE ExternalTypeName='529'",source,brand);
+        UUID selected=siblingCredential(f,"f4-schema-selected-"+UUID.randomUUID(),source);
+        var actor=user(orgA,group(orgA,"f4-schema-role-"+UUID.randomUUID(),List.of("idp-admin-user:create","idp-admin-user:update")),"f4-schema-actor-"+UUID.randomUUID());
+        var bearer=token(actor);
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",f.user().getId());
+        byte[] before=sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,selected);
+        String schema="urn:ascensus:529:1.0:accountsync";
+        var payload=Map.of("branding",brand,"intent","conversion","timestamp",Instant.now().toString(),"orgId",orgA.getRowGuid(),
+                "credential",Map.of("loginId",UUID.randomUUID(),"username","f4-replace-"+UUID.randomUUID(),"passwordHash","001122","cIndex","0"),
+                "profile",Map.of("memberId",f.user().getRowGuid(),"firstName","Owned","lastName","Reactivation","email","owned@example.test","phoneNumber","+19999999998","idpSyncDttm",Instant.now().toString()),
+                "metadata",Map.of("idp",List.of(),"unite",List.of()),"syncFlag",false);
+        var response=call(bearer,"POST","/api/v1/users/profile",mapper.writeValueAsString(Map.of("schema",schema,schema,payload)));
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat("CREDENTIAL_REQUIRES_REVIEW".equals(mapper.readTree(response.body()).path("code").asText())).isTrue();
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?",Integer.class,f.user().getId())).isZero();
+        assertThat(Arrays.equals(before,sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,selected))).isTrue();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Credential WHERE RowGuid=?",Integer.class,selected)).isEqualTo(1);
+    }
+
+    @Test
+    void f4MachineReactivationUsesVerifiedClientAuditAndCurrentAuthority() throws Exception {
+        var f=hosted("f4-machine-target-"+UUID.randomUUID().toString().substring(0,8));
+        String username=userService.getByLoginId(f.user().getLoginId()).orElseThrow().username();
+        var create=new com.chellavignesh.authserver.adminportal.application.dto.CreateApplicationDto();
+        create.setName("F4 machine "+UUID.randomUUID());create.setDescription("Owned audit fixture");
+        create.setType(com.chellavignesh.authserver.enums.entity.ApplicationTypeEnum.SERVER);
+        create.setAuthMethod(com.chellavignesh.authserver.enums.entity.AuthFlowEnum.CLIENT_SECRET_JWT);
+        create.setUsernameType(com.chellavignesh.authserver.enums.entity.UsernameTypeEnum.USERNAME);create.setAllowForgotUsername(false);
+        var machine=applicationService.create(orgA.getId(),create);
+        var secret=new com.chellavignesh.authserver.adminportal.credential.dto.CreateCredentialRequestDto();
+        secret.setOrgId(orgA.getId());secret.setAppId(machine.getId());secret.setName("Owned F4 machine credential");secret.setDescription("Owned");
+        secret.setAlgorithmEnum(com.chellavignesh.authserver.enums.entity.AlgorithmEnum.HS256);secret.setAuthFlow(com.chellavignesh.authserver.enums.entity.AuthFlowEnum.CLIENT_SECRET_JWT);
+        secret.setCredentialStatus(com.chellavignesh.authserver.adminportal.credential.CredentialStatus.Active);secret.setExpireOn(Date.from(Instant.now().plusSeconds(86400)));
+        machineCredentials.createSharedSecretCredential(secret);
+        var bearer=token(machine,machine.getClientId(),"confidential-client");
+        var principal=new com.chellavignesh.authserver.config.introspect.TokenIntrospector(tokenService).introspect(bearer.value());
+        var authentication=new org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication(principal,
+                new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,bearer.value(),Instant.now(),Instant.now().plusSeconds(600)),List.of());
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",f.user().getId());
+        var transaction=new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        assertThatThrownBy(()->transaction.execute(status->{new com.chellavignesh.authserver.security.ManagementMutationLock(sql).acquire();return managementPolicy.reactivationActor(authentication,orgA.getRowGuid(),f.user().getRowGuid());}))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        // Trusted token claims are derived by the real token service from assigned URL resources.
+        for(String method:List.of("POST","PUT")) {
+            int resource=sql.queryForObject("INSERT dbo.ResourceLibrary(Name,Description,Uri,AllowedMethod,Urn) OUTPUT INSERTED.ResourceLibraryId VALUES(?,?,?,?,?)",Integer.class,"F4 "+method,"Owned","http://user",method,"urn:f4:"+UUID.randomUUID());
+            applications.assignResource(orgA.getId(),machine.getId(),resource);
+        }
+        var fresh=new com.chellavignesh.authserver.config.introspect.TokenIntrospector(tokenService).introspect(bearer.value());
+        var allowed=new org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthentication(fresh,
+                new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER,bearer.value(),Instant.now(),Instant.now().plusSeconds(600)),List.of());
+        var actor=transaction.execute(status->{new com.chellavignesh.authserver.security.ManagementMutationLock(sql).acquire();return managementPolicy.reactivationActor(allowed,orgA.getRowGuid(),f.user().getRowGuid());});
+        assertThat(("client:"+machine.getRowGuid()).equals(actor.value())).isTrue();
+        assertThatThrownBy(()->transaction.execute(status->{new com.chellavignesh.authserver.security.ManagementMutationLock(sql).acquire();return managementPolicy.reactivationActor(allowed,UUID.randomUUID(),f.user().getRowGuid());}))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        var dto=reactivationDto(f,username);
+        users.reactivateAccountWithPassword(dto,f.user().getRowGuid(),UUID.fromString("11111111-1111-1111-1111-111111111111"),0,1,actor);
+        assertThat(actor.value().equalsIgnoreCase(sql.queryForObject("SELECT ModifiedBy FROM Person.Credential WHERE RowGuid=?",String.class,f.user().getLoginId()))).isTrue();
+        assertThat(actor.value().equalsIgnoreCase(sql.queryForObject("SELECT TOP 1 a.ModifiedBy FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=? ORDER BY a.CredentialAuditId DESC",String.class,f.user().getLoginId()))).isTrue();
+    }
+
+    @Test
+    void f4AuthoritativeSourceSyncHasExplicitProvenanceAndRejectsInconsistentIdentity() throws Exception {
+        var f=hosted("f4-source-"+UUID.randomUUID().toString().substring(0,8));
+        String username=userService.getByLoginId(f.user().getLoginId()).orElseThrow().username();
+        UUID sibling=siblingCredential(f,"f4-source-sibling-"+UUID.randomUUID(),UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        byte[] siblingBefore=sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,sibling);
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",f.user().getId());
+        var dto=reactivationDto(f,username); var source=externalSources.findBySourceCode("idp").orElseThrow();
+        var mapped=com.chellavignesh.authserver.adminportal.user.mapper.UserDtoMapper.Instance.toCreateUserDto(dto);
+        mapped.setOrgId(orgA.getId());
+        var notifications=new com.chellavignesh.authserver.adminportal.user.CreateUserNotificationConfig();
+        notifications.setFailNotificationSilently(true);
+        assertThatThrownBy(()->userService.syncFromAuthoritativeSource("other",dto,mapped,Map.of(),source,notifications))
+                .isInstanceOf(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.class);
+        dto.setBranding("other");
+        assertThatThrownBy(()->userService.syncFromAuthoritativeSource(username,dto,mapped,Map.of(),source,notifications))
+                .isInstanceOf(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.class);
+        dto.setBranding("idp"); dto.setOrgId(UUID.randomUUID());
+        assertThatThrownBy(()->userService.syncFromAuthoritativeSource(username,dto,mapped,Map.of(),source,notifications))
+                .isInstanceOf(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.class);
+        dto.setOrgId(orgA.getRowGuid());
+        userService.syncFromAuthoritativeSource(username,dto,mapped,Map.of(),source,notifications);
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?",Integer.class,f.user().getId())).isEqualTo(1);
+        assertThat(("source:"+source.getSourceId()).equalsIgnoreCase(sql.queryForObject("SELECT ModifiedBy FROM Person.Credential WHERE RowGuid=?",String.class,f.user().getLoginId()))).isTrue();
+        assertThat(Arrays.equals(siblingBefore,sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,sibling))).isTrue();
+    }
+
+    private com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto reactivationDto(HostedFixture f,String username) {
+        var dto=new com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto();
+        dto.setBranding("idp");dto.setIntent("");dto.setOrgId(orgA.getRowGuid());
+        var profile=new com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto.Profile();
+        profile.setMemberId(f.user().getRowGuid());profile.setFirstName("Owned");profile.setLastName("Sync");profile.setEmail("owned@example.test");profile.setPhoneNumber("+19999999998");profile.setIdpSyncDttm(Instant.now().toString());dto.setProfile(profile);
+        var credential=new com.chellavignesh.authserver.adminportal.user.dto.CreateUserProfileDto.Credential();
+        credential.setLoginId(f.user().getLoginId());credential.setUsername(username);credential.setPasswordHash("001122");credential.setcIndex("0");dto.setCredential(credential);
+        return dto;
+    }
+
+    @Test
+    void f4ManagementPasswordAndRenameAuditTheActualAdministrator() throws Exception {
+        var target=hosted("f4-actor-target-"+UUID.randomUUID().toString().substring(0,8));
+        var actor=user(orgA,group(orgA,"f4-actor-role-"+UUID.randomUUID(),List.of("idp-admin-user:update")),"f4-actor-"+UUID.randomUUID());
+        var access=token(actor);
+        String next="T8!rY"+UUID.randomUUID().toString().replace("-","")+"sM";
+        var changed=call(access,"PUT","/api/v1/users/"+target.user().getRowGuid()+"/password",
+                mapper.writeValueAsString(Map.of("branding","idp","intent","idp","metadata",Map.of(),"password",Base64.getEncoder().encodeToString(next.getBytes()))));
+        assertThat(changed.statusCode()).isEqualTo(204);
+        String audited=sql.queryForObject("SELECT TOP 1 a.ModifiedBy FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=? ORDER BY a.CredentialAuditId DESC",String.class,target.user().getLoginId());
+        assertThat(actor.getRowGuid().toString().equalsIgnoreCase(audited)).isTrue();
+        var renamed=call(access,"PUT","/api/v1/users/"+target.user().getRowGuid()+"/username",
+                mapper.writeValueAsString(Map.of("branding","idp","intent","idp","metadata",Map.of(),"username","f4-renamed-"+UUID.randomUUID())));
+        assertThat(renamed.statusCode()).isEqualTo(204);
+        assertThat(actor.getRowGuid().toString().equalsIgnoreCase(sql.queryForObject("SELECT ModifiedBy FROM Person.Credential WHERE RowGuid=?",String.class,target.user().getLoginId()))).isTrue();
+    }
+
+    @Test
+    void f4LegacyPasswordWriterRejectsAmbiguousProfileBeforeAnyCredentialWrite() throws Exception {
+        var f = hosted("f4-ambiguous-" + UUID.randomUUID().toString().substring(0, 8));
+        UUID sibling = siblingCredential(f, "f4-sibling-" + UUID.randomUUID(),
+                UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        byte[] before = sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",
+                byte[].class, sibling);
+        String next = "N9!qZ" + UUID.randomUUID().toString().replace("-", "") + "vR";
+        var administrator=user(orgA,group(orgA,"f4-ambiguous-role-"+UUID.randomUUID(),List.of("idp-admin-user:update")),"f4-ambiguous-actor-"+UUID.randomUUID());
+        var denied=call(token(administrator),"PUT","/api/v1/users/"+f.user().getRowGuid()+"/password",
+                mapper.writeValueAsString(Map.of("branding","idp","intent","idp","metadata",Map.of(),"password",Base64.getEncoder().encodeToString(next.getBytes()))));
+        assertThat(denied.statusCode()).isEqualTo(409);
+        assertThat(Arrays.equals(before, sql.queryForObject(
+                "SELECT Password FROM Person.Credential WHERE RowGuid=?", byte[].class, sibling))).isTrue();
+    }
+
+    @Test
+    void f4AuthenticatedOldVersionUpgradePreservesSameSourceSiblingCredentialAndAudit() throws Exception {
+        var f = hosted("f4-upgrade-" + UUID.randomUUID().toString().substring(0, 8));
+        sql.update("UPDATE Person.Profile SET TwoFactorEnabled=0 WHERE ProfileId=?", f.user().getId());
+        UUID sibling = siblingCredential(f, "f4-other-" + UUID.randomUUID(),
+                UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        byte[] before = sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",
+                byte[].class, sibling);
+        int audits = sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=?", Integer.class, sibling);
+        // Post-authenticated v0 envelope only; no external legacy-provider verification claim.
+        sql.update("UPDATE Person.Credential SET Password=0x00000007AABBCCDDEEFF00112233445566778899,Version=0 WHERE RowGuid=?", f.user().getLoginId());
+        String name = userService.getByLoginId(f.user().getLoginId()).orElseThrow().username();
+        var snapshot = (CustomUserDetails) userDetails.loadUserByUsername(name + System.lineSeparator() + "idp");
+        assertThat(authenticateSnapshot(snapshot, "idp", f.password()).getStatus()).isEqualTo(302);
+        assertThat(Arrays.equals(before, sql.queryForObject(
+                "SELECT Password FROM Person.Credential WHERE RowGuid=?", byte[].class, sibling))).isTrue();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=?", Integer.class, sibling)).isEqualTo(audits);
+        var fresh = (CustomUserDetails) userDetails.loadUserByUsername(name + System.lineSeparator() + "idp");
+        assertThat(fresh.getUserAuthDetails().getVersion()).isEqualTo(PasswordEncoderFactory.currentVersion);
+        assertThat(passwordFactory.matches(Base64.getEncoder().encodeToString(f.password().getBytes()),
+                fresh.getUserAuthDetails().getPassword(), fresh.getUserAuthDetails().getVersion())).isTrue();
     }
 
     @Test
@@ -1206,7 +1477,7 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
                         String.class,
                         other.value());
         sql.update(
-                "UPDATE Token.AuthSession SET Branding=? WHERE SessionId=?", brand, otherSession);
+                "UPDATE Token.AuthSession SET Branding=?,LoginId=(SELECT c.RowGuid FROM Person.Credential c JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId WHERE c.UserName=Token.AuthSession.SubjectId AND e.SourceCode=?) WHERE SessionId=?", brand, brand, otherSession);
         String otherGrant =
                 installGrant(other, user.username(), AuthorizationGrantType.AUTHORIZATION_CODE);
         sso.generateCookie(UUID.fromString(otherSession));

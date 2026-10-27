@@ -133,7 +133,7 @@ def start_fault_transport(issuer, directory):
 
 
 @contextmanager
-def owned_portal(port=3100, transport_faults=False):
+def owned_portal(port=3100, transport_faults=False, account_sync=None):
     original, _, source_database = load_target()
     if source_database != 'AGSAuth' or not NODE.is_file():
         raise ValueError('Use normal private local configuration and install isolated Node24 first')
@@ -158,6 +158,10 @@ def owned_portal(port=3100, transport_faults=False):
     properties.update({'toggles.fingerprinting.enabled': True, 'toggles.fingerprint.referer.disabled': False,
         'toggles.fingerprinting.referer.disabled': False, 'toggles.signature.required': True,
         'cms.file.location': cms_directory.as_uri()})
+    if account_sync is not None:
+        if account_sync != 'sync':
+            raise ValueError('Unsupported owned provider-failure mode')
+        properties['toggles.account.sync.type'] = account_sync
     if transport_faults:
         properties['spring.flyway.target'] = '15'
     environment['SPRING_APPLICATION_JSON'] = json.dumps(properties)

@@ -49,7 +49,7 @@ class DatabaseContractTest {
         new JdbcTemplate(admin).execute("CREATE DATABASE [" + database + "]");
         SQLServerDataSource db = source(System.getenv("AUTH_DB_IT_URL") + ";databaseName=" + database);
         Flyway flyway = Flyway.configure().dataSource(db).locations("classpath:db/migration").cleanDisabled(true).load();
-        assertEquals(16, flyway.migrate().migrationsExecuted);
+        assertEquals(17, flyway.migrate().migrationsExecuted);
         flyway.validate();
         assertEquals(0, flyway.migrate().migrationsExecuted, "Second migration must leave the schema unchanged");
         jdbc = new JdbcTemplate(db);

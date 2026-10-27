@@ -26,11 +26,13 @@ public class AuthSessionService {
 
     private final AuthSessionRepository authSessionRepository;
     private final AuthCodeService authCodeService;
+    private final CredentialAuthenticationLock credentials;
 
     @Autowired
-    public AuthSessionService(AuthSessionRepository authSessionRepository, AuthCodeService authCodeService) {
+    public AuthSessionService(AuthSessionRepository authSessionRepository, AuthCodeService authCodeService, CredentialAuthenticationLock credentials) {
         this.authSessionRepository = authSessionRepository;
         this.authCodeService = authCodeService;
+        this.credentials = credentials;
     }
 
     public AuthSession create(CreateAuthSessionDto dto) throws AuthSessionCreationFailedException {
@@ -42,7 +44,8 @@ public class AuthSessionService {
     }
 
     public Optional<AuthSession> getBySessionId(UUID sessionId) {
-        return authSessionRepository.getBySessionId(sessionId);
+        return authSessionRepository.getBySessionId(sessionId).filter(s ->
+                authSessionRepository.isHumanIdentityCurrent(s) || authSessionRepository.isProvenMachine(s));
     }
 
     public void setSessionInactive(UUID sessionId) throws FailedToUpdateSessionException {
@@ -62,7 +65,16 @@ public class AuthSessionService {
         return this.createSession(sessionDto);
     }
 
+    @org.springframework.transaction.annotation.Transactional(rollbackFor=Exception.class)
     public AuthSession createSession(CreateAuthSessionDto sessionDto) {
+        if (sessionDto.getLoginId()!=null) {
+            credentials.acquire(sessionDto.getLoginId());
+            var identity = new AuthSession();
+            identity.setLoginId(sessionDto.getLoginId()); identity.setSubjectId(sessionDto.getSubjectId());
+            identity.setBranding(sessionDto.getBranding());
+            if(!authSessionRepository.isHumanIdentityCurrent(identity))
+                throw new org.springframework.security.authentication.CredentialsExpiredException("Account changed. Sign in again.");
+        }
         try {
             return this.create(sessionDto);
         } catch (AuthSessionCreationFailedException e) {
@@ -108,6 +120,6 @@ public class AuthSessionService {
             return Optional.empty();
         }
 
-        return authSessionRepository.getBySessionId(sessionId.get());
+        return getBySessionId(sessionId.get());
     }
 }

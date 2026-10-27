@@ -16,11 +16,11 @@ DEV=runpy.run_path(str(ROOT/'scripts/portal-dev.py'))
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase',choices=['auth','navigation','clients'],default='auth')
+    parser.add_argument('--phase',choices=['auth','navigation','clients','users'],default='auth')
     parser.add_argument('--grep',help='Run only matching browser scenarios; filter and blocked tests are reported with the evidence')
     args=parser.parse_args()
     passed=False
-    with DEV['owned_portal'](transport_faults=args.phase=='clients') as fixture:
+    with DEV['owned_portal'](transport_faults=args.phase=='clients', account_sync='sync' if args.phase=='users' else None) as fixture:
         directory=fixture['directory'];report=fixture['report']
         report['browser_filter']=args.grep or 'all '+args.phase+' scenarios'
         config_path=directory/'dev.json'
@@ -32,7 +32,7 @@ def main():
             os.chmod(log.name,0o600)
             command=[str(DEV['NODE']),str(ROOT/'web/node_modules/@playwright/test/cli.js'),'test',args.phase+'.spec.ts']
             if args.grep:command+=['--grep',args.grep]
-            result=subprocess.run(command,cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=600)
+            result=subprocess.run(command,cwd=ROOT/'web',env=environment,stdout=log,stderr=subprocess.STDOUT,timeout=int(os.environ.get('PORTAL_BROWSER_TIMEOUT','600')))
         browser_path=directory/'browser-report.json'
         report['browser']=json.loads(browser_path.read_text()) if browser_path.exists() else {'checks':[],'failed_before_report':True}
         report['sql']=json.loads(sql_text(fixture['config'],fixture['database'],"SELECT COUNT(*) AS Sessions,SUM(CASE WHEN ClientFingerprint IS NOT NULL THEN 1 ELSE 0 END) AS Fingerprints FROM Token.AuthSession FOR JSON PATH"))
