@@ -7,6 +7,7 @@ import { getStore, type SessionStore } from "./session-store";
 import { boundedBody, transportUrl, upstreamFetch } from "./auth";
 import { PortalFailure, signin } from "./errors";
 import { UserPageQuery } from "../contracts/users";
+import { conflictGuidance, roleConflict } from "../contracts/roles";
 import type { PortalSession } from "./types";
 // Only a verified noncommitting response from the create call carries this authority.
 // Transport/signature errors, early unverified401 and later reads must never use it.
@@ -39,7 +40,15 @@ export type JavaOperation =
     } & ClientScope)
   | ({ kind: "assignmentDelete"; resourceId: string } & ClientScope)
   | { kind: "resourceList" | "resourceCreate" }
-  | { kind: "resourceGet" | "resourceUpdate"; resourceId: string };
+  | { kind: "resourceGet" | "resourceUpdate"; resourceId: string }
+  | { kind: "roleList" | "roleCreate"; organizationId: string }
+  | {
+      kind: "roleGet" | "roleUpdate" | "roleDeactivate" | "rolePermissions";
+      organizationId: string;
+      roleId: string;
+    }
+  | { kind: "roleAssign"; organizationId: string; userId: string }
+  | { kind: "roleCatalog" };
 function operationRoute(operation: JavaOperation): {
   path: string;
   method: string;
@@ -54,6 +63,11 @@ function operationRoute(operation: JavaOperation): {
     "applicationId" in operation
       ? base + "/" + z.uuid().parse(operation.applicationId)
       : base;
+  const roleBase =
+    "organizationId" in operation
+      ? "/api/v1/organizations/" + org + "/groups"
+      : "";
+  const role = "roleId" in operation ? z.uuid().parse(operation.roleId) : "";
   switch (operation.kind) {
     case "organizationList": return {path:"/api/v1/organizations",method:"GET",body:false};
     case "organizationCreate": return {path:"/api/v1/organizations",method:"POST",body:true};
@@ -136,6 +150,47 @@ function operationRoute(operation: JavaOperation): {
     case "resourceUpdate":
       return {
         path: "/api/v1/endpoints/" + z.uuid().parse(operation.resourceId),
+        method: "PUT",
+        body: true,
+      };
+    case "roleList":
+      return { path: roleBase, method: "GET", body: false };
+    case "roleCreate":
+      return { path: roleBase, method: "POST", body: true };
+    case "roleCatalog":
+      return { path: "/api/v1/portal/permissions", method: "GET", body: false };
+    case "roleGet":
+      return {
+        path: roleBase + "/" + role,
+        method: "GET",
+        body: false,
+      };
+    case "roleUpdate":
+      return {
+        path: roleBase + "/" + role,
+        method: "PUT",
+        body: true,
+      };
+    case "roleDeactivate":
+      return {
+        path: roleBase + "/" + role,
+        method: "DELETE",
+        body: false,
+      };
+    case "rolePermissions":
+      return {
+        path: roleBase + "/" + role + "/permissions",
+        method: "GET",
+        body: false,
+      };
+    case "roleAssign":
+      return {
+        path:
+          "/api/v1/organizations/" +
+          org +
+          "/users/" +
+          z.uuid().parse(operation.userId) +
+          "/group",
         method: "PUT",
         body: true,
       };
@@ -223,6 +278,11 @@ export async function javaRequestWith<T>(
       "UPSTREAM_FAILURE",
       "The identity service could not complete the request.",
     ];
+    const detailed =
+      response.status === 409 && operation.kind.startsWith("role")
+        ? roleConflictFailure(bytes)
+        : undefined;
+    if (detailed) throw detailed;
     if (
       operation.kind === "clientCreate" &&
       [400, 403, 404, 409].includes(response.status)
@@ -246,6 +306,22 @@ export async function javaRequestWith<T>(
       "The identity service returned an invalid response.",
     );
   }
+}
+/**
+ * Only signature-verified role conflicts may name a specific cause. Unrecognized codes and
+ * non-role operations stay on the generic conflict so upstream strings are never reflected.
+ */
+function roleConflictFailure(bytes: Uint8Array): PortalFailure | undefined {
+  let code: unknown;
+  try {
+    code = JSON.parse(Buffer.from(bytes).toString()).code;
+  } catch {
+    return undefined;
+  }
+  if (typeof code !== "string") return undefined;
+  const conflict = roleConflict(code);
+  if (conflict.kind === "other") return undefined;
+  return new PortalFailure(409, conflict.code, conflictGuidance(conflict));
 }
 export async function javaRequest<T>(
   session: PortalSession,

@@ -39,7 +39,7 @@ export default async function Administration({
     },
     { name: "Users", permission: "idp-admin-user:read", href:"/admin/organizations/"+selected+"/users" },
     { name: "Administrators", permission: "idp-admin-admin:read", href:"/admin/organizations/"+selected+"/users?type=Administrator" },
-    { name: "Roles", permission: "idp-admin-group:read" },
+    { name: "Roles", permission: "idp-admin-group:read", href: "/admin/organizations/" + selected + "/roles" },
     { name: "Organization", permission: "idp-admin-org:read", href:"/admin/organizations/"+selected },
     { name:"Organizations",permission:"idp-admin-org:list",href:"/admin/organizations" },
     {
@@ -133,13 +133,9 @@ export default async function Administration({
           <Box component="ul" sx={{ m: 0, pl: 3 }}>
             {areas.map((item) => (
               <li key={item.permission}>
-                {"href" in item ? (
-                  <Button component="a" href={item.href}>
-                    {item.name}
-                  </Button>
-                ) : (
-                  item.name
-                )}
+                <Button component="a" href={item.href}>
+                  {item.name}
+                </Button>
               </li>
             ))}
           </Box>

@@ -10,6 +10,7 @@ import { FormSection } from "./FormSection";
 import { UserProfileForm } from "./UserProfileForm";
 import { UserSecurityForm } from "./UserSecurityForm";
 import { UserMetadataForm } from "./UserMetadataForm";
+import { RoleAssignment } from "../roles/RoleAssignment";
 export function UserDetails({initial,initialMetadata,context}:{initial:UserDto;initialMetadata:Record<string,unknown>;context:PortalContext}){
  const [user,setUser]=useState(initial),[metadata,setMetadata]=useState(initialMetadata),[error,setError]=useState(""),[revision,setRevision]=useState(0);
  const [pending,setPending]=useState(false),[uncertain,setUncertain]=useState(false);
@@ -36,6 +37,7 @@ export function UserDetails({initial,initialMetadata,context}:{initial:UserDto;i
   <FormSection title="Password" values={{password:""}} schema={UserPassword} fields={[{name:"password",label:"New password",type:"password"}]} sensitive disabled={!editable} save={async v=>{await requestJson(endpoint("/password"),"PUT",v);return {password:""};}} read={async()=>{await read();return {password:""};}}/>
   <UserSecurityForm key={"security"+revision} user={user} disabled={!editable} save={v=>save("security-settings",v)} read={read}/>
   <UserMetadataForm key={"metadata"+revision} metadata={metadata} disabled={!editable} save={async v=>{await requestJson(endpoint("/metadata"),"PUT",v);return readMetadata();}} read={readMetadata}/>
+  {canShow(context,"idp-admin-group:assign",user.organizationId)&&<RoleAssignment orgId={user.organizationId} userId={user.id} groupId={user.groupId} groupName={user.groupName??null} onChange={async()=>{await read();}}/>}
   <Typography component="h2" variant="h2">Account lifecycle</Typography>
   <Typography>Deactivation preserves account records. It is not permanent erasure.</Typography>
   {uncertain&&<Alert severity="warning">Read current account state before another lifecycle action.</Alert>}

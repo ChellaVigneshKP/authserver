@@ -16,11 +16,11 @@ DEV=runpy.run_path(str(ROOT/'scripts/portal-dev.py'))
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase',choices=['auth','navigation','clients','users'],default='auth')
+    parser.add_argument('--phase',choices=['auth','navigation','clients','users','roles'],default='auth')
     parser.add_argument('--grep',help='Run only matching browser scenarios; filter and blocked tests are reported with the evidence')
     args=parser.parse_args()
     passed=False
-    with DEV['owned_portal'](transport_faults=args.phase=='clients', account_sync='sync' if args.phase=='users' else None) as fixture:
+    with DEV['owned_portal'](transport_faults=args.phase=='clients', account_sync='sync' if args.phase in ('users','roles') else None) as fixture:
         directory=fixture['directory'];report=fixture['report']
         report['browser_filter']=args.grep or 'all '+args.phase+' scenarios'
         config_path=directory/'dev.json'

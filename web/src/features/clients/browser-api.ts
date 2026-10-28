@@ -2,6 +2,7 @@ export class ActionFailure extends Error {
   constructor(
     public status: number,
     message: string,
+    public code?: string,
   ) {
     super(message);
   }
@@ -46,6 +47,7 @@ export async function requestJson<T>(
       typeof value.message === "string"
         ? value.message
         : "The action could not be completed. Read current state before retrying.",
+      typeof value.code === "string" ? value.code : undefined,
     );
   }
   return value as T;
