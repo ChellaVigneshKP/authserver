@@ -39,7 +39,21 @@ export async function requestJson<T>(
       "The response was lost. Read current state before retrying. A lost new secret must be rotated; it cannot be recovered.",
     );
   }
-  const value = await response.json();
+  let value: { message?: unknown; code?: unknown };
+  try {
+    value = await response.json();
+  } catch {
+    if (!response.ok)
+      throw new ActionFailure(
+        response.status,
+        "The action could not be completed. Read current state before retrying.",
+      );
+    throw new ActionFailure(
+      502,
+      "The response could not be read. Read current state before retrying.",
+      "INVALID_RESPONSE",
+    );
+  }
   if (!response.ok) {
     if (response.status === 403) window.dispatchEvent(new Event("focus"));
     throw new ActionFailure(
