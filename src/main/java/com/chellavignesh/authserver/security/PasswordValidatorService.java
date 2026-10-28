@@ -64,6 +64,15 @@ public class PasswordValidatorService {
     public boolean validatePasswordForLogin(String password, UUID loginId)
             throws PasswordBlackListedException, PasswordInvalidSyntaxException, PasswordIncorrectSemanticException, PasswordRecentlyUsedException {
         UserDetails data = userService.getByLoginId(loginId).orElseThrow();
+        return validatePasswordForLogin(password, loginId, data);
+    }
+
+    /**
+     * Management-driven rotation already resolved and authorized the exact credential, so the
+     * semantic checks use the supplied identity instead of the active-only self-service lookup.
+     */
+    public boolean validatePasswordForLogin(String password, UUID loginId, UserDetails data)
+            throws PasswordBlackListedException, PasswordInvalidSyntaxException, PasswordIncorrectSemanticException, PasswordRecentlyUsedException {
         return validatePassword(password)
                 && validSemantic(password, data.username(), data.firstName(), data.lastName(), data.email())
                 && passwordNotBlackListed(password)

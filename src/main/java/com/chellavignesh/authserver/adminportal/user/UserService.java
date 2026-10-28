@@ -476,6 +476,10 @@ public class UserService {
         return userRepository.getDetailsByLoginId(loginId);
     }
 
+    public Optional<CredentialIdentity> getManagementCredentialByLoginId(UUID loginId) {
+        return userRepository.getManagementCredentialByLoginId(loginId);
+    }
+
     public Optional<UserDetails> getUniqueBiometricIdentity(UUID userGuid, String branding) {
         return userRepository.getUniqueBiometricIdentity(userGuid, branding);
     }

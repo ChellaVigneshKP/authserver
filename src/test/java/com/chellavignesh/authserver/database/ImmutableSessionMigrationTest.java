@@ -103,10 +103,10 @@ class ImmutableSessionMigrationTest {
                             sql.queryForList(
                                     "SELECT " + oldColumns + " FROM Token.AuthSession ORDER BY AuthSessionId"));
             var flyway = Flyway.configure().dataSource(ds).load();
-            assertEquals(1, flyway.migrate().migrationsExecuted);
+            assertEquals(2, flyway.migrate().migrationsExecuted);
             assertTrue(
                     Arrays.equals(businessBefore, helper.snapshot(sql)),
-                    "V17 must preserve existing profiles, credentials, clients and certificates");
+                    "V17/V18 must preserve existing profiles, credentials, clients and certificates");
             assertTrue(
                     Arrays.equals(
                             sessionsBefore,
@@ -115,7 +115,7 @@ class ImmutableSessionMigrationTest {
                                             "SELECT "
                                                     + oldColumns
                                                     + " FROM Token.AuthSession ORDER BY AuthSessionId"))),
-                    "V17 must preserve existing session columns");
+                    "V17/V18 must preserve existing session columns");
             assertEquals(
                     2,
                     sql.queryForObject("SELECT COUNT(*) FROM Token.AuthSession WHERE LoginId IS NULL", Integer.class),

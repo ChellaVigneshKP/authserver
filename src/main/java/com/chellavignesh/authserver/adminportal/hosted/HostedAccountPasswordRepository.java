@@ -37,6 +37,15 @@ public class HostedAccountPasswordRepository {
     }
 
     public Credential current(HostedAccountActor actor) {
+        return current(actor, true);
+    }
+
+    /** Authorized management writes keep an inactive profile eligible; the caller verified the actor. */
+    public Credential currentForManagement(HostedAccountActor actor) {
+        return current(actor, false);
+    }
+
+    private Credential current(HostedAccountActor actor, boolean requireActiveProfile) {
         var rows =
                 sql.query(
                         """
@@ -44,8 +53,8 @@ public class HostedAccountPasswordRepository {
                         FROM Person.Credential c WITH (UPDLOCK,HOLDLOCK)
                         JOIN Person.Profile p ON p.ProfileId=c.ProfileId JOIN dbo.ExternalSource source ON source.SourceId=c.ExternalId
                         WHERE c.RowGuid=:login AND p.RowGuid=:member AND source.SourceCode=:source
-                          AND c.Status=1 AND c.CredentialLocked=0 AND p.Status=1
-                        """,
+                          AND c.Status=1 AND c.CredentialLocked=0"""
+                                + (requireActiveProfile ? " AND p.Status=1" : ""),
                         parameters(actor),
                         (rs, n) ->
                                 new Credential(

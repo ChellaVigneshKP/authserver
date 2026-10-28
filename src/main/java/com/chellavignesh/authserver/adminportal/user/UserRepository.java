@@ -518,6 +518,34 @@ public class UserRepository {
                 .filter(user -> loginId.equals(user.loginId()));
     }
 
+    /**
+     * Exact credential identity for an already-authorized management write.
+     * Unlike the active-only detail lookups, inactive profile status is returned as data so
+     * password/username rotation on a deactivated user keeps working; callers must still verify
+     * the actor's authority before using it.
+     */
+    public Optional<CredentialIdentity> getManagementCredentialByLoginId(UUID loginId) {
+        var rows = namedParameterJdbcTemplate.query("""
+                SELECT c.Id,p.RowGuid AS ProfileId,c.RowGuid AS LoginId,c.UserName,es.SourceCode AS Branding,
+                       p.FirstName,p.LastName,p.Email,p.Status,c.SyncFlag
+                FROM Person.Credential c
+                JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                JOIN dbo.ExternalSource es ON es.SourceId=c.ExternalId
+                WHERE c.RowGuid=:login
+                """, new MapSqlParameterSource("login", loginId.toString()), (row, index) -> new CredentialIdentity(
+                        row.getInt("Id"),
+                        UUID.fromString(row.getString("ProfileId")),
+                        UUID.fromString(row.getString("LoginId")),
+                        row.getString("UserName"),
+                        row.getString("Branding"),
+                        row.getString("FirstName"),
+                        row.getString("LastName"),
+                        row.getString("Email"),
+                        UserStatus.fromInt(row.getInt("Status")),
+                        row.getBoolean("SyncFlag")));
+        return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
+    }
+
     public Optional<ProfileOrganization> getProfileOrganizationByProfileId(final int profileId) {
         return namedParameterJdbcTemplate.query(
                 "{call Person.GetProfileOrganizationByProfileId(:profileId)}",

@@ -664,6 +664,56 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
     }
 
     @Test
+    void f4InactiveTargetPasswordRotationSucceedsAndKeepsSiblingsUntouched() throws Exception {
+        var target=hosted("f4-inactive-target-"+UUID.randomUUID().toString().substring(0,8));
+        var details=userService.getByLoginId(target.user().getLoginId()).orElseThrow();
+        String siblingBrand="f4-other-"+UUID.randomUUID().toString().substring(0,8);
+        UUID siblingSource=UUID.randomUUID();
+        sql.update("INSERT dbo.ExternalSource(SourceId,SourceCode,ExternalTypeId) SELECT ?,?,ExternalTypeId FROM dbo.ExternalType WHERE ExternalTypeName='IDP'",siblingSource,siblingBrand);
+        UUID sibling=siblingCredential(target,"f4-sibling-"+UUID.randomUUID(),siblingSource);
+        byte[] siblingPassword=sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,sibling);
+        int siblingAudits=sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=?",Integer.class,sibling);
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",target.user().getId());
+        var actor=user(orgA,group(orgA,"f4-inactive-role-"+UUID.randomUUID(),List.of("idp-admin-user:update")),"f4-inactive-actor-"+UUID.randomUUID());
+        String next="Y7!uN"+UUID.randomUUID().toString().replace("-","")+"pW";
+        var changed=call(token(actor),"PUT","/api/v1/users/"+target.user().getRowGuid()+"/password?loginId="+details.loginId(),
+                mapper.writeValueAsString(Map.of("branding","idp","intent","idp","metadata",Map.of(),"password",Base64.getEncoder().encodeToString(next.getBytes()))));
+        assertThat(changed.statusCode()).isEqualTo(204);
+        String audited=sql.queryForObject("SELECT TOP 1 a.ModifiedBy FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=? ORDER BY a.CredentialAuditId DESC",String.class,details.loginId());
+        assertThat(audited.equalsIgnoreCase(actor.getRowGuid().toString())).isTrue();
+        var rotated=userService.getUserAuthDetailsByUsernameAndExternalSourceCode(details.username(),"idp").orElseThrow();
+        assertThat(passwordFactory.matches(Base64.getEncoder().encodeToString(next.getBytes()),rotated.getPassword(),rotated.getVersion())).isTrue();
+        assertThat(Arrays.equals(siblingPassword,sql.queryForObject("SELECT Password FROM Person.Credential WHERE RowGuid=?",byte[].class,sibling))).isTrue();
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.CredentialAudit a JOIN Person.Credential c ON c.Id=a.CredentialId WHERE c.RowGuid=?",Integer.class,sibling)).isEqualTo(siblingAudits);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Token.AuthSession WHERE SubjectId=? AND Branding='idp' AND AuthSessionStatusId=?",Integer.class,details.username(),AuthSessionStatusEnum.ACTIVE.getValue())).isZero();
+        assertThat(call(target.access(),"GET","/api/v1/portal/context",null).statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void f4InactiveTargetUsernameRenameSucceeds() throws Exception {
+        var target=hosted("f4-inactive-rename-"+UUID.randomUUID().toString().substring(0,8));
+        var details=userService.getByLoginId(target.user().getLoginId()).orElseThrow();
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",target.user().getId());
+        var actor=user(orgA,group(orgA,"f4-inactive-rename-role-"+UUID.randomUUID(),List.of("idp-admin-user:update")),"f4-inactive-rename-actor-"+UUID.randomUUID());
+        String renamed="f4-inactive-renamed-"+UUID.randomUUID();
+        var changed=call(token(actor),"PUT","/api/v1/users/"+target.user().getRowGuid()+"/username?loginId="+details.loginId(),
+                mapper.writeValueAsString(Map.of("branding","idp","intent","idp","metadata",Map.of(),"username",renamed)));
+        assertThat(changed.statusCode()).isEqualTo(204);
+        assertThat(sql.queryForObject("SELECT UserName FROM Person.Credential WHERE RowGuid=?",String.class,details.loginId())).isEqualTo(renamed);
+        assertThat(sql.queryForObject("SELECT ModifiedBy FROM Person.Credential WHERE RowGuid=?",String.class,details.loginId())).isEqualTo(actor.getRowGuid().toString());
+    }
+
+    @Test
+    void f4InactiveTargetCannotEstablishAnInteractiveSession() throws Exception {
+        var target=hosted("f4-inactive-auth-"+UUID.randomUUID().toString().substring(0,8));
+        sql.update("UPDATE Person.Profile SET TwoFactorEnabled=0 WHERE ProfileId=?",target.user().getId());
+        var details=userService.getByLoginId(target.user().getLoginId()).orElseThrow();
+        var snapshot=(CustomUserDetails)userDetails.loadUserByUsername(details.username()+System.lineSeparator()+"idp");
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",target.user().getId());
+        assertThat(authenticateSnapshot(snapshot,"idp",target.password()).getStatus()).isEqualTo(401);
+    }
+
+    @Test
     void f4LegacyPasswordWriterRejectsAmbiguousProfileBeforeAnyCredentialWrite() throws Exception {
         var f = hosted("f4-ambiguous-" + UUID.randomUUID().toString().substring(0, 8));
         UUID sibling = siblingCredential(f, "f4-sibling-" + UUID.randomUUID(),

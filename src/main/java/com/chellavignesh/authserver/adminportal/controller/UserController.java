@@ -295,12 +295,13 @@ public class UserController {
         }
 
         UUID selected=userService.lockCredentialForMutation(userGuid,updateUserPasswordDto.getBranding(),loginId);
-        var user = userService.getByLoginId(selected).orElseThrow(() -> new UserNotFoundException("User not found for the branding"));
+        var user = userService.getManagementCredentialByLoginId(selected)
+                .orElseThrow(() -> new UserNotFoundException("User not found for the branding")).toUserDetails();
 
         updateUserPasswordDto.setPassword(new String(Base64.getDecoder().decode(updateUserPasswordDto.getPassword())));
 
         passwordValidatorService.validatePasswordForLogin(updateUserPasswordDto.getPassword(),
-                selected);
+                selected, user);
 
         if (user.credSyncFlag() && AccountSyncType.SYNC == accountSyncType && !"idp".equals(updateUserPasswordDto.getIntent().getId())) {
 
