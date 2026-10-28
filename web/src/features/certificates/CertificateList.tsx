@@ -7,6 +7,7 @@ import {
   certificateStatusLabel,
   certificateTypeLabel,
   type CertificateSummary,
+  type CertificateTypeValue,
 } from "../../contracts/certificates";
 import { canShow } from "../account/permissions";
 import { DataTable } from "../../components/DataTable";
@@ -62,9 +63,11 @@ export function CertificateList({
       setPending(false);
     }
   }
-  const importable =
-    canShow(context, "idp-admin-org-cert:create", orgId) ||
-    canShow(context, "idp-admin-cred-cert:create", orgId);
+  const importableTypes: CertificateTypeValue[] = [];
+  if (canShow(context, "idp-admin-org-cert:create", orgId))
+    importableTypes.push("ORGANIZATION");
+  if (canShow(context, "idp-admin-cred-cert:create", orgId))
+    importableTypes.push("PUBLIC_KEY");
   return (
     <Stack spacing={3}>
       <Typography component="h1" variant="h1">
@@ -127,7 +130,13 @@ export function CertificateList({
           Reload certificates
         </Button>
       </Stack>
-      {importable && <CertificateImportForm orgId={orgId} onImported={reload} />}
+      {importableTypes.length > 0 && (
+        <CertificateImportForm
+          orgId={orgId}
+          types={importableTypes}
+          onImported={reload}
+        />
+      )}
     </Stack>
   );
 }

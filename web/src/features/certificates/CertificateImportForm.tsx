@@ -35,19 +35,32 @@ const BLANK: Draft = {
 
 export function CertificateImportForm({
   orgId,
+  types,
   onImported,
 }: {
   orgId: string;
+  /** Only the certificate types the actor may create in this organization. */
+  types: CertificateTypeValue[];
   onImported: () => Promise<void>;
 }) {
-  const form = useForm<Draft>({ defaultValues: BLANK });
+  const defaults: Draft = {
+    ...BLANK,
+    type: types.length === 1 ? types[0] : "",
+  };
+  const form = useForm<Draft>({ defaultValues: defaults });
   const fileInput = useRef<HTMLInputElement>(null);
   const active = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
+  /** Submitted secrets are dropped even when the import fails. */
+  function clearSecrets() {
+    form.setValue("password", "");
+    form.setValue("certificate", undefined);
+    if (fileInput.current) fileInput.current.value = "";
+  }
   function clearTransient() {
-    form.reset(BLANK, { keepDirtyValues: false, keepDirty: false });
+    form.reset(defaults, { keepDirtyValues: false, keepDirty: false });
     if (fileInput.current) fileInput.current.value = "";
   }
   return (
@@ -56,10 +69,11 @@ export function CertificateImportForm({
         Import certificate
       </Typography>
       <Typography color="text.secondary" sx={{ my: 2 }}>
-        Choose the certificate type explicitly. Organization signing certificates
-        need their matching private key and password; client public keys need only
-        the public certificate. The file is sent once and is not retained in this
-        page.
+        {types.includes("ORGANIZATION")
+          ? "Organization signing certificates need their matching private key and password; client public keys need only the public certificate."
+          : "Client public keys need only the public certificate."}{" "}
+        The file and password are sent once and are cleared from this form as
+        soon as it is submitted.
       </Typography>
       {error && <Alert severity="error">{error}</Alert>}
       {uncertain && (
@@ -88,6 +102,7 @@ export function CertificateImportForm({
             body.set("type", parsed.data.type);
             body.set("password", parsed.data.password);
             body.set("certificate", parsed.data.certificate);
+            clearSecrets();
             const created = await requestForm<{ id: string }>(
               "/api/admin/organizations/" + orgId + "/certificates",
               body,
@@ -130,15 +145,16 @@ export function CertificateImportForm({
                 }
                 disabled={pending || uncertain}
               >
-                <MenuItem value="">
-                  <em>Select certificate type</em>
-                </MenuItem>
-                <MenuItem value="ORGANIZATION">
-                  {certificateTypeLabel("ORGANIZATION")}
-                </MenuItem>
-                <MenuItem value="PUBLIC_KEY">
-                  {certificateTypeLabel("PUBLIC_KEY")}
-                </MenuItem>
+                {types.length > 1 && (
+                  <MenuItem value="">
+                    <em>Select certificate type</em>
+                  </MenuItem>
+                )}
+                {types.map((type) => (
+                  <MenuItem key={type} value={type}>
+                    {certificateTypeLabel(type)}
+                  </MenuItem>
+                ))}
               </TextField>
             )}
           />
@@ -148,7 +164,7 @@ export function CertificateImportForm({
             label="Private key password"
             type="password"
             autoComplete="new-password"
-            helperText="Required for encrypted organization signing keys; leave blank when the key has no password. Never displayed or stored after import."
+            helperText="Required for encrypted organization signing keys; leave blank when the key has no password. Cleared from this form as soon as it is submitted."
             disabled={pending || uncertain}
           />
           <Controller

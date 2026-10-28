@@ -200,4 +200,16 @@ it("invalidates the session on an unverified 401 for multipart and download", as
     ),
   ).rejects.toMatchObject({ status: 401, code: "SIGN_IN_REQUIRED" });
   expect(deleted).toEqual([session.id]);
+
+  reset();
+  status = 401;
+  responseBody = Buffer.from("");
+  await expect(
+    javaDownloadWith(config(), store, session, {
+      kind: "certificateDownload",
+      organizationId: id,
+      certificateId: id,
+    }),
+  ).rejects.toMatchObject({ status: 401, code: "SIGN_IN_REQUIRED" });
+  expect(deleted).toEqual([session.id]);
 });

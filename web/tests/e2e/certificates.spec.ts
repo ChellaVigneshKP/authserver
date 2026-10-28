@@ -128,7 +128,7 @@ test("platform admin imports, reads, downloads and deactivates a genuine certifi
  const certId=await importedId(page);
  check("import navigated to the new certificate detail",/^[0-9a-f-]{36}$/.test(certId));
  await expect.poll(()=>page.getByRole("heading",{name,level:1}).isVisible(),{message:"detail heading",timeout:20000}).toBe(true);
- check("detail heading is the certificate name",true);
+ check("detail heading is the certificate name",(await page.getByRole("heading",{level:1}).innerText()).trim()===name);
  check("organization certificate is active",await dd(page,0)==="Active");
  check("detail fingerprint matches the uploaded certificate",await dd(page,2)===fx.fingerprints.enc);
  const encUntil=notAfter(join(fx.dir,"enc-cert.pem"));
@@ -152,7 +152,7 @@ test("platform admin imports, reads, downloads and deactivates a genuine certifi
  check("downloaded PEM parses to the advertised fingerprint",fingerprintOf(downloadPath)===fx.fingerprints.enc);
  await page.goto(fixture.portal+"/admin/organizations/"+org+"/certificates");
  await expect.poll(()=>page.getByRole("link",{name}).isVisible(),{message:"certificate list link",timeout:20000}).toBe(true);
- check("certificate list links the imported record",true);
+ check("certificate list links the imported record",await page.getByRole("link",{name}).getAttribute("href")==="/admin/organizations/"+org+"/certificates/"+certId);
  const row=page.getByRole("row").filter({hasText:name});
  check("list shows the certificate as active",(await row.innerText()).includes("Active"));
  await page.getByRole("link",{name}).click();
@@ -181,10 +181,14 @@ test("platform admin imports, reads, downloads and deactivates a genuine certifi
 test("invalid, oversized, keyless and expired uploads fail closed or report expiry",async({page,context})=>{
  test.setTimeout(600000);await login(page);const admin=await session(context);const org=await makeOrg(page,admin,"F6 rejection ");
  const fx=pemFixture();const before=rowsOf(org);
- const invalid=await submitImport(page,org,{name:"F6 invalid",type:"Organization signing",password:"",file:fx.invalidPath});
+ const supplied="Wrong-"+randomUUID().slice(0,8);
+ const invalid=await submitImport(page,org,{name:"F6 invalid",type:"Organization signing",password:supplied,file:fx.invalidPath});
  check("invalid PEM rejected with 400",(await invalid!).status()===400);
  await expect.poll(()=>page.getByRole("alert").filter({hasText:"Check the supplied values."}).isVisible(),{message:"invalid PEM error alert",timeout:15000}).toBe(true);
- check("invalid PEM surfaces an actionable error",true);
+ check("invalid PEM surfaces an actionable error",(await page.getByRole("alert").filter({hasText:"Check the supplied values."}).innerText()).includes("Check the supplied values."));
+ check("rejected import clears the password field",(await page.locator('input[type="password"]').inputValue())==="");
+ check("rejected import clears the chosen file",(await page.locator('input[type="file"]').evaluate(el=>((el as HTMLInputElement).files?.length??0)))===0&&await page.getByText("No file selected").isVisible());
+ check("rejected import does not leave the password in the page",!(await page.content()).includes(supplied));
  check("invalid PEM did not create a certificate",rowsOf(org)===before);
  const keyless=await submitImport(page,org,{name:"F6 keyless",type:"Organization signing",password:"",file:fx.noKeyPath});
  check("organization import without a private key rejected with 400",(await keyless!).status()===400);
@@ -199,7 +203,7 @@ test("invalid, oversized, keyless and expired uploads fail closed or report expi
  const expired=await submitImport(page,org,{name:"F6 expired",type:"Client public key",file:{name:"expired.pem",mimeType:"application/x-pem-file",buffer:fx.expiredPem}});
  check("expired certificate import rejected with 400",(await expired!).status()===400);
  await expect.poll(()=>page.getByRole("alert").filter({hasText:"Check the supplied values."}).isVisible(),{message:"expired certificate error alert",timeout:15000}).toBe(true);
- check("expired certificate surfaces an actionable error",true);
+ check("expired certificate surfaces an actionable error",(await page.getByRole("alert").filter({hasText:"Check the supplied values."}).innerText()).includes("Check the supplied values."));
  check("expired certificate import did not create a record",rowsOf(org)===before);
 });
 
@@ -222,22 +226,37 @@ test("tenant certificate permissions and cross-organization isolation are enforc
   const tenantList=await own.request.get(fixture.portal+"/api/admin/organizations/"+org+"/certificates");
   check("tenant certificate list API is readable",tenantList.status()===200);
   await expect.poll(()=>own.getByRole("heading",{name:"Certificates",level:1}).isVisible(),{message:"tenant list heading",timeout:20000}).toBe(true);
-  check("tenant certificate list is readable",true);
+  check("tenant certificate list is readable",(await own.getByRole("heading",{name:"Certificates",level:1}).innerText()).trim()==="Certificates");
   check("tenant sees the platform-imported organization key",await own.getByRole("link",{name:orgCert}).isVisible());
   check("tenant certificate import form is available for client keys",await own.getByRole("region",{name:"Import certificate",exact:true}).count()===1);
+  check("tenant import form does not offer organization signing",!(await own.getByRole("region",{name:"Import certificate",exact:true}).innerText()).includes("Organization signing"));
   const publicName="F6 tenant public "+randomUUID().slice(0,8);
   const publicResponse=await submitImport(own,org,{name:publicName,type:"Client public key",file:{name:"public.pem",mimeType:"application/x-pem-file",buffer:fx.publicPem}});
   check("tenant client public key import allowed",(await publicResponse!).status()===201);
   const publicId=await importedId(own);
   const beforeDenial=rowsOf(org);
-  const denied=await submitImport(own,org,{name:"F6 tenant denied",type:"Organization signing",password:"",file:{name:"org.pem",mimeType:"application/x-pem-file",buffer:fx.orgPem}});
-  check("tenant organization key import denied by the BFF",(await denied!).status()===403);
-  check("denied tenant import shows the permission error",await own.getByRole("alert").filter({hasText:"Your current permissions do not allow this action."}).isVisible({timeout:15000}));
   const deniedBff=await bffUpload(own,"/api/admin/organizations/"+org+"/certificates",{name:"F6 tenant direct",type:"ORGANIZATION",password:""},{filename:"org.pem",bytes:fx.orgPem});
   check("direct BFF organization key import denied",deniedBff.status()===403);
   const deniedJava=await javaUpload(own,s,"/api/v1/organizations/"+org+"/certificates",{name:"F6 tenant java",type:"ORGANIZATION",password:""},{filename:"org.pem",bytes:fx.orgPem});
   check("direct Java organization key import denied for tenant",deniedJava.status()===403);
   check("denied tenant imports created no certificate",rowsOf(org)===beforeDenial);
+  const delName="F6 tenant delete "+randomUUID().slice(0,8);
+  const delResponse=await submitImport(own,org,{name:delName,type:"Client public key",file:{name:"public.pem",mimeType:"application/x-pem-file",buffer:fx.publicPem}});
+  check("tenant imported a second client public key",(await delResponse!).status()===201);
+  const delId=await importedId(own);
+  const deleteOnly=await makeRole(page,admin,org,"F6 delete only "+randomUUID().slice(0,6),["idp-admin-cred-cert:delete"]);
+  const deleterName="f6_deleter_"+randomUUID().replaceAll("-","");const deleterSecret=password();
+  const deleter=await createUser(page,admin,org,deleterName,deleterSecret);
+  check("tenant delete-only role assigned",(await assign(page,admin,org,deleter,deleteOnly)).status()===204);
+  check("tenant delete-only MFA disabled explicitly",(await java(page,admin,"/api/v1/users/"+deleter+"/security-settings","PUT",{twoFactorEnabled:false})).status()===200);
+  const third=await browser.newContext({locale:"en-US",userAgent:"PortalAcceptance/1.0",extraHTTPHeaders:{"Accept-Language":"en-US"},timezoneId:"Asia/Kolkata"});
+  try{
+   const del=await third.newPage();await login(del,deleterName,deleterSecret);
+   check("delete-only actor cannot read the certificate",(await bff(del,"/api/admin/organizations/"+org+"/certificates/"+delId,"GET",{})).status()===403);
+   const deactivated=await bff(del,"/api/admin/organizations/"+org+"/certificates/"+delId,"DELETE");
+   const deactivatedBody=await deactivated.json();check("delete-only actor can deactivate the certificate",deactivated.status()===200&&deactivatedBody.updated===true);
+   check("delete-only deactivation is stored as inactive",sql("SELECT Status AS n FROM Partner.Certificate WHERE RowGuid="+literal(delId)+" FOR JSON PATH")[0].n===0);
+  }finally{await third.close();}
   check("tenant can deactivate its own client public key",(await bff(own,"/api/admin/organizations/"+org+"/certificates/"+publicId,"DELETE")).status()===200);
   check("tenant organization key deactivation denied by the BFF",(await bff(own,"/api/admin/organizations/"+org+"/certificates/"+orgCertId,"DELETE")).status()===403);
   check("tenant organization key deactivation denied by Java",(await java(own,s,"/api/v1/organizations/"+org+"/certificates/"+orgCertId,"DELETE")).status()===403);

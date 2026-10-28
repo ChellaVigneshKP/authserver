@@ -105,6 +105,16 @@ export const CERTIFICATE_READ_PERMISSIONS = [
   "idp-admin-cred-cert:read",
 ] as const;
 
+export const CERTIFICATE_CREATE_PERMISSIONS = [
+  "idp-admin-org-cert:create",
+  "idp-admin-cred-cert:create",
+] as const;
+
+export const CERTIFICATE_DELETE_PERMISSIONS = [
+  "idp-admin-org-cert:delete",
+  "idp-admin-cred-cert:delete",
+] as const;
+
 export function certificateCreatePermission(type: CertificateTypeValue) {
   return type === "ORGANIZATION"
     ? "idp-admin-org-cert:create"

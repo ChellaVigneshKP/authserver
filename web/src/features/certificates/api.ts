@@ -113,6 +113,12 @@ export async function importCertificate(
     orgId,
     "multipart",
   );
+  // Reject an actor with no create grant before buffering the multipart body.
+  requirePermission(
+    context,
+    [...C.CERTIFICATE_CREATE_PERMISSIONS],
+    organizationId,
+  );
   const bytes = await readBoundedRequest(
     request,
     C.MAX_CERTIFICATE_REQUEST_BYTES,
@@ -193,10 +199,19 @@ export async function certificateItemAction(
     orgId,
     "json",
   );
-  const stored = await certificateDetail(session, organizationId, certificateId);
+  let stored: C.CertificateDetailDto | undefined;
+  try {
+    stored = await certificateDetail(session, organizationId, certificateId);
+  } catch (error) {
+    // A delete-only grant cannot read the record. Java re-derives the stored
+    // type and its delete permission, so defer the decision to it.
+    if (!(error instanceof PortalFailure) || error.status !== 403) throw error;
+  }
   requirePermission(
     context,
-    [C.certificateDeletePermission(stored.type)],
+    stored
+      ? [C.certificateDeletePermission(stored.type)]
+      : [...C.CERTIFICATE_DELETE_PERMISSIONS],
     organizationId,
   );
   return deactivateCertificate(session, organizationId, certificateId);

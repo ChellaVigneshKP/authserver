@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import type { PortalSession } from "./types";
 export type PortalError = {
   code: string;
@@ -27,16 +28,25 @@ export const noStore = {
 export function jsonResponse(data: unknown, status = 200) {
   return Response.json(data, { status, headers: noStore });
 }
+/** Every route, including binary downloads, maps malformed input to an actionable 400. */
+function asFailure(error: unknown) {
+  if (error instanceof PortalFailure) return error;
+  if (error instanceof z.ZodError) {
+    return new PortalFailure(
+      400,
+      "INVALID_INPUT",
+      "Check the supplied fields, identifiers and values.",
+    );
+  }
+  return new PortalFailure(
+    503,
+    "SERVICE_UNAVAILABLE",
+    "The service is temporarily unavailable. Please try again.",
+    true,
+  );
+}
 export function errorResponse(error: unknown) {
-  const e =
-    error instanceof PortalFailure
-      ? error
-      : new PortalFailure(
-          503,
-          "SERVICE_UNAVAILABLE",
-          "The service is temporarily unavailable. Please try again.",
-          true,
-        );
+  const e = asFailure(error);
   const body: PortalError = {
     code: e.code,
     message: e.message,
@@ -44,7 +54,8 @@ export function errorResponse(error: unknown) {
     retryable: e.retryable,
   };
   const response = jsonResponse(body, e.status);
-  if (e.status === 503) response.headers.set("Retry-After", "5");
+  // Only retryable failures advertise Retry-After; an uncertain mutation must not be re-issued.
+  if (e.status === 503 && e.retryable) response.headers.set("Retry-After", "5");
   return response;
 }
 export function publicSession(session: PortalSession) {

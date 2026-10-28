@@ -75,15 +75,7 @@ export async function respond(fn: () => Promise<unknown>, status = 200) {
   try {
     return jsonResponse(await fn(), status);
   } catch (error) {
-    return errorResponse(
-      error instanceof z.ZodError
-        ? new PortalFailure(
-            400,
-            "INVALID_INPUT",
-            "Check the supplied fields, identifiers and values.",
-          )
-        : error,
-    );
+    return errorResponse(error);
   }
 }
 export async function listClients(

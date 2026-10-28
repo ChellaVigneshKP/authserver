@@ -109,7 +109,6 @@ export function CertificateDetails({
         <Button
           component="a"
           href={base + "/download"}
-          download={detail.name + ".pem"}
           variant="contained"
         >
           Download public certificate (.pem)
