@@ -1,0 +1,4 @@
+"use client";
+import { ContactInput,type OrganizationDto } from "../../contracts/users";
+import { FormSection } from "../users/FormSection";
+export function ContactForm({title,contact,disabled,save,read}:{title:string;contact:OrganizationDto["primaryContact"];disabled:boolean;save:(v:unknown)=>Promise<OrganizationDto["primaryContact"]>;read:()=>Promise<OrganizationDto["primaryContact"]>}){const pick=(c:typeof contact)=>({name:c?.name??"",email:c?.email??"",phoneNumber:c?.phoneNumber??""});return <FormSection title={title} values={pick(contact)} schema={ContactInput} fields={[{name:"name",label:"Contact name"},{name:"email",label:"Contact email",type:"email"},{name:"phoneNumber",label:"Contact phone number",type:"tel"}]} disabled={disabled} save={async v=>pick(await save(v))} read={async()=>pick(await read())}/>;}

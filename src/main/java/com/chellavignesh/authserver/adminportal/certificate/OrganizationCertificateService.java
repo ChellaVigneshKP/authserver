@@ -11,6 +11,10 @@ import com.chellavignesh.authserver.keystore.parser.PemKeyStorePairParser;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.time.Clock;
+import java.util.Date;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
@@ -32,10 +36,12 @@ public class OrganizationCertificateService {
 
     private final PemKeyStorePairParser keyStorePairParser;
     private final CertificateRepository certificateRepository;
+    private final Clock clock;
 
-    public OrganizationCertificateService(PemKeyStorePairParser keyStorePairParser, CertificateRepository certificateRepository) {
+    public OrganizationCertificateService(PemKeyStorePairParser keyStorePairParser, CertificateRepository certificateRepository, Clock clock) {
         this.keyStorePairParser = keyStorePairParser;
         this.certificateRepository = certificateRepository;
+        this.clock = clock;
     }
 
     public UUID createCertificate(UUID orgId, String name, String password, CertificateType type, InputStream certificarte) throws FailedToCreateKeyStorePairException, InvalidFileException, FailedToStoreCertificateException, FailedToCreateFingerprintException {
@@ -45,6 +51,11 @@ public class OrganizationCertificateService {
         } else if (type == CertificateType.PUBLIC_KEY && keyStorePair.getCertificate().isEmpty()) {
             throw new InvalidFileException("File does not contain certificate");
         } else {
+            try {
+                keyStorePair.getCertificate().orElseThrow().checkValidity(Date.from(clock.instant()));
+            } catch (CertificateExpiredException | CertificateNotYetValidException invalid) {
+                throw new InvalidFileException("Certificate must be currently valid", invalid);
+            }
             String fingerprint;
             try {
                 var x509Certificate = keyStorePair.getCertificate();
@@ -101,7 +112,7 @@ public class OrganizationCertificateService {
             certFileString.append(certificateString, i, i + MAX_FILE_WIDTH).append("\n");
             i += MAX_FILE_WIDTH;
         }
-        certFileString.append(certFileString.substring(i)).append("\n");
+        certFileString.append(certificateString.substring(i)).append("\n");
 
         String fileText = "-----BEGIN CERTIFICATE-----\n" + certFileString + "-----END CERTIFICATE-----";
         return fileText.getBytes();

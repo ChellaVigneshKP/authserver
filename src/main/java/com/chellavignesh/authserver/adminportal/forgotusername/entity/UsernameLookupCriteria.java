@@ -18,7 +18,7 @@ public class UsernameLookupCriteria {
     private Integer priority;
     private String[] lookupCriteria;
 
-    public static UsernameLookupCriteria fromResult(ResultSet rs) {
+    public static UsernameLookupCriteria fromResult(ResultSet rs) throws SQLException {
         UsernameLookupCriteria criteria = new UsernameLookupCriteria();
         try {
             criteria.setOrgId(rs.getInt("OrganizationId"));
@@ -27,7 +27,7 @@ public class UsernameLookupCriteria {
             String lookupCriteriaJsonString = rs.getString("ParamJson");
             criteria.setLookupCriteria(UsernameLookupCriteria.lookupCriteriaFromJsonString(lookupCriteriaJsonString));
         } catch (SQLException e) {
-            return null;
+            throw e;
         }
         return criteria;
     }

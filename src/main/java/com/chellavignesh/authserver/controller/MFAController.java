@@ -24,6 +24,7 @@ import com.chellavignesh.authserver.mfa.dto.OtpReceiverDto;
 import com.chellavignesh.authserver.mfa.dto.OtpValidationRequestDto;
 import com.chellavignesh.authserver.mfa.exception.*;
 import com.chellavignesh.authserver.session.AuthSessionService;
+import com.chellavignesh.authserver.session.RecoveryVerificationService;
 import com.chellavignesh.authserver.session.entity.AuthSession;
 import com.chellavignesh.authserver.session.exception.AuthSessionNotFoundException;
 import com.chellavignesh.authserver.session.exception.MfaExpirySessionException;
@@ -70,6 +71,7 @@ public class MFAController {
 
     private final HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
 
+    private final RecoveryVerificationService recoveryVerification;
     private final MFAService otpService;
     private final UserService userService;
     private final CmsService cmsService;
@@ -81,7 +83,8 @@ public class MFAController {
     private final MfaExpiryPinTimeService mfaExpiryPinTimeService;
 
     @Autowired
-    public MFAController(MFAService otpService, UserService userService, CmsService cmsService, ApplicationService applicationService, AuthSessionService authSessionService, @Value("${toggles.updated-login.enabled}") boolean userUpdatedLogin, BrandUrlMappingService brandUrlMappingService, GlobalConfigCache globalConfigCache, MfaExpiryPinTimeService mfaExpiryPinTimeService) {
+    public MFAController(RecoveryVerificationService recoveryVerification, MFAService otpService, UserService userService, CmsService cmsService, ApplicationService applicationService, AuthSessionService authSessionService, @Value("${toggles.updated-login.enabled}") boolean userUpdatedLogin, BrandUrlMappingService brandUrlMappingService, GlobalConfigCache globalConfigCache, MfaExpiryPinTimeService mfaExpiryPinTimeService) {
+        this.recoveryVerification = recoveryVerification;
         this.otpService = otpService;
         this.userService = userService;
         this.cmsService = cmsService;
@@ -448,12 +451,16 @@ public class MFAController {
             return "redirect:%s/mfa/%s/verify-pin".formatted(brandUrlMappingService.getUrlByBrand(brand), flow);
         }
 
+        if (!LOGIN_FLOW.equals(flow)) {
+            recoveryVerification.verified(request.getSession().getId(), sessionId, flow);
+        }
+
         switch (flow) {
 
             case LOGIN_FLOW:
                 userService.updateAccessFailedCountWithExternalSourceCode(authentication.getName(), brand, 1);
 
-                updateAuthentication(authentication, true);
+                updateAuthentication(authentication, true, request, response);
 
                 SavedRequest savedRequest = requestCache.getRequest(request, response);
 
@@ -493,11 +500,12 @@ public class MFAController {
 
 
     boolean isUserAuthenticated(Authentication authentication) {
-        return authentication.isAuthenticated() || authentication.getAuthorities().contains(new PreAuthGrantedAuthority());
+        return authentication != null && (authentication.isAuthenticated() || authentication.getAuthorities().contains(new PreAuthGrantedAuthority()));
     }
 
 
-    void updateAuthentication(Authentication authentication, boolean isAuthenticated) {
+    void updateAuthentication(Authentication authentication, boolean isAuthenticated,
+            HttpServletRequest request, HttpServletResponse response) {
         // Remove temporary granted authority from the Authorization
         List<GrantedAuthority> updatedAuthorities = authentication.getAuthorities().stream().filter(authority -> !authority.equals(new PreAuthGrantedAuthority())).collect(Collectors.toList());
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -511,6 +519,8 @@ public class MFAController {
         }
 
         SecurityContextHolder.getContext().setAuthentication(newAuth);
+        new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                .saveContext(SecurityContextHolder.getContext(), request, response);
     }
 
 
@@ -664,6 +674,12 @@ public class MFAController {
     public String handleInvalidUserSessionException(InvalidUserSessionException e) {
         log.error("Invalid user session in MFA Flow: {}", e.getMessage());
         return "pages/404";
+    }
+
+    @ExceptionHandler({FactorRetrievalFailedException.class})
+    public org.springframework.http.ResponseEntity<String> handleUnavailableVerification() {
+        return org.springframework.http.ResponseEntity.status(503)
+                .body("Verification is temporarily unavailable. Please try again later.");
     }
 
 }

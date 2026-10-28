@@ -46,13 +46,17 @@ public class BiometricAuthenticationProvider implements AuthenticationProvider {
         UniteUserDto uniteUserDto = uniteServiceClient.validateBiometricToken(dto);
         UUID memberId = UUIDUtils.oracleGuidToSqlUUID(uniteUserDto.getUuidMemberId());
 
-        var userDetails = userService.getByGuidAndBranding(memberId, branding).orElseThrow(() ->
+        var userDetails = userService.getUniqueBiometricIdentity(memberId, branding).orElseThrow(() ->
                 new BiometricAuthenticationException("User linked to the biometric token not found."));
 
         var userAuthDetails = userService.getUserAuthDetailsByUsernameAndExternalSourceCode(userDetails.username(), branding).orElseThrow(() ->
                 new BiometricAuthenticationException("User linked to the biometric token not found."));
 
-        return this.createSuccessAuthentication(authentication, new CustomUserDetails(userAuthDetails));
+        if (!userDetails.loginId().equals(userAuthDetails.getLoginId()) || !memberId.equals(userAuthDetails.getRowGuid()))
+            throw new BiometricAuthenticationException("User linked to the biometric token not found.");
+        var principal = new CustomUserDetails(userAuthDetails);
+        principal.setLoginId(userAuthDetails.getLoginId());
+        return this.createSuccessAuthentication(authentication, principal);
     }
 
     @Override

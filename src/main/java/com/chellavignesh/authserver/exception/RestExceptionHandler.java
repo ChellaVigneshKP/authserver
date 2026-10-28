@@ -163,13 +163,57 @@ public class RestExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     protected ResponseEntity<Object> handleAccessDenied(AccessDeniedException ex) {
         logger.error("Access denied: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+    }
+
+    @ExceptionHandler({org.springframework.web.bind.ServletRequestBindingException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    protected ResponseEntity<Object> handleMalformedRequest(Exception ex) {
+        return ResponseEntity.badRequest().body("Missing or invalid request parameters");
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    protected ResponseEntity<Object> handleMissingRoute(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Not found");
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    protected ResponseEntity<Object> handleUnsupportedResponseType(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+    }
+
+    @ExceptionHandler({org.springframework.dao.DataAccessResourceFailureException.class,
+            org.springframework.dao.QueryTimeoutException.class})
+    protected ResponseEntity<Object> handleUnavailableInfrastructure(Exception ex) {
+        logger.warn("Infrastructure unavailable in request handler: {}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "5").header("Cache-Control", "no-store")
+                .body(com.chellavignesh.authserver.filter.InfrastructureAvailabilityFilter.MESSAGE);
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    protected ResponseEntity<Object> handleUploadTooLarge(Exception ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .header("Cache-Control", "no-store").body(new com.chellavignesh.authserver.adminportal.util.PortalProblem(
+                        "UPLOAD_TOO_LARGE", "Certificate upload exceeds the 1 MiB limit", java.util.UUID.randomUUID().toString(), false));
+    }
+
+    /** Downstream provider sync is a dependency failure, never a client input rejection. */
+    @ExceptionHandler(AccountSyncException.class)
+    protected ResponseEntity<Object> handleAccountSyncException(AccountSyncException ex, HttpServletRequest request) {
+        logger.error("Account sync dependency unavailable in request handler", ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .header("Cache-Control", "no-store")
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem("UPSTREAM_FAILURE",
+                        "The identity provider could not complete the account sync.",
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request), false));
     }
 
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<Object> handleOtherException(Exception ex) {
-        logger.error("Unhandled exception: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        logger.error("Unhandled request exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("The request could not be completed");
     }
 
     @ExceptionHandler(value = InvalidUserSessionException.class)

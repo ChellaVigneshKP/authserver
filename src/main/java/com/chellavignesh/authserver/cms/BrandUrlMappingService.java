@@ -23,7 +23,7 @@ public class BrandUrlMappingService {
     }
 
     public URI getUrlByBrand(String brand) {
-        return Optional.ofNullable(brandUrlMap.mappings().get(brand)).orElse(basePath);
+        return brand == null ? basePath : brandUrlMap.mappings().getOrDefault(brand, basePath);
     }
 
     public URI getDefaultUrl() {
@@ -35,6 +35,7 @@ public class BrandUrlMappingService {
     }
 
     public String getBrandFromRequest(HttpServletRequest request) {
-        return request.getSession() != null ? (String) request.getSession().getAttribute(ApplicationConstants.BRANDING_INFO) : null;
+        var session = request.getSession(false);
+        return session != null ? (String) session.getAttribute(ApplicationConstants.BRANDING_INFO) : null;
     }
 }

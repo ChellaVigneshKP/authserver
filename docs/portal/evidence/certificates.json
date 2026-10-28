@@ -1,0 +1,533 @@
+{
+  "checks": [
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "method": "POST",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "method": "POST",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b/download",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b/download",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d990473e-f36b-1410-8ed4-00fc9a23848b/download",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d990473e-f36b-1410-8ed4-00fc9a23848b/download",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "method": "POST",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "method": "POST",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/dcda4852-e6d2-406d-8156-4f3652fe955b",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/dcda4852-e6d2-406d-8156-4f3652fe955b",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications",
+      "method": "POST",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "GET",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials",
+      "method": "POST",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "configured client public JWKS",
+      "method": "GET",
+      "path": "/oauth2/.well-known/4832F4E2439649A79CABF5D4FA7F0DFE/jwks.json",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "organization public JWKS",
+      "method": "GET",
+      "path": "/oauth2/.well-known/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/jwks.json",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "RS256 assertion aud",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "RS256 assertion exp,iat",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "RS256 assertion sub",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "RS256 assertion iss",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "PUT",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "PUT",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "PUT",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "PUT",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "PUT",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 204,
+      "expected": [
+        204
+      ],
+      "passed": true
+    },
+    {
+      "id": "RS256 assertion valid",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "PUT",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/applications/dd90473e-f36b-1410-8ed4-00fc9a23848b/credentials/e990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 204,
+      "expected": [
+        204
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d390473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 204,
+      "expected": [
+        204
+      ],
+      "passed": true
+    },
+    {
+      "id": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d990473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/6a8e473e-f36b-1410-8ed4-00fc9a23848b/certificates/d990473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 204,
+      "expected": [
+        204
+      ],
+      "passed": true
+    }
+  ],
+  "database_checks": [
+    {
+      "operation": "SELECT",
+      "passed": true
+    },
+    {
+      "operation": "SELECT",
+      "passed": true
+    },
+    {
+      "operation": "UPDATE",
+      "passed": true
+    },
+    {
+      "operation": "UPDATE",
+      "passed": true
+    },
+    {
+      "operation": "UPDATE",
+      "passed": true
+    },
+    {
+      "operation": "UPDATE",
+      "passed": true
+    },
+    {
+      "operation": "UPDATE",
+      "passed": true
+    },
+    {
+      "operation": "SELECT",
+      "passed": true
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "real organization private-key PEM upload",
+      "passed": true
+    },
+    {
+      "id": "SQL keystore persistence, certificate list/get and fingerprint",
+      "passed": true
+    },
+    {
+      "id": "certificate downloads preserve complete X.509 DER",
+      "passed": true
+    },
+    {
+      "id": "organization certificate rejects public-only PEM",
+      "passed": true
+    },
+    {
+      "id": "invalid certificate rejects malformed PEM",
+      "passed": true
+    },
+    {
+      "id": "missing certificate returns not found",
+      "passed": true
+    },
+    {
+      "id": "public client JWKS contains associated certificate RSA key only",
+      "passed": true
+    },
+    {
+      "id": "public organization JWKS contains organization signing RSA key only",
+      "passed": true
+    },
+    {
+      "id": "real RS256 private_key_jwt client_credentials issuance",
+      "passed": true
+    },
+    {
+      "id": "private_key_jwt wrong audience rejected",
+      "passed": true
+    },
+    {
+      "id": "private_key_jwt expired assertion rejected",
+      "passed": true
+    },
+    {
+      "id": "private_key_jwt wrong subject rejected",
+      "passed": true
+    },
+    {
+      "id": "private_key_jwt wrong issuer rejected",
+      "passed": true
+    },
+    {
+      "id": "disabled private-key credential rejected",
+      "passed": true
+    },
+    {
+      "id": "reactivated private-key credential permits issuance",
+      "passed": true
+    },
+    {
+      "id": "SQL-expired private-key credential rejects issuance",
+      "passed": true
+    },
+    {
+      "id": "expired credential cannot reactivate",
+      "passed": true
+    },
+    {
+      "id": "restored owned credential permits issuance",
+      "passed": true
+    },
+    {
+      "id": "future-valid certificate rejects private-key authentication",
+      "passed": true
+    },
+    {
+      "id": "SQL-expired certificate rejects private-key authentication",
+      "passed": true
+    },
+    {
+      "id": "restored owned certificate permits issuance",
+      "passed": true
+    },
+    {
+      "id": "deactivated certificate rejects private-key authentication",
+      "passed": true
+    }
+  ],
+  "database": "AuthserverLifecycle_74c78ab5fca64edfbf049a43aa931853",
+  "app_base": "http://localhost:50139/services",
+  "provider": "unconfigured; not exercised",
+  "source_commit": "93dc6048e13a0d76302be0d09b0a158d1ef56bd0",
+  "source_tree_sha256": "a00ac05ecef5bc9ad2806ff5f38170196e94ad59fd35d72d630c83b23ab140f1",
+  "working_tree_dirty": false,
+  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "artifact_sha256": "99384413a80545e8574457ef2ec73c92ee53ae7d2e48b335e76647e785b08623",
+  "provenance_source": "Verified owned launcher; matching database/app_base and immutable artifact",
+  "raw_report_sha256": "1210dccc8cb25d34a796c80738586ccb244131be8b1663256eeff3109276be36"
+}

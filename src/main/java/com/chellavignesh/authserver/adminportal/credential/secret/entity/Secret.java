@@ -1,7 +1,8 @@
 package com.chellavignesh.authserver.adminportal.credential.secret.entity;
 
 import com.chellavignesh.authserver.adminportal.certificate.exception.InvalidPemException;
-import com.chellavignesh.authserver.adminportal.util.DateUtil;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import com.chellavignesh.authserver.keystore.KeyStorePair;
 import com.chellavignesh.authserver.keystore.exception.FailedToCreateKeyStoreException;
 import com.chellavignesh.authserver.keystore.parser.PemKeyStorePairParser;
@@ -38,7 +39,8 @@ public class Secret {
             secret.setAppId(result.getInt("ApplicationId"));
             secret.setDescription(result.getString("Description"));
             secret.setSecretHash(result.getString("SecretHashValue"));
-            secret.setExpiration(DateUtil.getISO8601Date(result.getDate("ExpireOn")));
+            var expiration = result.getObject("ExpireOn", LocalDateTime.class);
+            secret.setExpiration(expiration == null ? null : expiration.toInstant(ZoneOffset.UTC).toString());
             try {
                 KeyStorePair keyStorePair = pemKeyStorePairParser.parse(result.getBytes("KeyStore"), result.getBytes("PasswordKeyStore"), password, result.getString("PasswordKeyId"));
                 if (keyStorePair.getSecret().isPresent()) {
@@ -48,7 +50,7 @@ public class Secret {
                 logger.error("Failed to parse secret", e);
             }
         } catch (SQLException e) {
-            return null;
+            throw e;
         }
         return secret;
     }

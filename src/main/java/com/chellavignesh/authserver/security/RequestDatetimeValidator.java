@@ -40,12 +40,13 @@ public class RequestDatetimeValidator {
         }
 
         var pattern = Pattern.compile("^Bearer (.+)$");
+        if (!StringUtils.hasText(authorizationHeader)) return false;
         var matcher = pattern.matcher(authorizationHeader);
 
         if (matcher.matches()) {
             var accessToken = matcher.group(1);
             var token = this.tokenService.getByValue(accessToken, TokenTypeEnum.ACCESS_TOKEN);
-            return validate(getApplicationID(token), datetimeHeader);
+            return token.isPresent() && validate(token.get().getApplicationId(), datetimeHeader);
         }
 
         return false;
@@ -67,12 +68,19 @@ public class RequestDatetimeValidator {
     private boolean validate(int applicationID, String datetimeHeader) {
 
         var application = this.applicationService.getById(applicationID);
-        var orgId = application.orElseThrow().getOrgId();
+        if (application.isEmpty()) return false;
+        var orgId = application.get().getOrgId();
 
         var tokenSettings = this.tokenSettingsService.getForApp(orgId, applicationID);
-        var maxRequestTransitTime = tokenSettings.orElseThrow().getMaxRequestTransitTime();
+        if (tokenSettings.isEmpty() || tokenSettings.get().getMaxRequestTransitTime() == null) return false;
+        var maxRequestTransitTime = tokenSettings.get().getMaxRequestTransitTime();
 
-        var requestDatetime = OffsetDateTime.parse(datetimeHeader);
+        OffsetDateTime requestDatetime;
+        try {
+            requestDatetime = OffsetDateTime.parse(datetimeHeader);
+        } catch (java.time.format.DateTimeParseException exception) {
+            return false;
+        }
         var serverDatetime = OffsetDateTime.now(this.clock);
 
         var diff = Math.abs(ChronoUnit.SECONDS.between(requestDatetime, serverDatetime));

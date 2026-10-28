@@ -132,9 +132,10 @@ public class AuthServerConfig {
     // ------------------------------------------------------
     @Bean
     @Order(2)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, TokenIntrospector tokenIntrospector) throws Exception {
 
         http.cors(Customizer.withDefaults());
+        http.oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(token -> token.introspector(tokenIntrospector)));
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 
         http.addFilterBefore(tokenEndpointBodySignatureFilter, CsrfFilter.class);
@@ -151,6 +152,10 @@ public class AuthServerConfig {
                                 .userInfoResponseHandler(new UserInfoSuccessHandler())
                 ))
                 .clientAuthentication(clientAuth -> clientAuth.authenticationProviders(providers -> {
+                    // Our JWT providers re-read live SQL credentials. The default remote-JWKS
+                    // provider caches revoked keys and can otherwise succeed before these run.
+                    providers.removeIf(provider -> provider instanceof
+                            org.springframework.security.oauth2.server.authorization.authentication.JwtClientAssertionAuthenticationProvider);
                     providers.add(authenticationProvider);
                     providers.add(privateJWTAuthenticationProvider);
                     providers.add(clientSecretJWTAuthenticationProvider);
@@ -190,11 +195,6 @@ public class AuthServerConfig {
 
         http.sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-        );
-
-        http.addFilterBefore(
-                new OidcWellKnownOverwriteFilter(),
-                AbstractPreAuthenticatedProcessingFilter.class
         );
 
         return http.build();
@@ -241,10 +241,11 @@ public class AuthServerConfig {
     // ------------------------------------------------------
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
-        String issuer = serverBasePath + "/oauth2";
+        String issuer = serverBasePath.replaceAll("/+$", "");
         log.debug("Configuring AuthorizationServerSettings with issuer: {}", issuer);
 
-        return AuthorizationServerSettings.builder().issuer(issuer).build();
+        return AuthorizationServerSettings.builder().issuer(issuer)
+                .oidcLogoutEndpoint("/oauth2/connect/logout").build();
     }
 
     // ------------------------------------------------------

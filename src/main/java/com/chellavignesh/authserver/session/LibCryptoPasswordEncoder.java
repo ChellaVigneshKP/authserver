@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.ByteBuffer;
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -35,7 +34,7 @@ public class LibCryptoPasswordEncoder implements PasswordEncoder {
         String decodedPassword = decodePassword(rawPassword);
 
         if (useLocalFallback) {
-            return encodeLocal(decodedPassword);
+            throw new IllegalStateException("Legacy crypto service is unavailable; refusing to change password format");
         }
 
         try {
@@ -64,8 +63,8 @@ public class LibCryptoPasswordEncoder implements PasswordEncoder {
 
             return "{" + ENCODER_ID + "}0x" + HexFormat.of().formatHex(combined);
         } catch (Exception e) {
-            log.error("Crypto encode failed. Falling back to local hashing.", e);
-            return encodeLocal(decodedPassword);
+            log.error("Legacy crypto encoding failed", e);
+            throw new IllegalStateException("Legacy crypto service is unavailable; refusing to change password format");
         }
     }
 
@@ -79,7 +78,7 @@ public class LibCryptoPasswordEncoder implements PasswordEncoder {
         String decodedPassword = decodePassword(rawPassword);
 
         if (useLocalFallback) {
-            return matchesLocal(decodedPassword, encodedPassword);
+            return false;
         }
 
         try {
@@ -121,20 +120,6 @@ public class LibCryptoPasswordEncoder implements PasswordEncoder {
         } catch (Exception _) {
             return raw.toString();
         }
-    }
-
-    private String encodeLocal(String decodedPassword) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(decodedPassword.getBytes());
-            return "{" + ENCODER_ID + "}" + Base64.getEncoder().encodeToString(hash);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed local password hashing", e);
-        }
-    }
-
-    private boolean matchesLocal(String decoded, String encodedPassword) {
-        return encodeLocal(decoded).equals(encodedPassword);
     }
 
     //----------------------------------------------------------------------

@@ -19,6 +19,13 @@ public class OrganizationGroup {
     private String description;
     private OrganizationStatus status;
     private Integer orgId;
+    private int revision;
+    private int memberCount;
+    private boolean readOnly;
+
+    public OrganizationGroup(Integer id, UUID rowGuid, String name, String description, OrganizationStatus status, Integer orgId) {
+        this(id, rowGuid, name, description, status, orgId, 1, 0, false);
+    }
 
     public static OrganizationGroup fromResult(ResultSet result) throws SQLException {
         OrganizationGroup group = new OrganizationGroup();
@@ -29,9 +36,12 @@ public class OrganizationGroup {
             group.setDescription(result.getString("Description"));
             group.setStatus(OrganizationStatus.fromByte(result.getByte("Status")));
             group.setOrgId(result.getInt("OrganizationId"));
+            group.setRevision(result.getInt("Revision"));
+            // Both list and detail procedures project the live assignment count.
+            group.setMemberCount(result.getInt("MemberCount"));
             return group;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

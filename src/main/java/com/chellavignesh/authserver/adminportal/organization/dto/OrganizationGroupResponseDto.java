@@ -14,13 +14,19 @@ public class OrganizationGroupResponseDto {
     private String name;
     private String description;
     private OrganizationStatus status;
+    private int revision;
+    private int memberCount;
+    private boolean readOnly;
 
     public static OrganizationGroupResponseDto fromOrganizationGroup(OrganizationGroup og) {
         return new OrganizationGroupResponseDto(
                 og.getRowGuid(),
                 og.getName(),
                 og.getDescription(),
-                og.getStatus()
+                og.getStatus(),
+                og.getRevision(),
+                og.getMemberCount(),
+                og.isReadOnly()
         );
     }
 }

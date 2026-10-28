@@ -54,7 +54,7 @@ public class CertificateRepository {
 
         try {
             return jdbcTemplate.execute(
-                    "{call Client.SaveCertificate(:OrgGuid, :CertificateName, :CertificateTypeId, :IsX509Certificate, :KeyStoreBytes, :Status, :Fingerprint, :Thumbprint, :Subject, :Issuer, :ValidFrom, :ValidTo, :PasswordKeyStoreBytes, :PasswordKeyId)}",
+                    "{call Partner.SaveCertificate(:OrgGuid, :CertificateName, :CertificateTypeId, :IsX509Certificate, :KeyStoreBytes, :Status, :Fingerprint, :Thumbprint, :Subject, :Issuer, :ValidFrom, :ValidTo, :PasswordKeyStoreBytes, :PasswordKeyId)}",
                     parameters,
                     cs -> {
                         try (ResultSet rs = cs.executeQuery()) {
@@ -84,7 +84,7 @@ public class CertificateRepository {
     public Optional<CertificateEntity> get(Integer orgId, UUID certId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
-        parameters.addValue("certId", certId);
+        parameters.addValue("certId", certId == null ? null : certId.toString());
         return jdbcTemplate.query(
                 "{call Partner.GetCertificate(:orgId, :certId)}",
                 parameters,
@@ -116,7 +116,7 @@ public class CertificateRepository {
     public Optional<CertificateEntity> getById(Integer orgId, Integer certId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
-        parameters.addValue("certId", certId.toString());
+        parameters.addValue("certId", certId.toString() == null ? null : certId.toString().toString());
 
         return jdbcTemplate.query(
                 "{call Partner.GetCertificateById(:orgId, :certId)}",
@@ -129,7 +129,7 @@ public class CertificateRepository {
     public CertificateEntity updateStatus(byte status, Integer orgId, UUID certId) throws CertificateNotFoundException {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
-        parameters.addValue("certId", certId);
+        parameters.addValue("certId", certId == null ? null : certId.toString());
         parameters.addValue("status", status);
         parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
         parameters.addValue("modifiedOn", new Date());

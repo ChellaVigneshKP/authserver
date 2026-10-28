@@ -23,8 +23,16 @@ import com.chellavignesh.authserver.adminportal.util.SkipInitBinder;
 import com.chellavignesh.authserver.cms.BrandUrlMappingService;
 import com.chellavignesh.authserver.config.ApplicationConstants;
 import com.chellavignesh.authserver.security.PasswordValidatorService;
+import com.chellavignesh.authserver.security.ManagementAccessPolicy;
+import com.chellavignesh.authserver.security.ManagementMutationLock;
+import com.chellavignesh.authserver.security.ManagementLifecycleGuard;
+import com.chellavignesh.authserver.adminportal.organization.role.RoleFailure;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.chellavignesh.authserver.security.exception.PasswordValidationException;
 import com.chellavignesh.libcrypto.dto.BaseRequestObject;
+import com.chellavignesh.libcrypto.exception.BadRequestException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +59,9 @@ import java.util.*;
 public class UserController {
 
     private final UserService userService;
+    private final ManagementAccessPolicy managementAccessPolicy;
+    private final ManagementMutationLock mutations;
+    private final ManagementLifecycleGuard lifecycle;
     private final EntityValidator entityValidator;
     private final UserDtoValidator userDtoValidator;
     private final AccountSyncType accountSyncType;
@@ -65,8 +76,11 @@ public class UserController {
     private static final Integer MAX_LIMIT = 10;
 
     @Autowired
-    public UserController(UserService userService, EntityValidator entityValidator, UserDtoValidator userDtoValidator, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, OnPremAccountServiceClient onPremAccountService, BrandUrlMappingService brandUrlMappingService, ExternalSourceService externalSourceService, PasswordValidatorService passwordValidatorService, MetadataService metadataService) {
+    public UserController(UserService userService, EntityValidator entityValidator, UserDtoValidator userDtoValidator, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, OnPremAccountServiceClient onPremAccountService, BrandUrlMappingService brandUrlMappingService, ExternalSourceService externalSourceService, PasswordValidatorService passwordValidatorService, MetadataService metadataService, ManagementAccessPolicy managementAccessPolicy, ManagementMutationLock mutations, ManagementLifecycleGuard lifecycle) {
         this.userService = userService;
+        this.managementAccessPolicy = managementAccessPolicy;
+        this.mutations = mutations;
+        this.lifecycle = lifecycle;
         this.entityValidator = entityValidator;
         this.userDtoValidator = userDtoValidator;
         this.accountSyncType = accountSyncType;
@@ -103,9 +117,15 @@ public class UserController {
 
     @PostMapping
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','create') and @permissionsService.canCreateUser(authentication, " + "#createUserDto.orgGuid, #createUserDto.groupGuid) or hasPermission('url-permissions', 'http://user POST')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDto createUserDto, @SessionAttribute(value = ApplicationConstants.BRANDING_INFO, required = false) String brand) throws OrgNotFoundException, OrgGroupNotFoundException, UserCreationFailedException, InvalidBrandingException {
 
+        mutations.acquire();
+        managementAccessPolicy.requireUserCreation(SecurityContextHolder.getContext().getAuthentication(), createUserDto.getOrgGuid(), createUserDto.getGroupGuid());
+
+        managementAccessPolicy.requireUserCreationTarget(SecurityContextHolder.getContext().getAuthentication(), createUserDto.getOrgGuid(), createUserDto.getMemberId());
+        lifecycle.requireUnusedProfileId(createUserDto.getMemberId());
         createUserDto.setOrgId(entityValidator.validateOrganizationId(createUserDto.getOrgGuid()));
 
         int groupId = 0;
@@ -132,12 +152,20 @@ public class UserController {
     // ----------------------------------------------------------------------
 
     @PostMapping("/profile")
-    @PreAuthorize("hasPermission('idp-admin-admin','create') or hasPermission('url-permissions','http://user POST')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createUserProfile(@RequestBody String jsonPayload, @RequestHeader Map<String, String> headers) throws UserCreationBadRequestException, OrgNotFoundException, UserCreationFailedException, InvalidBrandingException, UserSyncFailedException {
+
+        mutations.acquire();
 
         BaseRequestObject baseRequestObject = BaseRequestPayloadParser.parsePayload(jsonPayload, CreateUserProfileDto.class);
 
         CreateUserProfileDto createUserProfileDto = (CreateUserProfileDto) baseRequestObject.getPayload();
+
+        Authentication actor = SecurityContextHolder.getContext().getAuthentication();
+        managementAccessPolicy.requireUserCreation(actor, createUserProfileDto.getOrgId(), null);
+        managementAccessPolicy.requireUserCreationTarget(actor, createUserProfileDto.getOrgId(),
+                createUserProfileDto.getProfile() == null ? null : createUserProfileDto.getProfile().getMemberId());
 
         BindException bindingResult = new BindException(createUserProfileDto, "createUserProfileDto");
 
@@ -164,7 +192,8 @@ public class UserController {
 
         notificationConfig.setAlwaysSendNotification(true);
 
-        User user = userService.createOrReactivateUser(createUserProfileDto, createUserDto, headers, externalSource.get(), notificationConfig);
+        User user = userService.createOrReactivateUser(createUserProfileDto, createUserDto, headers, externalSource.get(), notificationConfig,
+                managementAccessPolicy.reactivationActor(actor, createUserProfileDto.getOrgId(), createUserProfileDto.getProfile().getMemberId()));
 
         return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.LOCATION, brandUrlMappingService.getUrlByBrand(createUserProfileDto.getBranding()) + "/api/v1/users/profile/" + user.getRowGuid().toString()).body(new CreateUserResponse(user.getRowGuid()));
     }
@@ -174,8 +203,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/profile")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or @permissionsService.isSelf(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUser(@Valid @RequestBody UpdateUserDto updateUserDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers, HttpServletRequest request) throws UserCreationBadRequestException, InvalidBrandingException, UserUpdateFailedException, UserNotFoundException, AccountSyncException, UserSyncFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         BindException bindingResult = new BindException(updateUserDto, "updateUserDto");
 
@@ -197,6 +230,11 @@ public class UserController {
 
         log.info("PutMapping: userGuid/profile: {}", userGuid);
 
+        // Identity bindings are never client-selectable; a supplied login/member GUID would
+        // rebind credentials through Person.UpdateUserProfile and can collide or orphan sessions.
+        updateUserDto.setMemberId(null);
+        updateUserDto.setLoginId(null);
+
         User user = userService.update(updateUserDto, userGuid, optionalMetadata.orElse(null), headers);
 
         updateUserDto.setMemberId(user.getRowGuid());
@@ -211,8 +249,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/email")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT') or @permissionsService.isSelf(authentication, #userGuid)")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserEmail(@Valid @RequestBody UpdateUserEmailDto updateUserEmailDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers, HttpServletRequest request) throws UserUpdateFailedException, InvalidBrandingException, UserNotFoundException, AccountSyncException, UserSyncFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         final var oExternalSource = externalSourceService.findBySourceCode(updateUserEmailDto.getBranding());
 
@@ -239,8 +281,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/password")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT') or @permissionsService.isSelf(authentication, #userGuid)")
-    public ResponseEntity<?> updateUserPassword(@Valid @RequestBody NotifiableUpdateUserPasswordDto updateUserPasswordDto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, PasswordValidationException, UserNotFoundException, AccountSyncException {
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> updateUserPassword(@Valid @RequestBody NotifiableUpdateUserPasswordDto updateUserPasswordDto, @Valid @PathVariable UUID userGuid, @RequestParam(required=false) UUID loginId, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, PasswordValidationException, UserNotFoundException, AccountSyncException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         final var oExternalSource = externalSourceService.findBySourceCode(updateUserPasswordDto.getBranding());
 
@@ -248,11 +294,14 @@ public class UserController {
             throw new InvalidBrandingException("Invalid branding: " + updateUserPasswordDto.getBranding() + ".");
         }
 
-        var user = userService.getByGuidAndBranding(userGuid, updateUserPasswordDto.getBranding()).orElseThrow(() -> new UserNotFoundException("User not found for the branding"));
+        UUID selected=userService.lockCredentialForMutation(userGuid,updateUserPasswordDto.getBranding(),loginId);
+        var user = userService.getManagementCredentialByLoginId(selected)
+                .orElseThrow(() -> new UserNotFoundException("User not found for the branding")).toUserDetails();
 
         updateUserPasswordDto.setPassword(new String(Base64.getDecoder().decode(updateUserPasswordDto.getPassword())));
 
-        passwordValidatorService.validatePassword(updateUserPasswordDto.getPassword(), userGuid);
+        passwordValidatorService.validatePasswordForLogin(updateUserPasswordDto.getPassword(),
+                selected, user);
 
         if (user.credSyncFlag() && AccountSyncType.SYNC == accountSyncType && !"idp".equals(updateUserPasswordDto.getIntent().getId())) {
 
@@ -262,9 +311,9 @@ public class UserController {
 
             headers.put(ApplicationConstants.REQUEST_VERB_HEADER, HttpVerb.PUT.name());
 
-            userService.updatePasswordAndNotify(updateUserPasswordDto, userGuid, false, headers);
+            userService.updateManagementPasswordAndNotify(updateUserPasswordDto, userGuid, selected, headers);
         } else {
-            userService.updatePassword(updateUserPasswordDto, userGuid);
+            userService.updateManagementPassword(updateUserPasswordDto, userGuid, selected);
         }
 
         return ResponseEntity.noContent().build();
@@ -276,8 +325,12 @@ public class UserController {
 
     @PutMapping("/{userGuid}/username")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT')")
-    public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameDto dto, @Valid @PathVariable UUID userGuid, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, UsernameExistsException, UserNotFoundException {
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameDto dto, @Valid @PathVariable UUID userGuid, @RequestParam(required=false) UUID loginId, @RequestHeader Map<String, String> headers) throws UserUpdateFailedException, InvalidBrandingException, UsernameExistsException, UserNotFoundException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         final var oExternalSource = externalSourceService.findBySourceCode(dto.getBranding());
 
@@ -285,7 +338,7 @@ public class UserController {
             throw new InvalidBrandingException("Invalid branding: " + dto.getBranding() + ".");
         }
 
-        userService.getByGuidAndBranding(userGuid, dto.getBranding()).orElseThrow(() -> new UserNotFoundException("User not found for the branding"));
+        userService.lockCredentialForMutation(userGuid, dto.getBranding(), loginId);
 
         Optional<UserCredentialsWithBranding> credentials = userService.getCredentialsByUsernameAndBranding(dto.getUsername(), dto.getBranding());
 
@@ -295,7 +348,7 @@ public class UserController {
 
         headers.put(ApplicationConstants.REQUEST_VERB_HEADER, HttpVerb.PUT.name());
 
-        userService.updateUsername(dto, userGuid, oExternalSource.get(), headers);
+        userService.updateUsername(dto, userGuid, loginId, oExternalSource.get(), headers);
 
         return ResponseEntity.noContent().build();
     }
@@ -305,8 +358,12 @@ public class UserController {
 // ----------------------------------------------------------------------
 
     @PutMapping("/{userGuid}/security-settings")
-    @PreAuthorize("hasPermission('idp-admin-admin','update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or @permissionsService.isSelf(authentication, #userGuid) or hasPermission('url-permissions','http://user PUT')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserSecuritySettings(@Valid @RequestBody UpdateUserSecuritySettingsDto updateUserSecuritySettingsDto, @Valid @PathVariable UUID userGuid, BindingResult bindingResult) throws UserCreationBadRequestException, UserUpdateFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         if (bindingResult.hasErrors()) {
             String message = "Error in field " + Objects.requireNonNull(bindingResult.getFieldError()).getField() + " : " + bindingResult.getFieldError().getDefaultMessage();
@@ -320,39 +377,60 @@ public class UserController {
     }
 
     @PutMapping("/{userGuid}/metadata")
-    @PreAuthorize("hasPermission('idp-admin-admin', 'update') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions', 'http://user PUT')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserMetadata(@Valid @RequestBody UpdateUserMetadataDto updateUserMetadataDto, @Valid @PathVariable UUID userGuid, BindingResult bindingResult) throws UserCreationBadRequestException, UserUpdateFailedException, UserNotFoundException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "update");
 
         if (bindingResult.hasErrors()) {
             String message = "Error in field " + Objects.requireNonNull(bindingResult.getFieldError()).getField() + ": " + bindingResult.getFieldError().getDefaultMessage();
             throw new UserCreationBadRequestException(message);
         }
 
+        requireMetadataWithinColumnLimits(updateUserMetadataDto);
         userService.updateMetadata(updateUserMetadataDto, userGuid);
         return ResponseEntity.ok(updateUserMetadataDto);
     }
 
+    private static void requireMetadataWithinColumnLimits(UpdateUserMetadataDto dto) throws UserCreationBadRequestException {
+        if (dto.getMetaData() == null) return;
+        for (var entry : dto.getMetaData().entrySet()) {
+            String key = entry.getKey();
+            if (key == null || key.isBlank()) throw new UserCreationBadRequestException("Error in field metaData: key must not be blank");
+            if (key.length() > 30) throw new UserCreationBadRequestException("Error in field metaData: key must be at most 30 characters");
+            if (entry.getValue() == null) throw new UserCreationBadRequestException("Error in field metaData: value must not be null");
+            if (String.valueOf(entry.getValue()).length() > 128) throw new UserCreationBadRequestException("Error in field metaData: value must be at most 128 characters");
+        }
+    }
+
     @GetMapping("/{userGuid}/metadata")
-    @PreAuthorize("(hasPermission('idp-admin-admin', 'read') and @permissionsService.isOrgMemberByUserId(authentication, #userGuid)) or (hasPermission('idp-admin-user', 'read') and @permissionsService.isSubjectNonAdminUser(authentication, #userGuid)) or hasPermission('url-permissions', 'http://user GET')")
+    @PreAuthorize("@managementAccessPolicy.canReadUser(authentication, #userGuid)")
     public ResponseEntity<?> getUserMetadata(@Valid @PathVariable UUID userGuid) throws UserNotFoundException {
         return ResponseEntity.ok(userService.getMetadata(userGuid));
     }
 
     @GetMapping("/{userGuid}")
-    @PreAuthorize("(hasPermission('idp-admin-admin', 'read') and @permissionsService.isOrgMemberByUserId(authentication, #userGuid)) or (hasPermission('idp-admin-user', 'read') and @permissionsService.isSubjectNonAdminUser(authentication, #userGuid)) or hasPermission('url-permissions', 'http://user GET') or @permissionsService.isSelf(authentication, #userGuid)")
-    public ResponseEntity<?> getUserByGuid(@PathVariable UUID userGuid) {
+    @PreAuthorize("@managementAccessPolicy.canReadUser(authentication, #userGuid)")
+    public ResponseEntity<?> getUserByGuid(@PathVariable UUID userGuid, @RequestParam(required=false) UUID loginId) {
 
-        Optional<UserDetails> userDetails = userService.getByGuid(userGuid);
+        Optional<UserDetails> userDetails = userService.getManagementDetails(userGuid,loginId);
         if (userDetails.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or user does not have permissions.");
         }
 
-        return ResponseEntity.ok(UserResponseDto.fromUser(userDetails.get()));
+        return ResponseEntity.ok(userService.toResponse(userDetails.get()));
     }
 
     @DeleteMapping("/{userGuid}")
-    @PreAuthorize("hasPermission('idp-admin-admin', 'delete') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions', 'http://user DELETE')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> deleteUserByGuid(@PathVariable UUID userGuid) throws UserDeleteFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "delete");
+        lifecycle.requireAdminSurvives(ManagementLifecycleGuard.ChangeIntent.user(userGuid));
 
         User user = userService.deleteByGuid(userGuid);
         if (user == null) {
@@ -363,15 +441,20 @@ public class UserController {
     }
 
     @PutMapping("/{userGuid}/status")
-    @PreAuthorize("hasPermission('idp-admin-admin', 'delete') and @permissionsService.canEditOrDeleteUser(authentication, #userGuid) or hasPermission('url-permissions', 'http://user DELETE')")
+    @Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateUserStatusByGuid(@Valid @RequestBody UpdateUserStatusDto updateUserStatusDto, @PathVariable UUID userGuid) throws UserDeleteFailedException {
+
+        mutations.acquire();
+        managementAccessPolicy.requireUserMutation(SecurityContextHolder.getContext().getAuthentication(), userGuid, "delete");
+        if (updateUserStatusDto.status() == null) return ResponseEntity.badRequest().build();
+        if (updateUserStatusDto.status() != UserStatus.Active) lifecycle.requireAdminSurvives(ManagementLifecycleGuard.ChangeIntent.user(userGuid));
 
         return userService.updateUserStatusByGuid(updateUserStatusDto.status(), userGuid).map(user -> ResponseEntity.noContent().build()).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found or user does not have permissions."));
     }
 
     @GetMapping
-    @PreAuthorize("hasPermission('idp-admin-admin', 'read') or hasPermission('idp-admin-user', 'read') or hasPermission('url-permissions', 'http://user GET')")
-    @AdminOnlyFilter
+    @PreAuthorize("@managementAccessPolicy.canListUsers(authentication)")
     public ResponseEntity<?> getUsers(@RequestParam(required = false) Optional<Integer> resultsPerPage, @RequestParam(required = false) Optional<Integer> offset, @RequestParam(required = false) Optional<String> type, @RequestParam(required = false) Optional<String> search, @RequestParam(required = false) Optional<UUID> organizationId, @RequestParam(required = false) Optional<String> status, @Valid @RequestBody(required = false) Optional<BrandingDto> brandingDto, HttpServletRequest request) {
 
         Optional<Integer> rpp = resultsPerPage.isEmpty() ? Optional.of(MAX_LIMIT) : resultsPerPage;
@@ -380,25 +463,22 @@ public class UserController {
 
         Optional<Integer> s = Optional.ofNullable(getStatus(status));
 
-        var applyAdminOnlyFilter = request.getAttribute(AdminOnlyFilterAspect.APPLY_ADMIN_ONLY_FILTER);
-
-        if (applyAdminOnlyFilter != null && ((Boolean) applyAdminOnlyFilter)) {
-            type = Optional.of("Administrator");
-            organizationId = Optional.of((UUID) request.getAttribute(AdminOnlyFilterAspect.ADMIN_ORG_ID));
-        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        organizationId = Optional.of(managementAccessPolicy.requireOrganizationScope(authentication, organizationId.orElse(null)));
+        type = managementAccessPolicy.requireUserListType(authentication, type);
 
         final var brandings = brandingDto.map(BrandingDto::getBrandingIds).orElseGet(List::of);
 
         List<UserDetails> usersDetails = userService.getAll(rpp, os, type, search, organizationId, s, brandings);
 
-        List<UserResponseDto> users = usersDetails.stream().map(UserResponseDto::fromUser).toList();
+        List<UserResponseDto> users = usersDetails.stream().map(userService::toResponse).toList();
 
         return ResponseEntity.ok(UsersResponseDto.from(os.get(), rpp.get(), !usersDetails.isEmpty() ? usersDetails.get(0).results() : 0, users));
     }
 
     @PostMapping("/validate-password")
     @SkipInitBinder
-    @PreAuthorize("hasPermission('url-permissions', 'http://user POST')")
+    @PreAuthorize("@managementAccessPolicy.canValidatePassword(authentication, #validateUserPasswordDto.userGuid)")
     public ResponseEntity<?> validateUserPassword(@Valid @RequestBody ValidateUserPasswordDto validateUserPasswordDto, @Valid UUID userGuid) {
         return ResponseEntity.ok(validateUserPasswordDto);
     }
@@ -412,6 +492,19 @@ public class UserController {
             }
         }
         return null;
+    }
+
+    @ExceptionHandler(RoleFailure.class)
+    public ResponseEntity<?> lifecycleFailure(RoleFailure failure, HttpServletRequest request) {
+        return ResponseEntity.status(failure.status()).cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem(
+                        failure.code()==null?"ROLE_CONFLICT":failure.code(), failure.getMessage(),
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request),false));
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<String> handleInvalidProfilePayload(BadRequestException e) {
+        return ResponseEntity.badRequest().body("Invalid profile request payload");
     }
 
     @ExceptionHandler(InvalidBrandingException.class)
@@ -430,8 +523,12 @@ public class UserController {
     }
 
     @ExceptionHandler(UserSyncFailedException.class)
-    public ResponseEntity<?> handleUserSyncFailedException(UserSyncFailedException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+    public ResponseEntity<?> handleUserSyncFailedException(UserSyncFailedException e, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .header("Cache-Control", "no-store")
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem("UPSTREAM_FAILURE",
+                        "The identity provider could not complete the account sync.",
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request), false));
     }
 
 }

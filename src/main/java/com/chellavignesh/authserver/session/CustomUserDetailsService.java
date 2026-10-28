@@ -94,7 +94,10 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new LockedException("Account locked.");
         }
 
-        return new CustomUserDetails(userAuthDetails);
+        var principal = new CustomUserDetails(userAuthDetails);
+        if (userAuthDetails.getLoginId() == null) throw new UsernameNotFoundException("User identity is unavailable");
+        principal.setLoginId(userAuthDetails.getLoginId());
+        return principal;
     }
 
     public String loadUsernameByBrand(String branding, Map<String, String> lookupFieldValuesMap) throws UniqueUsernameNotfoundException, InvalidBrandingException, ConflictUsernameLookupSearchException {
@@ -156,8 +159,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
             var response = onPremAccountServiceClient.getUserAccount(username, externalSource.get().getSourceCode(), externalSource.get().getExternalType().searchSchema());
 
-            log.info("Response from OnPremAccountService: {}", response);
-
             if (response.isEmpty()) {
                 throw new RuntimeException("User not found in OnPrem Account Service: [username: %s, source: %s]".formatted(username, externalSource.get().getSourceCode()));
             }
@@ -173,7 +174,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             CreateUserNotificationConfig notificationConfig = new CreateUserNotificationConfig();
             notificationConfig.setFailNotificationSilently(true);
 
-            userService.createOrReactivateUser(response.get(), userToCreate, sourceHeaders, externalSource.get(), notificationConfig);
+            userService.syncFromAuthoritativeSource(username, response.get(), userToCreate, sourceHeaders, externalSource.get(), notificationConfig);
 
             userAuthDetails = userService.getUserAuthDetailsByUsernameAndExternalSourceCode(username, externalSource.get().getSourceCode());
 

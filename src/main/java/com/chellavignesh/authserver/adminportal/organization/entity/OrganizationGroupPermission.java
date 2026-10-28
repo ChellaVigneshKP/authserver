@@ -34,8 +34,8 @@ public class OrganizationGroupPermission {
             permission.setKey(result.getString("PermissionKey"));
             permission.setStatus(OrganizationStatus.fromByte(result.getByte("Status")));
             return permission;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

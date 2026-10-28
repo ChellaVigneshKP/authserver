@@ -86,6 +86,11 @@ public class CustomOAuth2AuthorizationCodeRequestAuthenticationConverter impleme
             }
 
             Authentication principal = SecurityContextHolder.getContext().getAuthentication();
+            if (principal != null && principal.getAuthorities().stream()
+                    .anyMatch(authority -> "PRE_AUTH".equals(authority.getAuthority()))) {
+                throw new org.springframework.security.oauth2.core.OAuth2AuthenticationException(
+                        new OAuth2Error(OAuth2ErrorCodes.ACCESS_DENIED, "Complete MFA before authorization", null));
+            }
             if (principal == null) {
                 principal = ANONYMOUS_AUTHENTICATION;
             }
@@ -147,6 +152,13 @@ public class CustomOAuth2AuthorizationCodeRequestAuthenticationConverter impleme
     }
 
     private void performCustomLogic(HttpServletRequest request, MultiValueMap<String, String> parameters) {
+
+        var session = request.getSession();
+        Object authenticatedBrand = session.getAttribute(ApplicationConstants.AUTHENTICATED_BRANDING);
+        String requestedBrand = parameters.getFirst(ApplicationConstants.BRANDING_INFO);
+        if (authenticatedBrand != null && requestedBrand != null && !authenticatedBrand.equals(requestedBrand)) {
+            throwError(OAuth2ErrorCodes.INVALID_REQUEST, ApplicationConstants.BRANDING_INFO);
+        }
 
         if (this.isFingerprintingEnabled) {
             ClientFingerprint clientFingerprint = generateClientFingerprint(request, parameters);

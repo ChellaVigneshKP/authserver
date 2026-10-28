@@ -15,6 +15,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +46,8 @@ public class CredentialRepository {
                 .addValue("secretId", dto.getSecretId())
                 .addValue("certificateId", dto.getCertId())
                 .addValue("algorithmId", dto.getAlgorithmEnum().getValue())
-                .addValue("expiration", dto.getExpireOn())
+                .addValue("expiration", dto.getExpireOn() == null ? null
+                        : LocalDateTime.ofInstant(dto.getExpireOn().toInstant(), ZoneOffset.UTC))
                 .addValue("authFlowId", dto.getAuthFlow().getValue())
                 .addValue("fingerprint", dto.getFingerprint())
                 .addValue("credentialStatus", dto.getCredentialStatus().getValue());
@@ -70,13 +74,37 @@ public class CredentialRepository {
     }
 
     public List<Credential> getAll(Integer orgId, Integer appId) {
-        return jdbcTemplate.query(
+        var credentials = jdbcTemplate.query(
                 "{call Client.GetCredentials(:orgId, :appId)}",
                 new MapSqlParameterSource()
                         .addValue("orgId", orgId)
                         .addValue("appId", appId),
                 new CredentialRowMapper()
         );
+        applySecretExpirations(credentials, orgId, appId);
+        return credentials;
+    }
+
+    private record SecretExpiration(int secretId, String expiration) {}
+
+    /** Public metadata reads select only linked expiration dates, never key stores or decrypted secrets. */
+    private void applySecretExpirations(List<Credential> credentials, Integer orgId, Integer appId) {
+        if (credentials.stream().noneMatch(credential -> credential.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT)) return;
+        var expirations = new HashMap<Integer, String>();
+        var rows = jdbcTemplate.query(
+                "SELECT SecretId, ExpireOn FROM Client.Secret WHERE OrganizationId=:orgId AND ApplicationId=:appId",
+                new MapSqlParameterSource().addValue("orgId", orgId).addValue("appId", appId),
+                (result, row) -> {
+                    var expiration = result.getObject("ExpireOn", LocalDateTime.class);
+                    return new SecretExpiration(result.getInt("SecretId"),
+                            expiration == null ? null : expiration.toInstant(ZoneOffset.UTC).toString());
+                });
+        for (var row : rows) expirations.put(row.secretId(), row.expiration());
+        for (var credential : credentials) {
+            if (credential.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT && expirations.containsKey(credential.getSecretId())) {
+                credential.setExpireOn(CredentialExpiration.earliest(credential.getExpireOn(), expirations.get(credential.getSecretId())));
+            }
+        }
     }
 
     public List<Credential> getAll(Integer orgId, Integer appId, AuthFlowEnum authFlow) {
@@ -95,11 +123,13 @@ public class CredentialRepository {
         parameters.addValue("orgId", orgId);
         parameters.addValue("appId", appId);
         parameters.addValue("credentialGuid", credentialGuid);
-        return jdbcTemplate.query(
+        var credentials = jdbcTemplate.query(
                 "{call Client.GetCredentialByGuid(:orgId, :appId, :credentialGuid)}",
                 parameters,
                 new CredentialRowMapper()
-        ).stream().findFirst();
+        );
+        applySecretExpirations(credentials, orgId, appId);
+        return credentials.stream().findFirst();
     }
 
     @Caching(evict = {

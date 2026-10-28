@@ -9,6 +9,8 @@ import com.chellavignesh.authserver.adminportal.organization.exception.OrgGroupN
 import com.chellavignesh.authserver.adminportal.organization.exception.OrgNotFoundException;
 import com.chellavignesh.authserver.adminportal.util.EntityValidator;
 import com.chellavignesh.authserver.security.PermissionsService;
+import com.chellavignesh.authserver.security.ManagementAccessPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,15 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/organizations")
 public class OrganizationController {
+    private final com.chellavignesh.authserver.security.ManagementMutationLock mutations;
+    private final com.chellavignesh.authserver.security.ManagementLifecycleGuard lifecycle;
+    @ExceptionHandler(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.class)
+    public ResponseEntity<?> lifecycleFailure(com.chellavignesh.authserver.adminportal.organization.role.RoleFailure failure, jakarta.servlet.http.HttpServletRequest request) {
+        return ResponseEntity.status(failure.status()).cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(new com.chellavignesh.authserver.adminportal.util.PortalProblem(failure.code(),failure.getMessage(),
+                        com.chellavignesh.authserver.adminportal.util.PortalResponses.requestId(request),false));
+    }
+
 
     private static final Logger log = LoggerFactory.getLogger(OrganizationController.class);
 
@@ -41,13 +52,19 @@ public class OrganizationController {
     private final CreateOrganizationDtoValidator orgDtoValidator;
     private final EntityValidator entityValidator;
     private final PermissionsService permissionsService;
+    private final ManagementAccessPolicy managementAccessPolicy;
 
     @Autowired
-    public OrganizationController(OrganizationService organizationService, CreateOrganizationDtoValidator orgDtoValidator, EntityValidator entityValidator, PermissionsService permissionsService) {
+    public OrganizationController(OrganizationService organizationService, CreateOrganizationDtoValidator orgDtoValidator, EntityValidator entityValidator, PermissionsService permissionsService, ManagementAccessPolicy managementAccessPolicy,
+                                  com.chellavignesh.authserver.security.ManagementMutationLock mutations,
+                                  com.chellavignesh.authserver.security.ManagementLifecycleGuard lifecycle) {
         this.organizationService = organizationService;
         this.orgDtoValidator = orgDtoValidator;
         this.entityValidator = entityValidator;
         this.permissionsService = permissionsService;
+        this.managementAccessPolicy = managementAccessPolicy;
+        this.mutations = mutations;
+        this.lifecycle = lifecycle;
     }
 
     @InitBinder("createOrganizationDto")
@@ -60,7 +77,7 @@ public class OrganizationController {
     // ----------------------------------------------------------------------
 
     @PostMapping
-    @PreAuthorize("hasPermission('idp-admin-org','create')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-org:create')")
     public ResponseEntity<?> createOrganization(@Valid @RequestBody CreateOrganizationDto createOrganizationDto, BindingResult bindingResult) throws OrgCreationBadRequestException, OrgCreationFailedException {
 
         if (bindingResult.hasErrors()) {
@@ -79,7 +96,7 @@ public class OrganizationController {
     // ----------------------------------------------------------------------
 
     @GetMapping
-    @PreAuthorize("hasPermission('idp-admin-org','list')")
+    @PreAuthorize("@managementAccessPolicy.hasPlatformPermission(authentication, 'idp-admin-org:list')")
     public ResponseEntity<List<OrganizationResponseDto>> getOrganizations() {
 
         return ResponseEntity.ok(organizationService.getAll().stream().map(OrganizationResponseDto::fromOrganization).collect(Collectors.toList()));
@@ -136,11 +153,15 @@ public class OrganizationController {
     // ----------------------------------------------------------------------
 
     @PutMapping("/{orgGuid}")
-    @PreAuthorize("@permissionsService.isOrgMember(authentication, #orgGuid) and hasPermission('idp-admin-org','update')")
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<OrganizationResponseDto> updateOrganization(@Valid @RequestBody UpdateOrganizationDto updateOrganizationDto, @Valid @PathVariable UUID orgGuid) throws OrgNotFoundException {
 
+        mutations.acquire();
+        managementAccessPolicy.requireOrganizationUpdate(SecurityContextHolder.getContext().getAuthentication(), orgGuid, updateOrganizationDto.getStatus());
         Integer orgId = entityValidator.validateOrganizationId(orgGuid);
-
+        if (!"Active".equalsIgnoreCase(updateOrganizationDto.getStatus()))
+            lifecycle.requireAdminSurvives(com.chellavignesh.authserver.security.ManagementLifecycleGuard.ChangeIntent.organization(orgGuid));
         organizationService.update(orgId, updateOrganizationDto);
 
         return ResponseEntity.ok(OrganizationResponseDto.fromOrganization(organizationService.get(orgGuid).get()));

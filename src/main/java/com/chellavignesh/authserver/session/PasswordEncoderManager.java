@@ -24,15 +24,13 @@ public class PasswordEncoderManager {
 
         UserAuthDetails userAuthDetails = ((CustomUserDetails) authentication.getPrincipal()).getUserAuthDetails();
 
-        UserDetails userDetails = userService.getByUsernameAndBranding(userAuthDetails.getUserName(), branding).orElseThrow(() -> new FailedToProcessPasswordException("User details not found for %s, %s pair".formatted(userAuthDetails.getUserName(), branding)));
-
+        var captured = (CustomUserDetails) authentication.getPrincipal();
         if (!PasswordEncoderFactory.currentVersion.equals(userAuthDetails.getVersion())) {
             try {
-                userService.updatePassword(new BasicUpdateUserPasswordDto(password, branding), userDetails.rowGuid());
-            } catch (UserUpdateFailedException e) {
+                userService.updatePasswordForLogin(new BasicUpdateUserPasswordDto(password, branding),
+                        userAuthDetails.getRowGuid(), captured.getLoginId(), false);
+            } catch (RuntimeException e) {
                 throw new FailedToProcessPasswordException("Error updating the user password", e);
-            } catch (InvalidBrandingException e) {
-                throw new FailedToProcessPasswordException("Invalid brand %s passed to update password".formatted(branding), e);
             }
         }
     }

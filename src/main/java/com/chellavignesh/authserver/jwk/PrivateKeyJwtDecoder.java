@@ -29,10 +29,19 @@ public class PrivateKeyJwtDecoder {
             JWTClaimsSet claimsSet = jwtProcessor.process(parsedJWT, null);
             Map<String, Object> headers = new LinkedHashMap<>(parsedJWT.getHeader().toJSONObject());
 
-            return Jwt.withTokenValue(token)
+            Jwt jwt = Jwt.withTokenValue(token)
                     .headers(h -> h.putAll(headers))
                     .claims(c -> c.putAll(MappedJwtClaimSetConverter.withDefaults(Collections.emptyMap()).convert(claimsSet.getClaims())))
                     .build();
+            var validation = ClientSecretJwtDecoderFactory.DEFAULT_JWT_VALIDATOR_FACTORY
+                    .apply(org.springframework.security.oauth2.server.authorization.client.RegisteredClient.withId(clientId)
+                            .clientId(clientId).authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.CLIENT_CREDENTIALS)
+                            .clientAuthenticationMethod(org.springframework.security.oauth2.core.ClientAuthenticationMethod.PRIVATE_KEY_JWT).build())
+                    .validate(jwt);
+            if (validation.hasErrors()) {
+                throw new org.springframework.security.oauth2.jwt.JwtValidationException("Invalid client assertion claims", validation.getErrors());
+            }
+            return jwt;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

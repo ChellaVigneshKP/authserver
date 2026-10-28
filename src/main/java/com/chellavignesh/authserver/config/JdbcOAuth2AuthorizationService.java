@@ -1,351 +1,277 @@
 package com.chellavignesh.authserver.config;
 
 import com.chellavignesh.authserver.adminportal.application.ApplicationService;
-import com.chellavignesh.authserver.adminportal.application.TokenSettingsService;
 import com.chellavignesh.authserver.adminportal.application.entity.Application;
-import com.chellavignesh.authserver.adminportal.application.entity.TokenSettings;
 import com.chellavignesh.authserver.authcode.AuthCodeService;
 import com.chellavignesh.authserver.authcode.dto.CreateAuthCodeDto;
-import com.chellavignesh.authserver.authcode.exception.AuthCodeCreationFailedException;
-import com.chellavignesh.authserver.cms.BrandUrlMappingService;
 import com.chellavignesh.authserver.enums.entity.AuthSessionStatusEnum;
 import com.chellavignesh.authserver.enums.entity.TokenTypeEnum;
-import com.chellavignesh.authserver.keystore.exception.FailedToGenerateKeyException;
 import com.chellavignesh.authserver.pkce.PkceService;
 import com.chellavignesh.authserver.pkce.dto.CreatePkceDto;
-import com.chellavignesh.authserver.pkce.entity.Pkce;
-import com.chellavignesh.authserver.pkce.exception.PkceCreationFailedException;
 import com.chellavignesh.authserver.session.AuthSessionService;
 import com.chellavignesh.authserver.session.entity.AuthSession;
-import com.chellavignesh.authserver.session.exception.FailedToUpdateSessionException;
 import com.chellavignesh.authserver.token.SigningKeyGenerator;
 import com.chellavignesh.authserver.token.TokenService;
 import com.chellavignesh.authserver.token.dto.CreateTokenDto;
-import com.chellavignesh.authserver.token.entity.Token;
-import com.chellavignesh.authserver.token.exception.TokenCreationFailedException;
 import jakarta.servlet.http.HttpSession;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2RefreshToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
-import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.*;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.security.Principal;
-import java.time.Instant;
-import java.util.*;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
+/** Keeps Spring's complete grant state and the application's token API in one transaction. */
 @Service
-@Slf4j
 public class JdbcOAuth2AuthorizationService implements OAuth2AuthorizationService {
-    @Value("${server.base-path}")
-    private String serverBasePath;
-    private final TokenService tokenService;
-    private final ApplicationService applicationService;
-    private final AuthSessionService authSessionService;
-    private final AuthCodeService authCodeService;
-    private final PkceService pkceService;
-    private final TokenSettingsService tokenSettingsService;
-    private final SigningKeyGenerator signingKeyGenerator;
-    private final BrandUrlMappingService brandUrlMappingService;
+    public static final String SESSION_ID = JdbcOAuth2AuthorizationService.class.getName() + ".sessionId";
+    private static final String PRESENTED_REFRESH = JdbcOAuth2AuthorizationService.class.getName() + ".refresh";
+    private final OAuth2AuthorizationService authorizations;
+    private final TokenService tokens;
+    private final ApplicationService applications;
+    private final AuthSessionService sessions;
+    private final AuthCodeService codes;
+    private final PkceService pkce;
+    private final SigningKeyGenerator signingKeys;
+    private final HttpSession httpSession;
+    private final com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock;
 
     @Autowired
-    private HttpSession httpSession;
+    public JdbcOAuth2AuthorizationService(TokenService tokens, ApplicationService applications,
+            AuthSessionService sessions, AuthCodeService codes, PkceService pkce,
+            SigningKeyGenerator signingKeys, NamedParameterJdbcTemplate jdbc,
+            RegisteredClientRepository clients, HttpSession httpSession, com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock) {
+        this(tokens, applications, sessions, codes, pkce, signingKeys, httpSession, credentialLock,
+                new org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService(
+                        jdbc.getJdbcTemplate(), clients));
+    }
 
-    @Autowired
-    public JdbcOAuth2AuthorizationService(TokenService tokenService, ApplicationService applicationService, AuthSessionService authSessionService, AuthCodeService authCodeService, PkceService pkceService, TokenSettingsService tokenSettingsService, SigningKeyGenerator signingKeyGenerator, BrandUrlMappingService brandUrlMappingService) {
-
-        this.tokenService = tokenService;
-        this.applicationService = applicationService;
-        this.authSessionService = authSessionService;
-        this.authCodeService = authCodeService;
-        this.pkceService = pkceService;
-        this.tokenSettingsService = tokenSettingsService;
-        this.signingKeyGenerator = signingKeyGenerator;
-        this.brandUrlMappingService = brandUrlMappingService;
+    JdbcOAuth2AuthorizationService(TokenService tokens, ApplicationService applications,
+            AuthSessionService sessions, AuthCodeService codes, PkceService pkce,
+            SigningKeyGenerator signingKeys, HttpSession httpSession, com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialLock, OAuth2AuthorizationService authorizations) {
+        this.tokens = tokens;
+        this.applications = applications;
+        this.sessions = sessions;
+        this.codes = codes;
+        this.pkce = pkce;
+        this.signingKeys = signingKeys;
+        this.httpSession = httpSession;
+        this.credentialLock = credentialLock;
+        this.authorizations = authorizations;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void save(OAuth2Authorization authorization) {
-
-        try {
-            Optional<Application> application = applicationService.getByClientId(authorization.getRegisteredClientId());
-
-            if (application.isEmpty()) {
-                log.error("Failed to locate registered application for client ID: {}", authorization.getRegisteredClientId());
-                return;
-            }
-
-            Integer appId = application.get().getId();
-            SecretKey secretKey;
-            try {
-                secretKey = signingKeyGenerator.generateKey();
-            } catch (FailedToGenerateKeyException e) {
-                log.error("Failed to generate signing key for app ID: {}", appId, e);
-                return;
-            }
-            Integer orgId = application.get().getOrgId();
-
-            Optional<TokenSettings> settings = tokenSettingsService.getForApp(orgId, appId);
-
-            if (settings.isEmpty()) {
-                log.warn("Failed to locate token settings for app ID: {}", appId);
-            }
-            Integer authCodeTtl = settings.map(TokenSettings::getAuthCodeTimeToLive).orElse(null);
-            Integer accessTokenTtl = settings.map(TokenSettings::getAccessTokenTimeToLive).orElse(null);
-            Integer refreshTokenTtl = settings.map(TokenSettings::getRefreshTokenTimeToLive).orElse(null);
-
-            if (authorization.getAuthorizationGrantType() == AuthorizationGrantType.AUTHORIZATION_CODE) {
-                Map<String, Object> attributes = authorization.getAttributes();
-                OAuth2AuthorizationRequest request = (OAuth2AuthorizationRequest) attributes.get(OAuth2AuthorizationRequest.class.getCanonicalName());
-                if (authorization.getAccessToken() == null) {
-                    UUID sessionId = UUID.fromString(httpSession.getAttribute(ApplicationConstants.AUTH_SESSION_ID).toString());
-                    Optional<AuthSession> authSession = authSessionService.getBySessionId(sessionId);
-                    if (authSession.isEmpty()) {
-                        throw new RuntimeException("Failed to locate auth session for session ID: " + sessionId);
-                    }
-                    String authCode = authorization.getToken(OAuth2AuthorizationCode.class).getToken().getTokenValue();
-                    try {
-                        createAuthCode(appId, sessionId, authCode);
-                        createPkceRecord(appId, sessionId, request.getAdditionalParameters().get("code_challenge").toString(), request.getAdditionalParameters().get("code_challenge_method").toString(), request.getRedirectUri());
-                        createToken(appId, sessionId, authorization.getPrincipalName(), TokenTypeEnum.CODE, true, authCode, null, authCodeTtl);
-                        String branding = getBrandFromSession(httpSession);
-                        String redirectUri = request.getRedirectUri();
-                        log.debug("Updating Auth Session with branding and redirect URI. Branding: {}, Redirect URI: {} for sessionId: {}", branding, redirectUri, sessionId);
-                        authSessionService.setBrandingAndRedirectUri(sessionId, branding, redirectUri, appId);
-                        log.debug("Successfully updated Auth Session with branding and redirect URI for sessionId: {}", sessionId);
-                        httpSession.removeAttribute(ApplicationConstants.AUTH_SESSION_ID);
-                        log.debug("Removed AUTH_SESSION_ID from HttpSession for sessionId: {}", sessionId);
-                    } catch (FailedToUpdateSessionException e) {
-                        log.error("Failed to create auth code or PKCE record for session ID: {}", sessionId, e);
-                        throw new RuntimeException(e);
-                    } catch (Exception e) {
-                        log.error("Unexpected error while creating auth code or PKCE record for session ID: {}", sessionId, e);
-                        throw new RuntimeException(e);
-                    }
-                } else {
-                    Optional<AuthSession> authSession = authSessionService.findSessionByAuthorization(authorization);
-                    if (authSession.isEmpty()) {
-                        throw new OAuth2AuthenticationException("Session not found by auth code. Auth code may be expired or may have already been used.");
-                    }
-                    authCodeService.setConsumedOn(authorization.getToken(OAuth2AuthorizationCode.class).getToken().getTokenValue());
-                    UUID sessionId = authSession.get().getSessionId();
-                    createToken(appId, sessionId, authorization.getPrincipalName(), TokenTypeEnum.ACCESS_TOKEN, false, authorization.getAccessToken().getToken().getTokenValue(), secretKey, accessTokenTtl);
-                }
-            } else {
-                AuthSession authSession = authSessionService.createSession(application, authorization);
-                if (authSession == null) {
-                    throw new RuntimeException("Failed to create auth session for app ID: " + appId);
-                }
-
-
-                createToken(appId, authSession.getSessionId(), authorization.getPrincipalName(), TokenTypeEnum.ACCESS_TOKEN, false, authorization.getAccessToken().getToken().getTokenValue(), secretKey, accessTokenTtl);
-
-                if (authorization.getRefreshToken() != null) {
-                    createToken(appId, authSession.getSessionId(), authorization.getPrincipalName(), TokenTypeEnum.REFRESH_TOKEN, false, authorization.getRefreshToken().getToken().getTokenValue(), secretKey, refreshTokenTtl);
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("Failed to save OAuth2Authorization", e);
-            throw new RuntimeException(e);
+        Application app = applications.getByClientId(authorization.getRegisteredClientId())
+                .orElseThrow(() -> new IllegalStateException("Registered application not found"));
+        OAuth2Authorization previous;
+        if (!AuthorizationGrantType.CLIENT_CREDENTIALS.equals(authorization.getAuthorizationGrantType())) {
+            String bound = authorization.getAttribute(SESSION_ID);
+            Object pending = bound != null ? bound : httpSession == null ? null : httpSession.getAttribute(ApplicationConstants.AUTH_SESSION_ID);
+            if (pending == null) throw invalidGrant();
+            AuthSession candidate = sessions.getBySessionId(UUID.fromString(pending.toString())).orElseThrow(this::invalidGrant);
+            credentialLock.lockForHumanSession(candidate);
+            // Never recreate a previously persisted human grant after revocation deleted it.
+            previous = authorizations.findById(authorization.getId());
+            if (bound != null && previous == null) throw invalidGrant();
+            AuthSession fresh = sessions.getBySessionId(candidate.getSessionId()).orElseThrow(this::invalidGrant);
+            if (fresh.getAuthSessionStatus() != AuthSessionStatusEnum.ACTIVE) throw invalidGrant();
+        } else {
+            previous = authorizations.findById(authorization.getId());
         }
+        UUID sessionId;
+        try {
+            if (previous == null) {
+                sessionId = createInitialState(app, authorization);
+            } else {
+                sessionId = sessionId(previous);
+                AuthSession session = sessions.getBySessionId(sessionId).orElseThrow(this::invalidGrant);
+                if (session.getAuthSessionStatus() != AuthSessionStatusEnum.ACTIVE) {
+                    throw invalidGrant();
+                }
+            }
+
+            if (changed(authorization.getAccessToken(), previous == null ? null : previous.getAccessToken())) {
+                if (previous != null) {
+                    String presentedRefresh = authorization.getAttribute(PRESENTED_REFRESH);
+                    if (presentedRefresh != null) {
+                        // SQL conditional update is the serialization point for concurrent refresh requests.
+                        var refresh = tokens.getByValue(presentedRefresh, TokenTypeEnum.REFRESH_TOKEN)
+                                .filter(t -> sessionId.equals(t.getSessionId())).orElseThrow(this::invalidGrant);
+                        if (refresh.getConsumedOn() != null || refresh.getExpiration() == null
+                                || !refresh.getExpiration().toInstant().isAfter(java.time.Instant.now())) {
+                            throw invalidGrant();
+                        }
+                        if (changed(authorization.getRefreshToken(), previous.getRefreshToken())) {
+                            tokens.consume(refresh.getId());
+                        }
+                    } else {
+                        var code = previous.getToken(OAuth2AuthorizationCode.class);
+                        if (code == null || !code.isActive() || previous.getAccessToken() != null) {
+                            throw invalidGrant();
+                        }
+                        // Updates code and its custom Token row only when unconsumed and unexpired.
+                        codes.setConsumedOn(code.getToken().getTokenValue());
+                    }
+                }
+                SecretKey signingKey = signingKeys.generateKey();
+                persistToken(app, sessionId, authorization.getPrincipalName(), TokenTypeEnum.ACCESS_TOKEN,
+                        authorization.getAccessToken().getToken(), signingKey);
+                if (changed(authorization.getRefreshToken(), previous == null ? null : previous.getRefreshToken())) {
+                    persistToken(app, sessionId, authorization.getPrincipalName(), TokenTypeEnum.REFRESH_TOKEN,
+                            authorization.getRefreshToken().getToken(), signingKey);
+                }
+            }
+            if (authorization.getAccessToken() != null && authorization.getAccessToken().isInvalidated()) {
+                sessions.setSessionInactive(sessionId);
+            }
+            OAuth2Authorization.Builder state = OAuth2Authorization.from(authorization)
+                    .attribute(SESSION_ID, sessionId.toString());
+            state.attributes(attributes -> attributes.remove(PRESENTED_REFRESH));
+            normalizePrincipal(authorization, state);
+            authorizations.save(state.build());
+        } catch (OAuth2AuthenticationException e) {
+            throw e;
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // A browser continuation/session represents a single authorization grant.
+            // Replaying it must roll back the partial grant and return an OAuth error.
+            throw invalidGrant();
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not persist OAuth authorization", e);
+        }
+    }
+
+    private UUID createInitialState(Application app, OAuth2Authorization authorization) throws Exception {
+        var code = authorization.getToken(OAuth2AuthorizationCode.class);
+        if (code == null) {
+            return sessions.createSession(Optional.of(app), authorization).getSessionId();
+        }
+        Object pendingSession = httpSession.getAttribute(ApplicationConstants.AUTH_SESSION_ID);
+        if (pendingSession == null) {
+            throw invalidGrant();
+        }
+        UUID sessionId = UUID.fromString(pendingSession.toString());
+        AuthSession session = sessions.getBySessionId(sessionId).orElseThrow(this::invalidGrant);
+        if (session.getAuthSessionStatus() != AuthSessionStatusEnum.ACTIVE
+                || !Objects.equals(session.getApplicationId(), app.getId())
+                || !Objects.equals(session.getSubjectId(), authorization.getPrincipalName())
+                || session.getBranding() == null
+                || !Objects.equals(session.getBranding(), httpSession.getAttribute(ApplicationConstants.AUTHENTICATED_BRANDING))
+                || !Objects.equals(session.getBranding(), httpSession.getAttribute(ApplicationConstants.BRANDING_INFO))) {
+            throw invalidGrant();
+        }
+        OAuth2AuthorizationRequest request = authorization.getAttribute(OAuth2AuthorizationRequest.class.getName());
+        if (request == null) {
+            throw new IllegalStateException("Authorization request is missing");
+        }
+        CreateAuthCodeDto dto = new CreateAuthCodeDto();
+        dto.setApplicationId(app.getId());
+        dto.setSessionId(sessionId);
+        dto.setData(code.getToken().getTokenValue());
+        dto.setExpiration(code.getToken().getExpiresAt());
+        codes.create(dto);
+        Object challenge = request.getAdditionalParameters().get("code_challenge");
+        if (challenge != null) {
+            CreatePkceDto proof = new CreatePkceDto();
+            proof.setApplicationId(app.getId());
+            proof.setSessionId(sessionId);
+            proof.setData(challenge.toString());
+            proof.setAlgorithm(Objects.toString(request.getAdditionalParameters().get("code_challenge_method"), "plain"));
+            proof.setRedirectUri(request.getRedirectUri());
+            pkce.create(proof);
+        }
+        persistToken(app, sessionId, authorization.getPrincipalName(), TokenTypeEnum.CODE, code.getToken(), null);
+        sessions.setBrandingAndRedirectUri(sessionId,
+                session.getBranding(), request.getRedirectUri(), app.getId());
+        // Keep the browser session marker: removing it before transaction commit makes retry impossible.
+        return sessionId;
+    }
+
+    private void persistToken(Application app, UUID sessionId, String subject, TokenTypeEnum type,
+            OAuth2Token token, SecretKey key) throws Exception {
+        CreateTokenDto dto = new CreateTokenDto();
+        dto.setApplicationId(app.getId());
+        dto.setSessionId(sessionId);
+        dto.setSubjectId(subject);
+        dto.setTokenType(type);
+        dto.setOpaque(type == TokenTypeEnum.CODE);
+        dto.setData(token.getTokenValue());
+        dto.setSigningKey(key);
+        tokens.create(dto, token.getIssuedAt(), token.getExpiresAt(),
+                token instanceof OAuth2AccessToken access ? access.getScopes() : null);
+    }
+
+    private static boolean changed(OAuth2Authorization.Token<?> next, OAuth2Authorization.Token<?> previous) {
+        return next != null && (previous == null || !next.getToken().getTokenValue().equals(previous.getToken().getTokenValue()));
+    }
+
+    /** Persist only the authenticated identity and authority snapshot, never a password-bearing user object. */
+    private static void normalizePrincipal(OAuth2Authorization authorization, OAuth2Authorization.Builder state) {
+        Object principal = authorization.getAttribute(Principal.class.getName());
+        if (principal instanceof Authentication authentication) {
+            var authorities = authentication.getAuthorities().stream()
+                    .map(a -> new SimpleGrantedAuthority(a.getAuthority())).toList();
+            var snapshot = authentication.isAuthenticated()
+                    ? UsernamePasswordAuthenticationToken.authenticated(authentication.getName(), null, authorities)
+                    : UsernamePasswordAuthenticationToken.unauthenticated(authentication.getName(), null);
+            state.attribute(Principal.class.getName(), snapshot);
+        }
+    }
+
+    private UUID sessionId(OAuth2Authorization authorization) {
+        String id = authorization.getAttribute(SESSION_ID);
+        if (id == null) {
+            throw new IllegalStateException("Authorization has no persisted session binding");
+        }
+        return UUID.fromString(id);
     }
 
     @Override
     public OAuth2Authorization findById(String id) {
-        return findBySessionId(UUID.fromString(id));
+        return active(authorizations.findById(id));
     }
 
     @Override
     public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
-        return tokenService.getByValue(token, TokenTypeEnum.fromOAuth2TokenType(tokenType)).map(t -> findBySessionId(t.getSessionId())).orElse(null);
+        OAuth2Authorization authorization = active(authorizations.findByToken(token, tokenType));
+        if (authorization != null && authorization.getRefreshToken() != null
+                && authorization.getRefreshToken().getToken().getTokenValue().equals(token)) {
+            return OAuth2Authorization.from(authorization).attribute(PRESENTED_REFRESH, token).build();
+        }
+        return authorization;
+    }
+
+    private OAuth2Authorization active(OAuth2Authorization authorization) {
+        if (authorization == null) return null;
+        return sessions.getBySessionId(sessionId(authorization))
+                .filter(s -> s.getAuthSessionStatus() == AuthSessionStatusEnum.ACTIVE)
+                .map(s -> authorization).orElse(null);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void remove(OAuth2Authorization authorization) {
         try {
-            authSessionService.setSessionInactive(UUID.fromString(authorization.getId()));
-        } catch (FailedToUpdateSessionException e) {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
-
-    private OAuth2Authorization findBySessionId(UUID sessionId) {
-
-        Optional<AuthSession> authSession = authSessionService.getBySessionId(sessionId);
-        if (authSession.isEmpty() || authSession.get().getAuthSessionStatus() == AuthSessionStatusEnum.INACTIVE) {
-            return null;
-        }
-
-        Optional<Application> application = applicationService.getById(authSession.get().getApplicationId());
-        if (application.isEmpty()) {
-            return null;
-        }
-
-        List<Token> tokens = tokenService.getAllActiveBySessionId(sessionId);
-
-        Token accessToken = null;
-        Token refreshToken = null;
-        Token authCodeToken = null;
-
-        for (Token token : tokens) {
-            switch (token.getTokenType()) {
-                case ACCESS_TOKEN:
-                    accessToken = token;
-                    break;
-                case REFRESH_TOKEN:
-                    refreshToken = token;
-                    break;
-                case ID_TOKEN:
-                    break;
-                case CODE:
-                    authCodeToken = token;
-                    break;
-            }
-        }
-
-        if (accessToken == null && refreshToken == null && authCodeToken == null) {
-            return null; // TODO: clarify session management expectations
-        }
-
-        RegisteredClient registeredClient;
-        try {
-            registeredClient = applicationService.getRegisteredClientById(authSession.get().getApplicationId());
+            sessions.setSessionInactive(sessionId(authorization));
+            authorizations.remove(authorization);
         } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        OAuth2Authorization.Builder authBuilder = OAuth2Authorization.withRegisteredClient(registeredClient).id(sessionId.toString());
-
-        if (accessToken != null) {
-            Instant createdOn = accessToken.getCreatedOn() != null ? Instant.ofEpochMilli(accessToken.getCreatedOn().getTime()) : null;
-
-            Instant expiration = accessToken.getExpiration() != null ? Instant.ofEpochMilli(accessToken.getExpiration().getTime()) : null;
-
-            Set<String> scopes = authSession.get().getScopes();
-
-            authBuilder.accessToken(new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, accessToken.getData(), createdOn, expiration, scopes)).authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS);
-
-            Map<String, Object> claims = new HashMap<>();
-            for (String scope : scopes) {
-                claims.put(scope, scope);
-            }
-
-            authBuilder.token(new OidcIdToken(UUID.randomUUID().toString(), createdOn, expiration, claims));
-        }
-
-        if (refreshToken != null) {
-            Instant createdOn = refreshToken.getCreatedOn() != null ? Instant.ofEpochMilli(refreshToken.getCreatedOn().getTime()) : null;
-
-            Instant expiration = refreshToken.getExpiration() != null ? Instant.ofEpochMilli(refreshToken.getExpiration().getTime()) : null;
-
-            authBuilder.refreshToken(new OAuth2RefreshToken(refreshToken.getData(), createdOn, expiration)).authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN);
-        }
-
-        if (authCodeToken != null) {
-            Optional<Pkce> pkceRecord = pkceService.getBySessionId(authSession.get().getSessionId());
-            if (pkceRecord.isEmpty()) {
-                return null;
-            }
-
-            String codeChallenge = pkceRecord.get().getData();
-            String codeChallengeMethod = pkceRecord.get().getAlgorithm();
-            String redirectUri = getRedirectUri(pkceRecord.get(), registeredClient);
-
-            OAuth2AuthorizationRequest request = OAuth2AuthorizationRequest.authorizationCode().clientId(registeredClient.getClientId()).authorizationUri(brandUrlMappingService.getUrlByBrand(getBrandFromSession(httpSession)) + "/oauth2/authorize").redirectUri(redirectUri).additionalParameters(params -> params.put("code_challenge", codeChallenge)).additionalParameters(params -> params.put("code_challenge_method", codeChallengeMethod)).build();
-
-            Instant createdOn = authCodeToken.getCreatedOn() != null ? Instant.ofEpochMilli(authCodeToken.getCreatedOn().getTime()) : null;
-
-            Instant expiration = authCodeToken.getExpiration() != null ? Instant.ofEpochMilli(authCodeToken.getExpiration().getTime()) : null;
-
-            authBuilder.token(new OAuth2AuthorizationCode(authCodeToken.getData(), createdOn, expiration)).attribute(request.getClass().getName(), request).attribute(Principal.class.getName(), new UsernamePasswordAuthenticationToken(registeredClient.getClientId(), null)).authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE);
-        }
-
-        return authBuilder.id(authSession.get().getSessionId().toString()).authorizedScopes(authSession.get().getScopes()).principalName(authSession.get().getSubjectId()).build();
-    }
-
-    private String getRedirectUri(Pkce pkceRecord, RegisteredClient registeredClient) {
-        String redirectUri = "";
-        String pkceRedirectUri = pkceRecord.getRedirectUri();
-
-        Set<String> registeredClientRedirectUris = registeredClient.getRedirectUris();
-
-        for (String uri : registeredClientRedirectUris) {
-            if (uri.contains(pkceRedirectUri)) {
-                redirectUri = uri;
-                break;
-            }
-        }
-
-        return redirectUri;
-    }
-
-    private void createToken(Integer applicationId, UUID sessionId, String subjectId, TokenTypeEnum tokenType, Boolean isOpaque, String value, SecretKey signingKey, Integer timeToLive) {
-
-        CreateTokenDto tokenDto = new CreateTokenDto();
-        tokenDto.setApplicationId(applicationId);
-        tokenDto.setTokenType(tokenType);
-        tokenDto.setSessionId(sessionId);
-        tokenDto.setOpaque(isOpaque);
-        tokenDto.setSubjectId(subjectId);
-        tokenDto.setData(value);
-        tokenDto.setSigningKey(signingKey);
-        tokenDto.setTimeToLive(timeToLive);
-
-        try {
-            tokenService.create(tokenDto);
-        } catch (TokenCreationFailedException e) {
-            log.error(e.getMessage());
+            throw new IllegalStateException("Could not revoke OAuth authorization", e);
         }
     }
 
-    private void createAuthCode(Integer applicationId, UUID sessionId, String value) {
-        CreateAuthCodeDto authCodeDto = new CreateAuthCodeDto();
-        authCodeDto.setApplicationId(applicationId);
-        authCodeDto.setSessionId(sessionId);
-        authCodeDto.setData(value);
-
-        try {
-            authCodeService.create(authCodeDto);
-        } catch (AuthCodeCreationFailedException e) {
-            log.error(e.getMessage());
-        }
+    private OAuth2AuthenticationException invalidGrant() {
+        return new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
     }
-
-    private void createPkceRecord(Integer applicationId, UUID sessionId, String challenge, String algorithm, String redirectUri) {
-        CreatePkceDto pkceDto = new CreatePkceDto();
-        pkceDto.setApplicationId(applicationId);
-        pkceDto.setSessionId(sessionId);
-        pkceDto.setData(challenge);
-        pkceDto.setAlgorithm(algorithm);
-        pkceDto.setRedirectUri(redirectUri);
-
-        try {
-            pkceService.create(pkceDto);
-        } catch (PkceCreationFailedException e) {
-            log.error(e.getMessage());
-        }
-    }
-
-    private String getBrandFromSession(HttpSession session) {
-        try {
-            return (String) session.getAttribute(ApplicationConstants.BRANDING_INFO);
-        } catch (Exception e) {
-            log.error("Failed to get the brand from the HttpSession", e);
-            return null;
-        }
-    }
-
 }

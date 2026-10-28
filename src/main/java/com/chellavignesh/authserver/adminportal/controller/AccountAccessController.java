@@ -34,6 +34,7 @@ import com.chellavignesh.authserver.security.exception.PasswordIncorrectSemantic
 import com.chellavignesh.authserver.security.exception.PasswordRecentlyUsedException;
 import com.chellavignesh.authserver.security.exception.PasswordValidationException;
 import com.chellavignesh.authserver.session.AuthSessionService;
+import com.chellavignesh.authserver.session.RecoveryVerificationService;
 import com.chellavignesh.authserver.session.CustomUserDetailsService;
 import com.chellavignesh.authserver.session.dto.CreateAuthSessionDto;
 import com.chellavignesh.authserver.session.entity.AuthSession;
@@ -73,6 +74,7 @@ public class AccountAccessController {
     private static final String FORGOT_USERNAME_BUTTON_TEXT = "Forgot Username";
     private static final String FORGOT_USERNAME_BUTTON_COLOR = "#2d65b4";
 
+    private final RecoveryVerificationService recoveryVerification;
     private final AccountSyncType accountSyncType;
     private final ForgotCredentialsService forgotPasswordService;
     private final CmsService cmsService;
@@ -102,7 +104,8 @@ public class AccountAccessController {
     }
 
     @Autowired
-    public AccountAccessController(ForgotCredentialsService forgotPasswordService, ApplicationService applicationService, CmsService cmsService, UserService userService, AuthSessionService authSessionService, UserDtoValidator userDtoValidator, BrandUrlMappingService brandUrlMappingService, CustomUserDetailsService customUserDetailsService, PasswordValidatorService passwordValidatorService, OnPremAccountServiceClient onPremAccountService, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, ExternalSourceService externalSourceService) {
+    public AccountAccessController(RecoveryVerificationService recoveryVerification, ForgotCredentialsService forgotPasswordService, ApplicationService applicationService, CmsService cmsService, UserService userService, AuthSessionService authSessionService, UserDtoValidator userDtoValidator, BrandUrlMappingService brandUrlMappingService, CustomUserDetailsService customUserDetailsService, PasswordValidatorService passwordValidatorService, OnPremAccountServiceClient onPremAccountService, @Value("${toggles.account.sync.type:sync}") AccountSyncType accountSyncType, ExternalSourceService externalSourceService) {
+        this.recoveryVerification = recoveryVerification;
         this.forgotPasswordService = forgotPasswordService;
         this.cmsService = cmsService;
         this.userService = userService;
@@ -189,6 +192,7 @@ public class AccountAccessController {
         CreateAuthSessionDto sessionDto = new CreateAuthSessionDto();
         sessionDto.setApplicationId(application.getId());
         sessionDto.setSubjectId(userDetails.username());
+        sessionDto.setLoginId(userDetails.loginId());
         sessionDto.setScope("forgot-password");
         sessionDto.setAuthFlow(AuthFlowEnum.PKCE);
         sessionDto.setClientFingerprint(null);
@@ -291,6 +295,10 @@ public class AccountAccessController {
             throw new InvalidUserSessionException("User session invalid or in invalid state - Forgot Password Update");
         }
 
+        if (!recoveryVerification.isVerified(request.getSession().getId(), sessionId, flow)) {
+            throw new RecoveryVerificationService.VerificationRequiredException();
+        }
+
         if (bindingResult.hasErrors()) {
             String message = Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage();
             request.getSession().setAttribute("error", message);
@@ -303,9 +311,13 @@ public class AccountAccessController {
 
             UserDetails user = forgotPasswordService.getUser(UUID.fromString(sessionId), clientId, branding);
 
-            passwordValidatorService.validatePassword(resetUserPasswordDto.getPassword(), user.rowGuid());
+            passwordValidatorService.validatePasswordForLogin(resetUserPasswordDto.getPassword(), user.loginId());
 
             Application application = forgotPasswordService.checkClientId(clientId).get();
+
+            if (!recoveryVerification.consume(request.getSession().getId(), sessionId, flow)) {
+                throw new RecoveryVerificationService.VerificationRequiredException();
+            }
 
             boolean isEntity = application.getCmsContext() != null && application.getCmsContext().equals("entity");
 
@@ -325,10 +337,10 @@ public class AccountAccessController {
 
             } else if (Boolean.TRUE.equals(user.credSyncFlag()) && AccountSyncType.ASYNC == accountSyncType) {
 
-                forgotPasswordService.resetUserPasswordAndNotify(resetUserPasswordDto, user.rowGuid(), branding, headers);
+                forgotPasswordService.resetUserPasswordAndNotify(resetUserPasswordDto, user.rowGuid(), user.loginId(), branding, headers);
 
             } else {
-                forgotPasswordService.resetUserPassword(resetUserPasswordDto, user.rowGuid(), branding);
+                forgotPasswordService.resetUserPassword(resetUserPasswordDto, user.rowGuid(), user.loginId(), branding);
             }
 
             userService.unlockAccount(user.username(), user.branding());
@@ -499,6 +511,12 @@ public class AccountAccessController {
     public String handleCmsBadRequestException(Exception ex) {
         log.error(ex.getMessage(), ex);
         return "pages/404";
+    }
+
+    @ExceptionHandler(RecoveryVerificationService.VerificationRequiredException.class)
+    public org.springframework.http.ResponseEntity<String> handleUnverifiedRecovery(
+            RecoveryVerificationService.VerificationRequiredException e) {
+        return org.springframework.http.ResponseEntity.status(403).body(e.getMessage());
     }
 
 }

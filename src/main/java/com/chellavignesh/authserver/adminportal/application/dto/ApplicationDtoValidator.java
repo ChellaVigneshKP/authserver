@@ -56,9 +56,9 @@ public class ApplicationDtoValidator implements Validator {
             if (!Objects.isNull(dto.getAuthCodeTimeToLive())) {
                 if (!rangeCache.getRange(RangeTypeEnum.AUTH_CODE_TTL).getRange().contains(dto.getAuthCodeTimeToLive())) {
                     errors.rejectValue("authCodeTimeToLive", "Invalid", "Auth code time to live must be within the range of " + rangeCache.getRange(RangeTypeEnum.AUTH_CODE_TTL).getRange());
-                } else {
-                    errors.rejectValue("authCodeTimeToLive", "Invalid", "Auth code time to live must be provided");
                 }
+            } else {
+                errors.rejectValue("authCodeTimeToLive", "Invalid", "Auth code time to live must be provided");
             }
 
             if (!Objects.isNull(dto.getDeviceCodeTimeToLive())
@@ -69,9 +69,9 @@ public class ApplicationDtoValidator implements Validator {
             if (!Objects.isNull(dto.getRefreshTokenTimeToLive())) {
                 if (!rangeCache.getRange(RangeTypeEnum.REFRESH_TOKEN_TTL).getRange().contains(dto.getRefreshTokenTimeToLive())) {
                     errors.rejectValue("refreshTokenTimeToLive", "Invalid", "Refresh token time to live must be within the range of " + rangeCache.getRange(RangeTypeEnum.REFRESH_TOKEN_TTL).getRange());
-                } else {
-                    errors.rejectValue("refreshTokenTimeToLive", "Invalid", "Refresh token time to live must be provided");
                 }
+            } else {
+                errors.rejectValue("refreshTokenTimeToLive", "Invalid", "Refresh token time to live must be provided");
             }
 
             if (Objects.isNull(dto.getReuseRefreshTokens())) {

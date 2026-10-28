@@ -29,11 +29,14 @@ public class OrganizationRepository {
     private static final Logger log = LoggerFactory.getLogger(OrganizationRepository.class);
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final SecurityUtil securityUtil;
+    private final com.chellavignesh.authserver.adminportal.organization.role.RoleRepository roles;
 
     @Autowired
-    public OrganizationRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, SecurityUtil securityUtil) {
+    public OrganizationRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, SecurityUtil securityUtil,
+                                  com.chellavignesh.authserver.adminportal.organization.role.RoleRepository roles) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.securityUtil = securityUtil;
+        this.roles = roles;
     }
 
     public Organization create(CreateOrganizationDto dto) throws OrgCreationFailedException {
@@ -79,8 +82,6 @@ public class OrganizationRepository {
         ).stream().findFirst();
     }
 
-
-    @Cacheable("organization-get-by-id")
     public Optional<Organization> getById(Integer orgId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
@@ -97,6 +98,15 @@ public class OrganizationRepository {
                 new MapSqlParameterSource(),
                 new OrganizationRowMapper()
         );
+    }
+
+    /** Active memberships are read live; global organization-list permission is not required. */
+    public List<Organization> getForMember(UUID userGuid) {
+        return namedParameterJdbcTemplate.query("""
+                SELECT o.* FROM Partner.Organization o
+                JOIN Person.ActiveManagementIdentity actor ON actor.OrganizationId=o.OrganizationId
+                WHERE actor.UserGuid=:userGuid
+                """, new MapSqlParameterSource("userGuid", userGuid.toString()), new OrganizationRowMapper());
     }
 
     public boolean exists(UUID orgGuid) {
@@ -118,6 +128,8 @@ public class OrganizationRepository {
                 parameters,
                 new OrganizationGroupRowMapper()
         );
+        var protection = roles.readOnlyByOrganization(orgId);
+        a.forEach(group -> group.setReadOnly(protection.getOrDefault(group.getId(), true)));
         return a.stream().findFirst();
     }
 
@@ -179,11 +191,14 @@ public class OrganizationRepository {
     public List<OrganizationGroup> getOrganizationGroups(Integer orgId) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
-        return namedParameterJdbcTemplate.query(
+        var groups = namedParameterJdbcTemplate.query(
                 "{call Partner.GetOrganizationGroups(:orgId)}",
                 parameters,
                 new OrganizationGroupRowMapper()
         );
+        var protection = roles.readOnlyByOrganization(orgId);
+        groups.forEach(group -> group.setReadOnly(protection.getOrDefault(group.getId(), true)));
+        return groups;
     }
 
     public List<OrganizationGroupPermission> getOrganizationGroupPermissions(Integer orgId, Integer orgGroupId) {

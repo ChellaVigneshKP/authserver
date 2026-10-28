@@ -79,6 +79,9 @@ public class ClientSecretJWTAuthenticationProvider implements AuthenticationProv
         int i = 1;
         Jwt jwtAssertion = null;
         do {
+            if (registeredClient == null) {
+                throwInvalidClient(OAuth2ParameterNames.CLIENT_ASSERTION);
+            }
             JwtDecoder jwtDecoder = this.jwtDecoderFactory.createDecoder(registeredClient);
             try {
                 jwtAssertion = jwtDecoder.decode(clientAuthentication.getCredentials().toString());

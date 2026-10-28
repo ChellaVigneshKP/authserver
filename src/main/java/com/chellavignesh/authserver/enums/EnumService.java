@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 
+@org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization
 @Service
 public class EnumService {
     private static final Logger log = LoggerFactory.getLogger(EnumService.class);

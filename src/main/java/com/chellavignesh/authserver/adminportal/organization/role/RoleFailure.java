@@ -1,0 +1,45 @@
+package com.chellavignesh.authserver.adminportal.organization.role;
+
+/** Safe HTTP status for the shared portal error boundary; internal SQL details never escape. */
+public class RoleFailure extends RuntimeException {
+    private final int status;
+    private final String code;
+
+    public RoleFailure(int status) { this(status, null, "Role request rejected"); }
+
+    private RoleFailure(int status, String code, String message) {
+        super(message);
+        this.status = status;
+        this.code = code;
+    }
+
+    public static RoleFailure assigned(int count) {
+        return new RoleFailure(409, "ROLE_ASSIGNED", "Role has " + count
+                + " assigned members. Remove assignments before deactivating.");
+    }
+
+    public static RoleFailure legacyPlatformRole() {
+        return new RoleFailure(409, "ROLE_REQUIRES_REVIEW",
+                "Legacy role contains platform-reserved permissions and requires review before modification.");
+    }
+
+    public static RoleFailure existingProfile() {
+        return new RoleFailure(409, "PROFILE_EXISTS", "The supplied member identifier already belongs to a profile.");
+    }
+
+    public static RoleFailure membership() {
+        return new RoleFailure(409, "MEMBERSHIP_REQUIRES_REVIEW", "Existing organization or role memberships require review before modification.");
+    }
+
+    public static RoleFailure lastAdministrator() {
+        return new RoleFailure(409, "LAST_PLATFORM_ADMIN", "The final active platform administrator and platform organization must remain active.");
+    }
+
+    public static RoleFailure credential() {
+        return new RoleFailure(409, "CREDENTIAL_REQUIRES_REVIEW",
+                "The account must have one matching login before this operation.");
+    }
+
+    public String code() { return code; }
+    public int status() { return status; }
+}

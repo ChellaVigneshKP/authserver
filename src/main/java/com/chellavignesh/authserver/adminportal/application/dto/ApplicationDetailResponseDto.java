@@ -14,6 +14,7 @@ import java.util.UUID;
 @Getter
 @AllArgsConstructor
 public class ApplicationDetailResponseDto {
+    private boolean active;
     private UUID id;
     private UUID orgId;
     private String clientId;
@@ -27,6 +28,7 @@ public class ApplicationDetailResponseDto {
     private Integer deviceCodeTimeToLive;
     private Integer refreshTokenTimeToLive;
     private Integer maxRequestTransitTime;
+    private Boolean reuseRefreshTokens;
     private UsernameTypeEnum usernameType;
     private Boolean allowForgotUsername;
     private List<ForgotUsernameSettingResponseDto> forgotUsernameSettings;
@@ -42,6 +44,7 @@ public class ApplicationDetailResponseDto {
                 : List.of();
 
         return new ApplicationDetailResponseDto(
+                Boolean.TRUE.equals(a.getActive()),
                 a.getRowGuid(),
                 orgGuid,
                 a.getClientId(),
@@ -55,6 +58,7 @@ public class ApplicationDetailResponseDto {
                 a.getDeviceCodeTimeToLive(),
                 a.getRefreshTokenTimeToLive(),
                 a.getMaxRequestTransitTime(),
+                a.getReuseRefreshTokens(),
                 a.getUsernameType(),
                 a.getAllowForgotUsername(),
                 forgotUsernameSettings,

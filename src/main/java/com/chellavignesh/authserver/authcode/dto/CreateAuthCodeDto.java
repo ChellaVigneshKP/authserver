@@ -12,4 +12,5 @@ public class CreateAuthCodeDto {
     private Integer applicationId;
     private UUID sessionId;
     private String data;
+    private java.time.Instant expiration;
 }

@@ -89,19 +89,19 @@ public class ForgotCredentialsService {
             throw new AppNotFoundException("Failed to locate application for client: %s".formatted(clientId));
         }
 
-        return userService.getByUsernameAndBranding(authSession.getSubjectId(), branding).orElseThrow(() -> new UserNotFoundException("Failed to find user"));
+        return userService.getByLoginId(authSession.getLoginId()).filter(user -> java.util.Objects.equals(user.branding(), branding)).orElseThrow(() -> new UserNotFoundException("Failed to find user"));
     }
 
-    public User resetUserPassword(ResetUserPasswordDto resetUserPasswordDto, UUID userGuid, String branding) throws UserUpdateFailedException, InvalidBrandingException {
+    public User resetUserPassword(ResetUserPasswordDto resetUserPasswordDto, UUID userGuid, UUID loginId, String branding) throws UserUpdateFailedException, InvalidBrandingException {
 
         final var updateUserPasswordDto = new BasicUpdateUserPasswordDto();
         updateUserPasswordDto.setPassword(resetUserPasswordDto.getPassword());
         updateUserPasswordDto.setBranding(branding);
 
-        return userService.updatePassword(updateUserPasswordDto, userGuid, true);
+        return userService.updatePasswordForLogin(updateUserPasswordDto, userGuid, loginId, true);
     }
 
-    public User resetUserPasswordAndNotify(ResetUserPasswordDto resetUserPasswordDto, UUID userGuid, String branding, Map<String, String> sourceHeaders) throws UserUpdateFailedException, InvalidBrandingException {
+    public User resetUserPasswordAndNotify(ResetUserPasswordDto resetUserPasswordDto, UUID userGuid, UUID loginId, String branding, Map<String, String> sourceHeaders) throws UserUpdateFailedException, InvalidBrandingException {
 
         final var updateUserPasswordDto = new NotifiableUpdateUserPasswordDto();
         updateUserPasswordDto.setPassword(resetUserPasswordDto.getPassword());
@@ -109,7 +109,7 @@ public class ForgotCredentialsService {
         updateUserPasswordDto.setIntent(UpdateIntent.IDP);
         updateUserPasswordDto.setMetadata(OutgoingMetadataDto.createEmpty());
 
-        return userService.updatePasswordAndNotify(updateUserPasswordDto, userGuid, true, sourceHeaders);
+        return userService.updatePasswordForLoginAndNotify(updateUserPasswordDto, userGuid, loginId, true, sourceHeaders);
     }
 
     public void emailUsername(NotificationEmail notificationEmail) throws FailedToSendEmailException {

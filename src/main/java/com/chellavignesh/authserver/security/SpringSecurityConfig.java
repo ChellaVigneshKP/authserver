@@ -80,12 +80,14 @@ public class SpringSecurityConfig {
     }
 
     @Bean
-    @Order(3)
+    @Order(4)
     public SecurityFilterChain configureSecurityFilterChain(HttpSecurity http, BiometricAuthenticationFilter biometricAuthenticationFilter) throws Exception {
 
         http.cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authz -> authz.requestMatchers(HttpMethod.OPTIONS).permitAll()
                         .requestMatchers("/add-token-cookie").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/portal/account-action", "/portal/account/profile", "/portal/account/password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/portal/account/profile", "/portal/account/password").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/css/**", "/images/**", "/js/**").permitAll()
                         .requestMatchers("/oauth2/signature/**").authenticated()
@@ -118,7 +120,7 @@ public class SpringSecurityConfig {
                 // OAuth2 resource server
                 .oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(opaque -> opaque.introspector(tokenIntrospector)))
 
-                .csrf(AbstractHttpConfigurer::disable).httpBasic(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/oauth2/**", "/userinfo")).httpBasic(AbstractHttpConfigurer::disable)
                 .httpBasic(HttpBasicConfigurer::disable)
 
                 .formLogin(login -> login.loginPage("/login")
@@ -129,6 +131,27 @@ public class SpringSecurityConfig {
 
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable));
 
+        return http.build();
+    }
+
+    /** Management is bearer-only and never restores a hosted login or PRE_AUTH session. */
+    @Bean
+    @Order(3)
+    public SecurityFilterChain managementSecurityFilterChain(HttpSecurity http, CredentialMetadataAuthenticationEntryPoint metadataEntryPoint) throws Exception {
+        http.securityMatcher("/api/**")
+                .cors(Customizer.withDefaults())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(authz -> authz.requestMatchers(HttpMethod.OPTIONS).permitAll()
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2.authenticationEntryPoint(metadataEntryPoint)
+                        .opaqueToken(opaque -> opaque.introspector(tokenIntrospector)))
+                .addFilterAfter(requestDatetimeValidationFilter, AuthorizationFilter.class)
+                .addFilterAfter(requestClientFingerprintFilter, RequestDatetimeValidationFilter.class)
+                .addFilterAfter(requestBodySignatureFilter, RequestDatetimeValidationFilter.class)
+                .addFilterAfter(responseBodySignatureFilter, RequestBodySignatureFilter.class)
+                .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable);
         return http.build();
     }
 

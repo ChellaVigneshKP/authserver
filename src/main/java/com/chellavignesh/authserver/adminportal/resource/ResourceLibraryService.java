@@ -61,15 +61,11 @@ public class ResourceLibraryService {
 
         ResourceLibrary resourceLibrary = resourceLibraryRepository.getById(resourceLibraryId).get();
 
-        if ((!resourceLibrary.getUri().equalsIgnoreCase(resourceLibraryDto.getUri()))
-                || !resourceLibrary.getAllowedMethod().equalsIgnoreCase(resourceLibraryDto.getAllowedMethod())
-                || (!resourceLibrary.getUrn().equalsIgnoreCase(resourceLibraryDto.getUrn())
-                && resourceLibraryDto.getUrn() != null
-                && resourceLibraryRepository.exists(
-                resourceLibraryDto.getUri(),
-                resourceLibraryDto.getAllowedMethodEnum(),
-                resourceLibraryDto.getUrn()
-        ))) {
+        boolean identityChanged = !java.util.Objects.equals(resourceLibrary.getUri(), resourceLibraryDto.getUri())
+                || !java.util.Objects.equals(resourceLibrary.getAllowedMethod(), resourceLibraryDto.getAllowedMethod())
+                || !java.util.Objects.equals(resourceLibrary.getUrn(), resourceLibraryDto.getUrn());
+        if (identityChanged && resourceLibraryRepository.exists(resourceLibraryDto.getUri(),
+                resourceLibraryDto.getAllowedMethodEnum(), resourceLibraryDto.getUrn())) {
 
             throw new DataIntegrityViolationException("Resource with this URI/Allowed Method/URN already exists.");
         }

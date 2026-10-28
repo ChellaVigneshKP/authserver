@@ -9,7 +9,7 @@ import com.chellavignesh.authserver.token.exception.TokenCreationFailedException
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
+
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -17,10 +17,13 @@ import org.springframework.stereotype.Repository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Types;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Set;
 
 @Repository
 public class TokenRepository {
@@ -49,6 +52,10 @@ public class TokenRepository {
      * Creates a token and computes SHA256 hash of the payload for consistency.
      */
     public Token create(CreateTokenDto dto) throws TokenCreationFailedException {
+        return create(dto, null, null, null);
+    }
+
+    public Token create(CreateTokenDto dto, Instant issuedAt, Instant expiresAt, Set<String> scopes) throws TokenCreationFailedException {
         MessageDigest messageDigest = SHA256_DIGEST_POOL.get();
         messageDigest.reset();
 
@@ -64,26 +71,29 @@ public class TokenRepository {
                 .addValue("isOpaque", dto.isOpaque())
                 .addValue("data", dto.getData())
                 .addValue("timeToLive", dto.getTimeToLive())
-                .addValue("dataHash", hashedData);
+                .addValue("dataHash", hashedData)
+                .addValue("issuedAt", issuedAt == null ? null : java.time.LocalDateTime.ofInstant(issuedAt, java.time.ZoneOffset.UTC), Types.TIMESTAMP)
+                .addValue("expiresAt", expiresAt == null ? null : java.time.LocalDateTime.ofInstant(expiresAt, java.time.ZoneOffset.UTC), Types.TIMESTAMP)
+                .addValue("scope", scopes == null ? null : String.join(" ", scopes));
 
         if (dto.getSigningKey() != null) {
             parameters.addValue("signingKey", dto.getSigningKey().getEncoded());
         } else {
-            parameters.addValue("signingKey", null, Types.NULL);
+            parameters.addValue("signingKey", null, Types.VARBINARY);
         }
 
         Optional<Integer> tokenId = jdbcTemplate.query(
                 """
                         {call Token.CreateTokenWithHash(
                             :tokenTypeId, :applicationId, :subjectId, :sessionId,
-                            :isOpaque, :data, :signingKey, :timeToLive, :dataHash)}
+                            :isOpaque, :data, :signingKey, :timeToLive, :dataHash, :issuedAt, :expiresAt, :scope)}
                         """,
                 parameters,
                 (rs, rowNum) -> rs.getInt("ID")
         ).stream().findFirst();
 
         if (tokenId.isPresent()) {
-            return getById(tokenId.get()).get();
+            return getById(tokenId.get()).orElseThrow(() -> new TokenCreationFailedException("Created token is missing"));
         } else {
             throw new TokenCreationFailedException("Could not fetch newly created Token by ID.");
         }
@@ -106,7 +116,6 @@ public class TokenRepository {
         ).stream().findFirst());
     }
 
-    @Cacheable(cacheNames = "token-get-by-value-hash", key = "#type.name() + ':' + #value")
     public Optional<Token> getByValue(String value, TokenTypeEnum type) {
         MessageDigest messageDigest = SHA256_DIGEST_POOL.get();
         messageDigest.reset();
@@ -124,6 +133,10 @@ public class TokenRepository {
         ).stream().findFirst();
     }
 
+    public void consume(Integer id) {
+        jdbcTemplate.update("{call Token.ConsumeToken(:tokenId)}", new MapSqlParameterSource("tokenId", id));
+    }
+
     public List<Token> getAllActiveBySessionId(UUID sessionId) {
         return jdbcTemplate.query(
                 "{call Token.GetAllActiveTokensBySessionId(:sessionId)}",
@@ -137,7 +150,7 @@ public class TokenRepository {
                 "{call Token.GetTokensByClientIdAndRequestDateTime(:clientId, :requestDateTime)}",
                 new MapSqlParameterSource()
                         .addValue("clientId", clientId)
-                        .addValue("requestDateTime", requestDateTime),
+                        .addValue("requestDateTime", java.time.LocalDateTime.ofInstant(requestDateTime.toInstant(), java.time.ZoneOffset.UTC)),
                 new TokenRowMapper()
         ).stream().toList();
     }

@@ -4,6 +4,7 @@ import com.chellavignesh.authserver.adminportal.util.SecurityUtil;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -26,17 +27,18 @@ public class PostLogoutRedirectUriRepository {
         parameters.addValue("modifiedOn", new java.util.Date());
         parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
         jdbcTemplate.update(
-                "{call dbo.UpdatePostLogoutRedirectUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
+                "{call Client.UpdatePostLogoutRedirectUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
                 parameters
         );
         return true;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public boolean createPostLogoutRedirectUris(Integer orgId, Integer appId, List<String> uris) {
         var parameters = new MapSqlParameterSource();
         parameters.addValue("orgId", orgId);
         parameters.addValue("appId", appId);
-        jdbcTemplate.update("{call CLient.DeletePostLogoutRedirectUris(:orgId, :appId)}", parameters);
+        jdbcTemplate.update("{call Client.DeletePostLogoutRedirectUri(:orgId, :appId)}", parameters);
 
         for (String uri : uris) {
             parameters = new MapSqlParameterSource();
@@ -46,7 +48,7 @@ public class PostLogoutRedirectUriRepository {
             parameters.addValue("modifiedOn", new Date());
             parameters.addValue("modifiedBy", securityUtil.getTokenUserGuid());
             jdbcTemplate.update(
-                    "{call dbo.CreatePostLogoutRedirectUris(:orgId, :appId, :uris, :createdOn, :createdBy)}",
+                    "{call Client.CreatePostLogoutRedirectUri(:orgId, :appId, :uri, :modifiedOn, :modifiedBy)}",
                     parameters
             );
         }

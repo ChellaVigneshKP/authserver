@@ -1,37 +1,20 @@
 package com.chellavignesh.authserver.adminportal.credential.dto;
 
+import com.chellavignesh.authserver.adminportal.credential.CredentialExpiration;
 import com.chellavignesh.authserver.adminportal.credential.entity.Credential;
-
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Clock;
 import java.util.UUID;
 
-public record CredentialResponseDto(UUID id, String name, String value, String algorithm, String status,
+/** Legacy public contract: secret value deliberately removed. */
+public record CredentialResponseDto(UUID id, String name, String algorithm, String status,
                                     String expirationDate, boolean isExpired) {
-
     public static CredentialResponseDto fromCredential(Credential credential) {
-        return new CredentialResponseDto(
-                credential.getRowGuid(),
-                credential.getName(),
-                credential.getValue(),
-                credential.getTokenAlgorithm().name(),
-                String.valueOf(credential.getCredentialStatus() != null ? credential.getCredentialStatus().toString() : ""),
-                credential.getExpireOn() != null ? credential.getExpireOn() : "",
-                isExpired(credential)
-        );
+        return fromCredential(credential, CredentialExpiration.isExpired(credential, Clock.systemUTC()));
     }
 
-    private static boolean isExpired(Credential credential) {
-        if (credential.getExpireOn() != null) {
-            Date date = null;
-            try {
-                DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-                date = df.parse(credential.getExpireOn());
-            } catch (Exception _) {
-            }
-            return (new Date()).compareTo(date) > 0;
-        }
-        return true;
+    public static CredentialResponseDto fromCredential(Credential credential, boolean expired) {
+        return new CredentialResponseDto(credential.getRowGuid(), credential.getName(), credential.getTokenAlgorithm().name(),
+                credential.getCredentialStatus() != null ? credential.getCredentialStatus().toString() : "",
+                credential.getExpireOn() != null ? credential.getExpireOn() : "", expired);
     }
 }

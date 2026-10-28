@@ -35,7 +35,7 @@ public class User {
             user.setRowGuid(UUID.fromString(result.getString("RowGuid")));
             user.setLoginId(UUID.fromString(result.getString("LoginId")));
         } catch (SQLException e) {
-            user = null;
+            throw e;
         }
         return user;
     }

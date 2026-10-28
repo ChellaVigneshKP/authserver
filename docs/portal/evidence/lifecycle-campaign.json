@@ -1,0 +1,60 @@
+{
+  "source_commit": "93dc6048e13a0d76302be0d09b0a158d1ef56bd0",
+  "source_tree_sha256": "a00ac05ecef5bc9ad2806ff5f38170196e94ad59fd35d72d630c83b23ab140f1",
+  "working_tree_dirty": false,
+  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "database": "AuthserverLifecycle_74c78ab5fca64edfbf049a43aa931853",
+  "app_base": "http://localhost:50139/services",
+  "artifact_sha256": "99384413a80545e8574457ef2ec73c92ee53ae7d2e48b335e76647e785b08623",
+  "provider": "unconfigured; no external provider success claimed",
+  "redis_target": {
+    "host": "127.0.0.1",
+    "port": 16379,
+    "session_database": 2,
+    "cache_database": 3,
+    "container_id": "731e90e4d099c969a000fc2a297dcf384cf64d26eff6cdf825ac2169b4c7ee01",
+    "container_port": 6379,
+    "databases": [
+      2,
+      3
+    ],
+    "published_endpoint_verified": true
+  },
+  "campaigns": [
+    {
+      "script": "e2e-certificates.py",
+      "passed": true,
+      "http_checks": 38,
+      "sql_checks": 8
+    },
+    {
+      "script": "e2e-protocol-variants.py",
+      "passed": true,
+      "http_checks": 51,
+      "sql_checks": 5
+    }
+  ],
+  "cleanup": {
+    "owned_process_stopped": true,
+    "redis_databases": [
+      {
+        "database": 2,
+        "removed": 16,
+        "remaining": 0
+      },
+      {
+        "database": 3,
+        "removed": 1,
+        "remaining": 0
+      }
+    ],
+    "owned_database_dropped": true
+  },
+  "sql_target_verified": true,
+  "final_sql": {
+    "Certificates": 2,
+    "Credentials": 2,
+    "Tokens": 17
+  },
+  "passed": true
+}

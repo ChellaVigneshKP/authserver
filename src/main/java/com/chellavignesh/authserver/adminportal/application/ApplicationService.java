@@ -6,6 +6,7 @@ import com.chellavignesh.authserver.adminportal.application.dto.UpdateTokenSetti
 import com.chellavignesh.authserver.adminportal.application.entity.*;
 import com.chellavignesh.authserver.adminportal.application.exception.*;
 import com.chellavignesh.authserver.adminportal.credential.CredentialService;
+import com.chellavignesh.authserver.adminportal.credential.CredentialExpiration;
 import com.chellavignesh.authserver.adminportal.credential.CredentialStatus;
 import com.chellavignesh.authserver.adminportal.credential.entity.Credential;
 import com.chellavignesh.authserver.adminportal.forgotusername.ForgotUsernameSetting;
@@ -28,9 +29,8 @@ import org.springframework.security.oauth2.server.authorization.settings.OAuth2T
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.chellavignesh.authserver.adminportal.application.entity.TokenSettings.MAX_REQUEST_TRANSIT_TIME;
@@ -38,7 +38,6 @@ import static com.chellavignesh.authserver.adminportal.application.entity.TokenS
 @Service
 public class ApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ApplicationService.class);
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private static final List<String> AUTHORIZED_SCOPES = List.of("openid", "profile", "email", "metadata", "idp-admin", "read", "confidential-client");
 
@@ -48,17 +47,19 @@ public class ApplicationService {
     private volatile UpdateTokenSettingsDto updateTokenSettingsDto = null;
     private final TokenSettingsService tokenSettingsService;
     RangeCache rangeCache;
+    private final Clock clock;
 
     public ApplicationService(ApplicationRepository applicationRepository,
                               CredentialService credentialService,
                               OrganizationRepository organizationRepository,
                               TokenSettingsService tokenSettingsService,
-                              RangeCache rangeCache) {
+                              RangeCache rangeCache, Clock clock) {
         this.applicationRepository = applicationRepository;
         this.credentialService = credentialService;
         this.organizationRepository = organizationRepository;
         this.tokenSettingsService = tokenSettingsService;
         this.rangeCache = rangeCache;
+        this.clock = clock;
     }
 
     public Application create(Integer orgId, CreateApplicationDto dto) throws AppCreationFailedException {
@@ -82,7 +83,7 @@ public class ApplicationService {
             }
             forgotUsernameSetting = new ForgotUsernameSetting(criteria);
         } else {
-            dto.setAllowForgotUsername(null);
+            dto.setAllowForgotUsername(false);
             dto.setUsernameType(null);
             List<UsernameLookupCriteria> criteria = new ArrayList<>();
             forgotUsernameSetting = new ForgotUsernameSetting(criteria);
@@ -106,7 +107,7 @@ public class ApplicationService {
 
         ForgotUsernameSetting forgotUsernameSetting;
         if (application.getType().equals(ApplicationTypeEnum.SERVER)) {
-            dto.setAllowForgotUsername(null);
+            dto.setAllowForgotUsername(false);
             dto.setUsernameType(null);
             List<UsernameLookupCriteria> criteria = new ArrayList<>();
             forgotUsernameSetting = new ForgotUsernameSetting(criteria);
@@ -189,7 +190,6 @@ public class ApplicationService {
         return applicationToRegisteredClient(application, 0);
     }
 
-    @Cacheable(cacheNames = "registered-client-by-client-id", key = "#clientId")
     public RegisteredClient getRegisteredClientByClientId(String clientId) throws AppNotFoundException {
         log.trace("Fetching registered client for client ID: {}", clientId);
         try {
@@ -230,7 +230,7 @@ public class ApplicationService {
 
     private RegisteredClient applicationToRegisteredClient(Application application, int activeSecretNumber) {
         log.trace("Creating registered client for application ID: {} for client ID:{}", application.getId(), application.getClientId());
-        if (!isOrganizationActive(application)) {
+        if (!Boolean.TRUE.equals(application.getActive()) || !isOrganizationActive(application)) {
             log.error("Organization with ID: {} is inactive", application.getOrgId());
             return null;
         }
@@ -262,6 +262,9 @@ public class ApplicationService {
         }
 
         String clientSecret = getClientSecret(application, activeSecretNumber);
+        if (application.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT && clientSecret == null) {
+            return null; // A confidential client must have a live configured secret.
+        }
         ClientSettings.Builder clientSettingsBuilder = ClientSettings.builder();
         if (settings.getRequirePkce() && settings.getJWSAlgorithm() == null) {
             log.trace("Application with ID: {} does not support PKCE", application.getId());
@@ -305,6 +308,8 @@ public class ApplicationService {
                         .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
                         //TODO: Set key for signing outgoing JWTs
                         .idTokenSignatureAlgorithm(SignatureAlgorithm.RS256)
+                        .authorizationCodeTimeToLive(Duration.ofSeconds(tokenSettings.getAuthCodeTimeToLive()))
+                        .reuseRefreshTokens(Boolean.TRUE.equals(tokenSettings.getReuseRefreshTokens()))
                         .accessTokenTimeToLive(Duration.ofSeconds(tokenSettings.getAccessTokenTimeToLive()))
                         .deviceCodeTimeToLive(Duration.ofSeconds(tokenSettings.getDeviceCodeTimeToLive()))
                         .refreshTokenTimeToLive(Duration.ofSeconds(tokenSettings.getRefreshTokenTimeToLive()))
@@ -351,49 +356,20 @@ public class ApplicationService {
     }
 
     private String getClientSecret(Application application, int activeSecretNumber) {
-        String clientSecret = "ThisIsASecretKeyThatIsAtleast32CharactersLong";
-        if (application.getAuthFlow() == AuthFlowEnum.CLIENT_SECRET_JWT && activeSecretNumber > 0) {
-            List<Credential> credentials = credentialService.getAllClientSecretJwt(application.getOrgId(), application.getId());
-            int i = 1;
-            for (Credential credential : credentials) {
-                if (credential.getCredentialStatus() == CredentialStatus.Active) {
-                    if (checkIfExpire(credential)) {
-                        return null;
-                    }
-                    clientSecret = credential.getValue();
-                    if (i == activeSecretNumber) {
-                        break;
-                    }
-                    i++;
-                }
-            }
+        if (application.getAuthFlow() != AuthFlowEnum.CLIENT_SECRET_JWT) {
+            return null;
         }
-        return clientSecret;
+        int slot = Math.max(1, activeSecretNumber);
+        return credentialService.getAllClientSecretJwt(application.getOrgId(), application.getId()).stream()
+                .filter(credential -> credential.getCredentialStatus() == CredentialStatus.Active)
+                .filter(credential -> !checkIfExpire(credential))
+                .filter(credential -> credential.getValue() != null && !credential.getValue().isBlank())
+                .skip(slot - 1L).map(Credential::getValue).findFirst().orElse(null);
     }
 
     private boolean checkIfExpire(Credential credential) {
-        try {
-            String expireOn = credential.getExpireOn();
-            if (expireOn == null || expireOn.trim().isEmpty()) {
-                log.warn("Credential expireOn is null or empty for credential ID: {}", credential.getId());
-                return true;
-            }
-            LocalDate expirationDate;
-            if (expireOn.contains("T")) {
-                String datePart = expireOn.substring(0, expireOn.indexOf("T"));
-                expirationDate = LocalDate.parse(datePart, DATE_FORMATTER);
-            } else {
-                expirationDate = LocalDate.parse(expireOn, DATE_FORMATTER);
-            }
-            if (LocalDate.now().isAfter(expirationDate)) {
-                log.warn("Credential expireOn is expired for credential ID: {}", credential.getId());
-                return true;
-            }
-        } catch (Exception e) {
-            log.error("Error while checking credential expireOn for credential ID: {}", credential.getId(), e);
-            return true;
-        }
-        return false;
+        // Missing internal expiry retains the existing fail-closed confidential-client policy.
+        return credential.getExpireOn() == null || CredentialExpiration.isExpired(credential, clock);
     }
 
     private boolean isOrganizationActive(Application application) {

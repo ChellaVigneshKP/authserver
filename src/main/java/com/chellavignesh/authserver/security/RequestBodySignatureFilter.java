@@ -56,6 +56,13 @@ public class RequestBodySignatureFilter extends OncePerRequestFilter {
                     response.getOutputStream().println("Invalid request body signature");
                     return;
                 }
+            } catch (IllegalArgumentException failure) {
+                // Portal proof errors must not fall through to the container's error response.
+                if (!com.chellavignesh.authserver.adminportal.util.PortalResponses.isPortalRequest(request)) throw failure;
+                logger.warn("Invalid request body signature encoding");
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.getOutputStream().println("Invalid request body signature");
+                return;
             } catch (SignatureVerificationFailedException e) {
                 logger.error("could not verify request body signature", e);
                 response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

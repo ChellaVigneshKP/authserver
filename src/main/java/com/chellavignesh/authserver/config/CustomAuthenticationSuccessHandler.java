@@ -55,6 +55,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
     private final boolean useUpdatedLogin;
 
     private MFAService mfaService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chellavignesh.authserver.session.CredentialAuthenticationLock credentialAuthenticationLock;
 
     public CustomAuthenticationSuccessHandler(UserService userService, ApplicationService applicationService, AuthSessionService authSessionService, SingleSignOnService singleSignOnService, BrandUrlMappingService brandUrlMappingService, PasswordEncoderManager passwordEncoderManager, @Value("${toggles.updated-login.enabled}") boolean useUpdatedLogin) {
         this.userService = userService;
@@ -72,7 +74,6 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         HttpSession session = request.getSession();
         String branding = (String) session.getAttribute(ApplicationConstants.BRANDING_INFO);
 
-        upgradePasswordVersion(request, authentication, branding);
 
         SavedRequest savedRequest = requestCache.getRequest(request, response);
         if (savedRequest == null) {
@@ -83,9 +84,27 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
+        session.setAttribute(ApplicationConstants.AUTHENTICATED_BRANDING, branding);
+
         session.setAttribute(ApplicationConstants.LAST_LOGIN, userDetails.getLastLogin());
 
-        AuthSession authSession = createAuthSession(session, savedRequest, userDetails.getUsername());
+        AuthSession authSession;
+        try {
+            authSession = credentialAuthenticationLock.createInteractiveSession(userDetails, branding, () -> {
+                upgradePasswordVersion(request, authentication, branding);
+                return createAuthSession(session, savedRequest, userDetails.getUsername(), userDetails.getLoginId());
+            });
+        } catch (org.springframework.security.core.AuthenticationException stale) {
+            SecurityContextHolder.clearContext();
+            session.invalidate();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "The account changed. Sign in again.");
+            return;
+        } catch (Exception unavailable) {
+            SecurityContextHolder.clearContext();
+            session.invalidate();
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Sign-in is temporarily unavailable.");
+            return;
+        }
 
         try {
             var ssoCookie = singleSignOnService.generateCookie(authSession.getSessionId());
@@ -123,6 +142,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             Authentication preAuth = new UsernamePasswordAuthenticationToken(userDetails, authentication.getCredentials(), authorities);
 
             SecurityContextHolder.getContext().setAuthentication(preAuth);
+            new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                    .saveContext(SecurityContextHolder.getContext(), request, response);
 
             String targetUrl;
             if (!useUpdatedLogin) {
@@ -133,6 +154,15 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             log.info("2FA Enabled. Redirecting to {}", targetUrl);
             response.sendRedirect(targetUrl);
         } else {
+            if (authentication instanceof BiometricAuthenticationToken) {
+                // The proof has already been verified. Persist the standard Spring token,
+                // excluding the one-use provider credential and custom token type.
+                Authentication established = UsernamePasswordAuthenticationToken.authenticated(
+                        userDetails, null, authentication.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(established);
+                new org.springframework.security.web.context.HttpSessionSecurityContextRepository()
+                        .saveContext(SecurityContextHolder.getContext(), request, response);
+            }
             userService.updateAccessFailedCountWithExternalSourceCode(userDetails.getUsername(), branding, 1);
 
             String targetUrl = spliceBrandedUrl(session, savedRequest.getRedirectUrl());
@@ -141,22 +171,20 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         }
     }
 
-    private void upgradePasswordVersion(HttpServletRequest request, Authentication authentication, String branding) {
+    private void upgradePasswordVersion(HttpServletRequest request, Authentication authentication, String branding) throws Exception {
         if (!(authentication instanceof UsernamePasswordAuthenticationToken)) {
             return;
         }
 
-        try {
-            String rawPassword = request.getParameter("password");
-            String password = rawPassword != null ? new String(Base64.getDecoder().decode(rawPassword.getBytes())) : null;
+        String rawPassword = request.getParameter("password");
+        String password = rawPassword != null ? new String(Base64.getDecoder().decode(rawPassword.getBytes())) : null;
 
-            passwordEncoderManager.processPassword(authentication, password, branding);
-        } catch (Exception e) {
-            log.error("Error updating the user password hash and version", e);
-        }
+        // A legacy SQL upgrade may roll back the ambient physical transaction and its lock.
+        // Propagate every failure so no session is created after the freshness fence disappears.
+        passwordEncoderManager.processPassword(authentication, password, branding);
     }
 
-    AuthSession createAuthSession(HttpSession session, SavedRequest savedRequest, String userName) throws BadRequestException{
+    AuthSession createAuthSession(HttpSession session, SavedRequest savedRequest, String userName, java.util.UUID loginId) throws BadRequestException{
 
         Map<String, String[]> params = savedRequest.getParameterMap();
 
@@ -173,6 +201,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         CreateAuthSessionDto dto = new CreateAuthSessionDto();
         dto.setApplicationId(application.get().getId());
         dto.setSubjectId(userName);
+        dto.setLoginId(loginId);
         dto.setScope(scopes);
         dto.setAuthFlow(application.get().getAuthFlow());
         dto.setClientFingerprint(getClientFingerprint(session));
@@ -188,13 +217,14 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
 
     @Nullable
     private byte[] getClientFingerprint(HttpSession session) {
-        byte[] fingerprint = null;
-        try {
-            fingerprint = Base64.getDecoder().decode((String) session.getAttribute(ApplicationConstants.CLIENT_FINGERPRINT));
-        } catch (Exception e) {
-            log.error("Could not decode client fingerprint", e);
+        Object fingerprint = session.getAttribute(ApplicationConstants.CLIENT_FINGERPRINT);
+        if (fingerprint instanceof byte[] bytes) return bytes.clone();
+        // Jackson's session serializer represents a standalone byte array as Base64.
+        if (fingerprint instanceof String encoded) {
+            try { return Base64.getDecoder().decode(encoded); }
+            catch (IllegalArgumentException exception) { return null; }
         }
-        return fingerprint;
+        return null;
     }
 
     private String getParameter(Map<String, String[]> params, String name) throws BadRequestException{
@@ -209,10 +239,11 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         Cookie cookie = new Cookie(ApplicationConstants.SSO_COOKIE_NAME, Base64.getEncoder().encodeToString(encryptedSessionId));
 
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure("https".equalsIgnoreCase(brandUrlMappingService.getUrlByBrand((String) session.getAttribute(ApplicationConstants.BRANDING_INFO)).getScheme()));
+        cookie.setPath(java.net.URI.create(brandUrlMappingService.getUrlByBrand((String) session.getAttribute(ApplicationConstants.BRANDING_INFO)).toString()).getPath());
         cookie.setAttribute("SameSite", "Strict");
 
-        cookie.setDomain(brandUrlMappingService.getUrlByBrand((String) session.getAttribute(ApplicationConstants.BRANDING_INFO)).getHost());
+        // Host-only cookie; tenant host is selected by the browser origin.
         return cookie;
     }
 

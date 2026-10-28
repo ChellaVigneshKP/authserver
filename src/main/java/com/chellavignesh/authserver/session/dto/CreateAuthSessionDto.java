@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 public class CreateAuthSessionDto {
     private Integer applicationId;
     private String subjectId;
+    private java.util.UUID loginId;
     private String scope;
     private AuthFlowEnum authFlow;
     private byte[] clientFingerprint;

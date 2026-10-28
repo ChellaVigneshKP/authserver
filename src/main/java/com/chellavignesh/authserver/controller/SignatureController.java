@@ -27,7 +27,7 @@ public class SignatureController {
     }
 
     @PostMapping(value = "/oauth2/signature/verify", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<Boolean> validateBody(@RequestParam final String clientId, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final Date requestTimeDate, @RequestParam final String signature, @RequestParam final String body) {
+    public ResponseEntity<Boolean> validateBody(@RequestParam final String clientId, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) final java.time.OffsetDateTime requestTimeDate, @RequestParam final String signature, @RequestParam final String body) {
 
         log.debug("ClientID: {}, signature: {}, requestTimeDate: {}", clientId, signature, requestTimeDate);
         log.trace("Decoded body is: {}", body);
@@ -36,7 +36,7 @@ public class SignatureController {
         var result = false;
 
         try {
-            result = signatureService.verifySignatureForClientId(clientId, requestTimeDate, signature, decodedBody);
+            result = signatureService.verifySignatureForClientId(clientId, Date.from(requestTimeDate.toInstant()), signature, decodedBody);
         } catch (SignatureVerificationFailedException svfe) {
             log.error("Unable to verify signature for clientId: {}, requestDateTime: {}, signature: {}, exception occurred", clientId, requestTimeDate, signature, svfe);
         }

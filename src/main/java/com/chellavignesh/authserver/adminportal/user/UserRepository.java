@@ -2,6 +2,7 @@ package com.chellavignesh.authserver.adminportal.user;
 
 import com.chellavignesh.authserver.adminportal.organization.entity.OrganizationGroupPermission;
 import com.chellavignesh.authserver.adminportal.organization.entity.OrganizationGroupPermissionRowMapper;
+import com.chellavignesh.authserver.adminportal.hosted.HostedAccountRevocationRepository;
 import com.chellavignesh.authserver.adminportal.user.dto.*;
 import com.chellavignesh.authserver.adminportal.user.entity.*;
 import com.chellavignesh.authserver.adminportal.user.exception.*;
@@ -14,11 +15,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Types;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -31,19 +36,25 @@ public class UserRepository {
     @NotNull
     private final SecurityUtil securityUtil;
 
+    @NotNull
+    private final HostedAccountRevocationRepository hostedAccountRevocations;
+
     @Autowired
-    public UserRepository(@NotNull NamedParameterJdbcTemplate namedParameterJdbcTemplate, @NotNull SecurityUtil securityUtil) {
+    public UserRepository(@NotNull NamedParameterJdbcTemplate namedParameterJdbcTemplate, @NotNull SecurityUtil securityUtil,
+                          @NotNull HostedAccountRevocationRepository hostedAccountRevocations) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.securityUtil = securityUtil;
+        this.hostedAccountRevocations = hostedAccountRevocations;
     }
 
     public Optional<Profile> getProfile(UUID profileGuid) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("profileGuid", profileGuid);
+        parameters.addValue("profileGuid", profileGuid == null ? null : profileGuid.toString());
 
         return namedParameterJdbcTemplate.query("{call Person.GetProfile(:profileGuid)}", parameters, new ProfileRowMapper()).stream().findFirst();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public User create(CreateUserDto dto, String hashPassword, Integer version, int groupId, UUID externalId, int disallowedRecentPasswordCount) throws UserCreationFailedException {
 
         log.debug("Creating user in the database with syncFlag: {}", dto.getSyncFlag());
@@ -55,17 +66,17 @@ public class UserRepository {
                 .addValue("username", dto.getUsername())
                 .addValue("email", dto.getEmail())
                 .addValue("phoneNumber", dto.getPhoneNumber())
-                .addValue("password", hashPassword, Types.VARBINARY)
+                .addValue("password", java.util.HexFormat.of().parseHex(hashPassword), Types.VARBINARY)
                 .addValue("version", version)
                 .addValue("groupId", groupId)
-                .addValue("memberId", dto.getMemberId())
-                .addValue("loginId", dto.getLoginId())
-                .addValue("externalId", externalId)
+                .addValue("memberId", dto.getMemberId() == null ? null : dto.getMemberId().toString())
+                .addValue("loginId", dto.getLoginId() == null ? null : dto.getLoginId().toString())
+                .addValue("externalId", externalId == null ? null : externalId.toString())
                 .addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber())
                 .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount)
                 .addValue("syncFlag", dto.getSyncFlag());
 
-        log.debug("Creating user in the database with parameters: {}", parameters);
+        // Do not log credential parameters.
 
         Optional<Integer> appId = namedParameterJdbcTemplate.query(
                 "{call Person.CreateUser(" + ":orgId," + ":firstName," + ":lastName," + ":username," + ":password," + ":version," + ":groupId," + ":email," + ":phoneNumber," + ":memberId," + ":loginId," + ":externalId," + ":secondaryPhoneNumber," + ":disallowedRecentPasswordCount," + ":syncFlag" + ")}",
@@ -100,7 +111,10 @@ public class UserRepository {
             throw new UserNotFoundException("User does not exist.");
         }
 
-        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName()).addValue("title", dto.getTitle()).addValue("middleInitial", dto.getMiddleInitial()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("suffix", dto.getSuffix() != null ? dto.getSuffix().getValue() : 0).addValue("memberId", dto.getMemberId()).addValue("loginId", dto.getLoginId()).addValue("modifiedOn", new Date()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber());
+        // Person.UpdateUserProfile rewrites Profile/RowGuid and every Credential.RowGuid from
+        // these values. Profile editing must never move identities, so bindings stay fixed.
+        Integer suffix = dto.getSuffix() != null ? dto.getSuffix().getValue() : currentSuffix(userGuid);
+        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName()).addValue("title", dto.getTitle()).addValue("middleInitial", dto.getMiddleInitial()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("suffix", suffix).addValue("memberId", (Object) null).addValue("loginId", (Object) null).addValue("modifiedOn", new Date()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber());
 
         Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfile(" + ":userGuid," + ":firstName," + ":lastName," + ":title," + ":middleInitial," + ":phoneNumber," + ":suffix," + ":memberId," + ":loginId," + ":modifiedOn," + ":modifiedBy," + ":secondaryPhoneNumber" + ")}",
                 parameters,
@@ -113,6 +127,12 @@ public class UserRepository {
         }
     }
 
+    private Integer currentSuffix(UUID userGuid) {
+        return namedParameterJdbcTemplate.queryForObject(
+                "SELECT Suffix FROM Person.Profile WHERE RowGuid=:userGuid",
+                new MapSqlParameterSource("userGuid", userGuid.toString()), Integer.class);
+    }
+
     public User updateForChangeProfilePage(ChangeProfileDto dto, UUID userGuid) throws UserUpdateFailedException, UserNotFoundException {
 
         Optional<UserDetails> userDetails = getByGuid(userGuid);
@@ -123,11 +143,11 @@ public class UserRepository {
 
         log.debug("Updating user in the database with userGuid: {}", userGuid);
 
-        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid).addValue("email", dto.getEmail()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber()).addValue("modifiedBy", securityUtil.getTokenUserGuid());
+        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("email", dto.getEmail()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName());
 
         log.debug("Updating user in the database with parameters: {}", parameters);
 
-        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy" + ")}",
+        Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfileForChangeProfilePage(" + ":userGuid," + ":email," + ":phoneNumber," + ":secondaryPhoneNumber," + ":modifiedBy," + ":firstName," + ":lastName" + ")}",
                 parameters,
                 (rs, _) -> rs.getInt("ID")).stream().findFirst();
 
@@ -143,7 +163,7 @@ public class UserRepository {
     public User updateEmail(UpdateUserEmailDto dto, UUID userGuid) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("email", dto.getEmail())
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid());
@@ -161,82 +181,10 @@ public class UserRepository {
         }
     }
 
-    // Overloaded method – calls v1 of Person.UpdateUserPassword
-    public User updatePassword(UpdateUserPasswordDto dto, UUID userGuid, String hashPassword, Integer version, boolean unlockAccount, Integer disallowedRecentPasswordCount) throws UserUpdateFailedException {
-
-        var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
-                .addValue("password", hashPassword, Types.VARBINARY)
-                .addValue("version", version)
-                .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("unlockAccount", unlockAccount ? 1 : 0)
-                .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount);
-
-        Optional<Integer> appId = namedParameterJdbcTemplate.query(
-                "{call Person.UpdateUserPassword(:userGuid, :password, :version, :modifiedOn, :modifiedBy, :unlockAccount, :disallowedRecentPasswordCount)}",
-                parameters,
-                (rs, rowNum) -> rs.getInt("ID")
-        ).stream().findFirst();
-
-        if (appId.isPresent()) {
-            return getById(appId.get()).get();
-        } else {
-            throw new UserUpdateFailedException("User does not exist.");
-        }
-    }
-
-    // Overloaded method – calls v2 of Person.UpdateUserPassword (with externalId)
-    public User updatePassword(UpdateUserPasswordDto dto, UUID userGuid, String hashPassword, Integer version, UUID externalId, boolean unlockAccount, Integer disallowedRecentPasswordCount) throws UserUpdateFailedException {
-
-        var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
-                .addValue("password", hashPassword, Types.VARBINARY)
-                .addValue("version", version)
-                .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("externalId", externalId)
-                .addValue("unlockAccount", unlockAccount ? 1 : 0)
-                .addValue("disallowedRecentPasswordCount", disallowedRecentPasswordCount);
-
-        Optional<Integer> appId = namedParameterJdbcTemplate.query(
-                "{call Person.UpdateUserPassword_V2(:userGuid, :password, :version, :modifiedOn, :modifiedBy, :externalId, :unlockAccount, :disallowedRecentPasswordCount)}",
-                parameters,
-                (rs, rowNum) -> rs.getInt("ID")
-        ).stream().findFirst();
-
-        if (appId.isPresent()) {
-            return getById(appId.get()).get();
-        } else {
-            throw new UserUpdateFailedException("User does not exist.");
-        }
-    }
-
-    public User updateUsername(UpdateUsernameDto dto, UUID userGuid, UUID externalId) throws UserUpdateFailedException {
-        var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
-                .addValue("username", dto.getUsername())
-                .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid())
-                .addValue("externalId", externalId);
-
-        Optional<Integer> userId = namedParameterJdbcTemplate.query(
-                "{call Person.UpdateUsername(:userGuid, :username, :externalId, :modifiedOn, :modifiedBy)}",
-                parameters,
-                (rs, rowNum) -> rs.getInt("ID")
-        ).stream().findFirst();
-
-        if (userId.isPresent()) {
-            return getById(userId.get()).get();
-        } else {
-            throw new UserUpdateFailedException("User does not exist.");
-        }
-    }
-
     public User updateSecuritySettings(UpdateUserSecuritySettingsDto dto, UUID userGuid) throws UserUpdateFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("twoFactorEnabled", dto.getTwoFactorEnabled() ? 1 : 0)
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid());
@@ -254,6 +202,7 @@ public class UserRepository {
         }
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public User updateMetadata(UpdateUserMetadataDto dto, UUID userGuid) throws UserUpdateFailedException, UserNotFoundException {
 
         Optional<UserDetails> userDetails = getByGuid(userGuid);
@@ -263,15 +212,20 @@ public class UserRepository {
             var parameters = new MapSqlParameterSource()
                     .addValue("profileId", userDetails.get().id());
 
+            Set<String> systemManagedKeys = new HashSet<>(namedParameterJdbcTemplate.queryForList(
+                    "SELECT [Key] FROM Person.Metadata WHERE ProfileId=:profileId AND SystemManaged=1",
+                    parameters, String.class));
             namedParameterJdbcTemplate.update(
-                    "{call Person.DeleteMetadata(:profileId)}",
+                    "DELETE FROM Person.Metadata WHERE ProfileId=:profileId AND SystemManaged=0",
                     parameters
             );
-            for (String key : dto.getMetaData().keySet()) {
+            Map<String, Object> metadata = dto.getMetaData() == null ? Map.of() : dto.getMetaData();
+            for (String key : metadata.keySet()) {
+                if (systemManagedKeys.contains(key)) continue;
                 parameters = new MapSqlParameterSource()
                         .addValue("profileId", userDetails.get().id())
                         .addValue("key", key)
-                        .addValue("value", dto.getMetaData().get(key))
+                        .addValue("value", metadata.get(key))
                         .addValue("modifiedOn", new Date())
                         .addValue("modifiedBy", securityUtil.getTokenUserGuid());
 
@@ -309,7 +263,7 @@ public class UserRepository {
     public User updateStatus(int status, UUID userGuid) throws UserDeleteFailedException {
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("status", status)
                 .addValue("modifiedOn", new Date())
                 .addValue("modifiedBy", securityUtil.getTokenUserGuid());
@@ -321,6 +275,11 @@ public class UserRepository {
         ).stream().findFirst();
 
         if (appId.isPresent()) {
+            // A deactivated or deleted member must lose every existing session, token and grant
+            // immediately; reactivation deliberately starts without restoring prior access.
+            if (status != 1) {
+                hostedAccountRevocations.revokeAllForProfile(userGuid);
+            }
             return getById(appId.get()).get();
         } else {
             throw new UserDeleteFailedException("User does not exist.");
@@ -367,7 +326,7 @@ public class UserRepository {
 
     public Optional<UserCredentials> getByLoginId(UUID loginId) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("loginId", loginId);
+        parameters.addValue("loginId", loginId == null ? null : loginId.toString());
 
         return namedParameterJdbcTemplate.query(
                 "{call Person.GetUserCredentialsByGuid(:loginId)}",
@@ -402,7 +361,7 @@ public class UserRepository {
 
     public Optional<UserDetails> getByGuid(UUID userGuid) {
         var parameters = new MapSqlParameterSource();
-        parameters.addValue("userGuid", userGuid);
+        parameters.addValue("userGuid", userGuid == null ? null : userGuid.toString());
 
         return namedParameterJdbcTemplate.query(
                 "{call Person.GetUserDetailsByUserId(:userGuid)}",
@@ -415,7 +374,7 @@ public class UserRepository {
         log.info("Fetching user in the database by userGuid: {} and branding: {}", userGuid, branding);
 
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("branding", branding);
 
         return namedParameterJdbcTemplate.query(
@@ -440,7 +399,7 @@ public class UserRepository {
         parameters.addValue("status", status.orElse(null));
         parameters.addValue("search", search.orElse(null));
         parameters.addValue("type", type.orElse(null));
-        parameters.addValue("organizationId", organizationId.orElse(null));
+        parameters.addValue("organizationId", organizationId.orElse(null) == null ? null : organizationId.orElse(null).toString());
         parameters.addValue("sourceIds", brandingSourcesIds.isEmpty() ? null : StringUtils.join(brandingSourcesIds, ","));
 
         return namedParameterJdbcTemplate.query(
@@ -469,14 +428,126 @@ public class UserRepository {
     }
 
     public Optional<UserAuthDetails> getUserAuthDetailsByUsernameAndExternalSourceCode(final String username, final String externalSourceCode) {
-        return namedParameterJdbcTemplate.query(
-                "{call Person.GetUserAuthDetailsByUserNameAndExternalSourceCode(:username, :sourceCode)}",
-                MapSqlParameterBuilder.of(
-                        "username", username,
-                        "sourceCode", externalSourceCode
-                ),
-                new UserAuthDetailsRowMapper()
-        ).stream().findFirst();
+        // Capture the stable credential with its password/version in the same SQL row.
+        var rows = namedParameterJdbcTemplate.query("""
+                SELECT p.*,c.RowGuid AS LoginId,c.UserName,c.Password,c.Version,c.AccessFailedCount,
+                       c.CredentialLocked,c.LastLogin,c.Status AS CredentialStatus
+                FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId
+                WHERE c.UserName=:username AND e.SourceCode=:sourceCode
+                """, MapSqlParameterBuilder.of("username",username,"sourceCode",externalSourceCode),
+                (row, index) -> {
+                    var details = UserAuthDetails.fromResult(row);
+                    details.setLoginId(UUID.fromString(row.getString("LoginId")));
+                    return details;
+                });
+        return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
+    }
+
+    public Optional<UserAuthDetails> getAuthDetailsByLoginId(UUID loginId) {
+        var rows=namedParameterJdbcTemplate.query("""
+                SELECT p.*,c.RowGuid AS LoginId,c.UserName,c.Password,c.Version,c.AccessFailedCount,
+                  c.CredentialLocked,c.LastLogin,c.Status AS CredentialStatus
+                FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                WHERE c.RowGuid=:login
+                """,new MapSqlParameterSource("login",loginId.toString()),(row,index)->{
+                    var details=UserAuthDetails.fromResult(row);
+                    details.setLoginId(UUID.fromString(row.getString("LoginId")));return details;
+                });
+        return rows.size()==1?Optional.of(rows.getFirst()):Optional.empty();
+    }
+
+    public Optional<UserDetails> getDetailsByUsernameAndBranding(String username, String branding) {
+        var rows = namedParameterJdbcTemplate.query(
+                "{call Person.GetUserByUsernameAndBranding(:username, :branding)}",
+                new MapSqlParameterSource("username",username).addValue("branding",branding),
+                new UserDetailsRowMapper());
+        return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
+    }
+
+    /** Only biometric proofs lack a username; never choose an arbitrary sibling for them. */
+    public Optional<UserDetails> getUniqueBiometricIdentity(UUID userGuid, String branding) {
+        var identities = namedParameterJdbcTemplate.query("""
+                SELECT c.RowGuid,c.UserName FROM Person.Credential c
+                JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId
+                WHERE p.RowGuid=:userGuid AND e.SourceCode=:branding
+                  AND p.Status=1 AND c.Status=1 AND c.CredentialLocked=0
+                """,new MapSqlParameterSource("userGuid",userGuid.toString()).addValue("branding",branding),
+                (row,index) -> new String[]{row.getString("RowGuid"),row.getString("UserName")});
+        if (identities.size()!=1) return Optional.empty();
+        var identity=identities.getFirst();
+        return getDetailsByUsernameAndBranding(identity[1],branding)
+                .filter(user -> userGuid.equals(user.rowGuid()) && user.loginId().equals(UUID.fromString(identity[0])));
+    }
+
+    /** Management selection is explicit and may read an otherwise authorized inactive profile. */
+    public Optional<UserDetails> getManagementDetails(UUID profileId, UUID loginId) {
+        var parameters=new MapSqlParameterSource("profile",profileId.toString())
+                .addValue("login",loginId==null?null:loginId.toString());
+        var rows=namedParameterJdbcTemplate.query("""
+            SELECT COUNT(*) OVER() AS Results,p.ProfileId,p.FirstName,p.LastName,c.UserName,p.RowGuid,p.Email,p.Title,p.MiddleInitial,p.Suffix,
+            p.PhoneNumber,p.TwoFactorEnabled,p.Status,p.SecondaryPhoneNumber,p.SyncFlag,c.SyncFlag AS CredSyncFlag,
+            c.RowGuid AS LoginId,es.SourceCode AS Branding,po.OrganizationId AS ProfileOrgId,
+            o.RowGuid AS ProfileOrgGuid,o.RowGuid AS OrgId,og.RowGuid AS GroupGuid,og.GroupName
+            FROM Person.Profile p JOIN Person.Credential c ON c.ProfileId=p.ProfileId
+            JOIN dbo.ExternalSource es ON es.SourceId=c.ExternalId
+            JOIN Person.ProfileOrganization po ON po.ProfileId=p.ProfileId AND po.Status=1
+            JOIN Partner.Organization o ON o.OrganizationId=po.OrganizationId AND o.Status=1
+            OUTER APPLY(SELECT g.* FROM Person.ProfileGroup pg JOIN Partner.OrganizationGroup g ON g.OrganizationGroupId=pg.OrganizationGroupId
+                WHERE pg.ProfileId=p.ProfileId AND g.Status=1 AND g.OrganizationId=po.OrganizationId) og
+            WHERE p.RowGuid=:profile AND (:login IS NULL OR c.RowGuid=:login)
+            """,parameters,new UserDetailsRowMapper());
+        if(rows.size()>1)throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        if(rows.size()==1 && !Integer.valueOf(1).equals(namedParameterJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM Person.Credential WHERE RowGuid=:login",
+                new MapSqlParameterSource("login",rows.getFirst().loginId().toString()),Integer.class)))
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        return rows.stream().findFirst();
+    }
+
+    public Optional<UserDetails> getDetailsByLoginId(UUID loginId) {
+        var identities = namedParameterJdbcTemplate.query("""
+                SELECT c.UserName,e.SourceCode FROM Person.Credential c
+                JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId WHERE c.RowGuid=:loginId
+                """,new MapSqlParameterSource("loginId",loginId.toString()),
+                (row,index) -> new String[]{row.getString("UserName"),row.getString("SourceCode")});
+        if (identities.size()!=1) return Optional.empty();
+        var identity=identities.getFirst();
+        return getDetailsByUsernameAndBranding(identity[0],identity[1])
+                .filter(user -> loginId.equals(user.loginId()));
+    }
+
+    /**
+     * Exact credential identity for an already-authorized management write.
+     * Unlike the active-only detail lookups, inactive profile status is returned as data so
+     * password/username rotation on a deactivated user keeps working; callers must still verify
+     * the actor's authority before using it. The profile's active organization is joined the same
+     * way the detail read joins it, because the downstream sync payload dereferences it.
+     */
+    public Optional<CredentialIdentity> getManagementCredentialByLoginId(UUID loginId) {
+        var rows = namedParameterJdbcTemplate.query("""
+                SELECT c.Id,p.RowGuid AS ProfileId,o.RowGuid AS OrganizationGuid,c.RowGuid AS LoginId,c.UserName,es.SourceCode AS Branding,
+                       p.FirstName,p.LastName,p.Email,p.Status,c.SyncFlag
+                FROM Person.Credential c
+                JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+                JOIN dbo.ExternalSource es ON es.SourceId=c.ExternalId
+                JOIN Person.ProfileOrganization po ON po.ProfileId=p.ProfileId AND po.Status=1
+                JOIN Partner.Organization o ON o.OrganizationId=po.OrganizationId AND o.Status=1
+                WHERE c.RowGuid=:login
+                """, new MapSqlParameterSource("login", loginId.toString()), (row, index) -> new CredentialIdentity(
+                        row.getInt("Id"),
+                        UUID.fromString(row.getString("ProfileId")),
+                        UUID.fromString(row.getString("OrganizationGuid")),
+                        UUID.fromString(row.getString("LoginId")),
+                        row.getString("UserName"),
+                        row.getString("Branding"),
+                        row.getString("FirstName"),
+                        row.getString("LastName"),
+                        row.getString("Email"),
+                        UserStatus.fromInt(row.getInt("Status")),
+                        row.getBoolean("SyncFlag")));
+        return rows.size() == 1 ? Optional.of(rows.getFirst()) : Optional.empty();
     }
 
     public Optional<ProfileOrganization> getProfileOrganizationByProfileId(final int profileId) {
@@ -485,6 +556,36 @@ public class UserRepository {
                 MapSqlParameterBuilder.of("profileId", profileId),
                 ProfileOrganization.MAPPER
         ).stream().findFirst();
+    }
+
+    public boolean isManagementIdentityActive(UUID user, UUID organization, UUID credential) {
+        return !namedParameterJdbcTemplate.query("""
+                SELECT actor.ProfileId FROM Person.ActiveManagementIdentity actor
+                JOIN Person.Credential c ON c.ProfileId=actor.ProfileId AND c.Status=1 AND c.CredentialLocked=0
+                WHERE actor.UserGuid=:user AND actor.OrganizationGuid=:organization AND c.RowGuid=:credential
+                """,new MapSqlParameterSource("user",user.toString()).addValue("organization",organization.toString())
+                .addValue("credential",credential.toString()),(row,_)->row.getInt(1)).isEmpty();
+    }
+
+    /** Live organization-scoped grants for authorization after the shared mutation lock. */
+    public Set<String> getCurrentManagementPermissions(UUID userGuid, UUID organizationGuid) {
+        var parameters = new MapSqlParameterSource("userGuid", userGuid.toString())
+                .addValue("organizationGuid", organizationGuid.toString());
+        return new HashSet<>(namedParameterJdbcTemplate.query("""
+                SELECT DISTINCT permission.PermissionKey
+                FROM Person.Profile actor
+                JOIN Person.ProfileOrganization membership ON membership.ProfileId=actor.ProfileId AND membership.Status=1
+                JOIN Partner.Organization organization ON organization.OrganizationId=membership.OrganizationId AND organization.Status=1
+                JOIN Person.ProfileGroup assignment ON assignment.ProfileId=actor.ProfileId
+                JOIN Partner.OrganizationGroup role ON role.OrganizationGroupId=assignment.OrganizationGroupId
+                    AND role.OrganizationId=organization.OrganizationId AND role.Status=1
+                JOIN Partner.OrganizationGroupPermission permission ON permission.OrganizationGroupId=role.OrganizationGroupId
+                    AND permission.OrganizationId=organization.OrganizationId AND permission.Status=1
+                WHERE actor.RowGuid=:userGuid AND actor.Status=1 AND organization.RowGuid=:organizationGuid
+                AND EXISTS(SELECT 1 FROM Person.ActiveManagementIdentity valid WHERE valid.ProfileId=actor.ProfileId AND valid.OrganizationId=organization.OrganizationId)
+                AND (organization.OrganizationId=1 OR NOT EXISTS(SELECT 1 FROM dbo.PermissionCatalog catalog
+                    WHERE catalog.PermissionKey=permission.PermissionKey COLLATE Latin1_General_100_BIN2 AND catalog.PlatformOnly=1))
+                """, parameters, (row, _) -> row.getString(1)));
     }
 
     public List<OrganizationGroupPermission> getUserPermissions(Integer userId) {
@@ -554,25 +655,47 @@ public class UserRepository {
      * If the user does not exist, or the status of the user is 1 (active user),
      * the user will not be updated.
      */
-    public User reactivateAccountWithPassword(CreateUserProfileDto dto, UUID userGuid, UUID externalId, int passwordVersion, int unlockAccount) throws UserSyncFailedException {
+    @Transactional(rollbackFor=Exception.class)
+    public User reactivateAccountWithPassword(CreateUserProfileDto dto, UUID userGuid, UUID externalId, int passwordVersion, int unlockAccount, ReactivationAuditActor actualActor) throws UserSyncFailedException {
 
+        if (actualActor == null) throw new org.springframework.security.access.AccessDeniedException("An authenticated audit actor is required.");
+        new com.chellavignesh.authserver.security.ManagementMutationLock(namedParameterJdbcTemplate.getJdbcTemplate()).acquire();
+        var selection=new MapSqlParameterSource("profile",userGuid.toString())
+                .addValue("source",externalId.toString())
+                .addValue("organization",dto.getOrgId()==null?null:dto.getOrgId().toString())
+                .addValue("login",dto.getCredential().getLoginId()==null?null:dto.getCredential().getLoginId().toString());
+        if(dto.getProfile().getMemberId()!=null && !userGuid.equals(dto.getProfile().getMemberId()))
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        var matches=namedParameterJdbcTemplate.query("""
+            SELECT c.RowGuid FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId
+            JOIN Person.ProfileOrganization po ON po.ProfileId=p.ProfileId AND po.Status=1
+            JOIN Partner.Organization o ON o.OrganizationId=po.OrganizationId AND o.Status=1 AND o.RowGuid=:organization
+            WHERE p.RowGuid=:profile AND p.Status=0 AND c.ExternalId=:source AND (:login IS NULL OR c.RowGuid=:login)
+            """,selection,(rs,n)->UUID.fromString(rs.getString(1)));
+        if(matches.size()!=1)throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        UUID selected=matches.getFirst();
+        new com.chellavignesh.authserver.session.CredentialAuthenticationLock(namedParameterJdbcTemplate).acquire(selected);
+        if(!Integer.valueOf(1).equals(namedParameterJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM Person.Credential WHERE RowGuid=:login",new MapSqlParameterSource("login",selected.toString()),Integer.class)))
+            throw com.chellavignesh.authserver.adminportal.organization.role.RoleFailure.credential();
+        new com.chellavignesh.authserver.adminportal.hosted.HostedAccountRevocationRepository(namedParameterJdbcTemplate).revokeAllForLogin(selected);
         var parameters = new MapSqlParameterSource()
-                .addValue("userGuid", userGuid)
+                .addValue("userGuid", userGuid == null ? null : userGuid.toString())
                 .addValue("firstName", dto.getProfile().getFirstName())
                 .addValue("lastName", dto.getProfile().getLastName())
                 .addValue("email", dto.getProfile().getEmail())
                 .addValue("phoneNumber", dto.getProfile().getPhoneNumber())
-                .addValue("memberGuid", dto.getProfile().getMemberId())
-                .addValue("loginGuid", dto.getCredential().getLoginId())
+                .addValue("memberGuid", userGuid.toString())
+                .addValue("loginGuid", selected.toString())
                 .addValue("secondaryPhoneNumber", dto.getProfile().getSecondaryPhoneNumber())
                 .addValue("username", dto.getCredential().getUsername())
-                .addValue("password", dto.getCredential().getPasswordHash(), Types.VARBINARY)
+                .addValue("password", java.util.HexFormat.of().parseHex(dto.getCredential().getPasswordHash()), Types.VARBINARY)
                 .addValue("version", passwordVersion)
-                .addValue("externalId", externalId)
+                .addValue("externalId", externalId == null ? null : externalId.toString())
                 .addValue("unlockAccount", unlockAccount)
                 .addValue("passwordAuditLimit", 12)
                 .addValue("modifiedOn", new Date())
-                .addValue("modifiedBy", securityUtil.getTokenUserGuid());
+                .addValue("modifiedBy", actualActor.value());
 
         Optional<Integer> userId = namedParameterJdbcTemplate.query(
                 "{call Person.ReactivateUserWithPassword(" +

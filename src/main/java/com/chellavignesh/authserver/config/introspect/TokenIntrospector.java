@@ -1,6 +1,8 @@
 package com.chellavignesh.authserver.config.introspect;
 
 import com.chellavignesh.authserver.enums.entity.TokenTypeEnum;
+import com.chellavignesh.authserver.filter.InfrastructureAvailabilityFilter;
+import org.springframework.dao.DataAccessResourceFailureException;
 import com.chellavignesh.authserver.token.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
@@ -28,9 +30,17 @@ public class TokenIntrospector implements OpaqueTokenIntrospector {
         try {
             var maybeToken = tokenService.getByValue(token, TokenTypeEnum.fromOAuth2TokenType(OAuth2TokenType.ACCESS_TOKEN));
 
-            return new OAuth2IntrospectionAuthenticatedPrincipal(tokenService.getClaimsForToken(maybeToken.orElseThrow()), Collections.emptyList());
+            var claims = tokenService.getClaimsForToken(maybeToken.orElseThrow());
+            if (!Boolean.TRUE.equals(claims.get("active"))) {
+                throw new BadOpaqueTokenException("Token is not active");
+            }
+            return new OAuth2IntrospectionAuthenticatedPrincipal(claims, Collections.emptyList());
 
-        } catch (Exception _) {
+        } catch (Exception failure) {
+            if (InfrastructureAvailabilityFilter.isDependencyUnavailable(failure)) {
+                if (failure instanceof RuntimeException runtime) throw runtime;
+                throw new DataAccessResourceFailureException("Authentication dependency unavailable", failure);
+            }
             throw new BadOpaqueTokenException("Token is not active or doesn't exist");
         }
     }

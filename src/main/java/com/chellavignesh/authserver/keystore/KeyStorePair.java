@@ -36,7 +36,7 @@ public class KeyStorePair {
 
     public Optional<PrivateKey> getPrivateKey() {
         try {
-            return Optional.ofNullable((PrivateKey) mainKeyStore.getKey(ALIAS, passwordKeyStore.getKeyStorePassword().orElseThrow().toCharArray()));
+            return Optional.ofNullable((PrivateKey) mainKeyStore.getKey(ALIAS, passwordKeyStore.getSecureElementPassword().orElseThrow().toCharArray()));
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -56,7 +56,7 @@ public class KeyStorePair {
             SecretKey secretKey = secretKeyEntry.getSecretKey();
             byte[] secretBytes = secretKey.getEncoded();
             KeyCryptoService keyCryptoService = new KeyCryptoService();
-            return Optional.ofNullable(keyCryptoService.decrypt(secretBytes, passwordKeyStore.getKeyStorePassword().orElseThrow()));
+            return Optional.ofNullable(keyCryptoService.decrypt(secretBytes, passwordKeyStore.getSecureElementPassword().orElseThrow()));
         } catch (Exception e) {
             return Optional.empty();
         }

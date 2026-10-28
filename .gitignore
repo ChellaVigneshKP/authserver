@@ -31,3 +31,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local development credentials, databases and downloaded build tools
+.local/
+.local
+.superpowers/
+.worktrees/
+
+__pycache__/
+*.pyc
+
+# Browser-tool traces can contain authorization callback URLs
+.playwright-mcp/

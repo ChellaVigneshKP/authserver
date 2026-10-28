@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
@@ -99,7 +100,7 @@ public class CredentialController {
             throw new CredentialCreationFailedException("Secret creation failed.");
         }
 
-        var response = ResponseEntity.status(HttpStatus.CREATED).header("Location", serverBasePath + "/api/v1/organizations/" + orgGuid + "/applications/" + appGuid + "/credentials/" + credential.getCredential().getRowGuid());
+        var response = ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).header("Location", serverBasePath + "/api/v1/organizations/" + orgGuid + "/applications/" + appGuid + "/credentials/" + credential.getCredential().getRowGuid());
 
         var data = new HashMap<String, String>();
         data.put("id", credential.getCredential().getRowGuid().toString());
@@ -126,7 +127,7 @@ public class CredentialController {
 
         credentialService.updateCredential(dto, orgId, entityValidator.validateApplicationId(orgId, appGuid), credGuid);
 
-        return ResponseEntity.ok(dto);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(dto);
     }
 
     // ---------------- GET CREDENTIALS ----------------
@@ -139,9 +140,9 @@ public class CredentialController {
 
         List<Credential> credentials = credentialService.getAll(orgId, entityValidator.validateApplicationId(orgId, appGuid));
 
-        List<CredentialResponseDto> response = credentials.stream().map(CredentialResponseDto::fromCredential).collect(Collectors.toList());
+        List<CredentialResponseDto> response = credentials.stream().map(credential -> CredentialResponseDto.fromCredential(credential, credentialService.isCredentialExpired(credential))).collect(Collectors.toList());
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
     }
 
     // ---------------- DELETE CREDENTIAL ----------------
@@ -156,32 +157,32 @@ public class CredentialController {
         boolean wasDeleted = credentialService.deleteCredential(orgId, appId, credGuid);
 
         if (!wasDeleted) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Credential not found");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).cacheControl(CacheControl.noStore()).body("Credential not found");
         }
 
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).cacheControl(CacheControl.noStore()).body(null);
     }
 
     // ---------------- EXCEPTION HANDLERS ----------------
 
     @ExceptionHandler({OrgNotFoundException.class, AppNotFoundException.class})
     public ResponseEntity<String> handleNotFoundException(Exception e) {
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.notFound().cacheControl(CacheControl.noStore()).build();
     }
 
     @ExceptionHandler({CreateCredentialBadRequestException.class, CredentialExpiredException.class, CertificateDoesNotExistException.class, NoActiveCertificateException.class})
     public ResponseEntity<String> handleBadRequestException(Exception e) {
-        return ResponseEntity.badRequest().body(e.getMessage());
+        return ResponseEntity.badRequest().cacheControl(CacheControl.noStore()).body(e.getMessage());
     }
 
     @ExceptionHandler({TooManyCredentialsException.class, CredentialDuplicateNameException.class})
     public ResponseEntity<String> handleTooManyCredentialsException(Exception e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).cacheControl(CacheControl.noStore()).body(e.getMessage());
     }
 
     @ExceptionHandler(CredentialCreationFailedException.class)
     public ResponseEntity<String> handleCredentialCreationFailedException(Exception e) {
-        return ResponseEntity.internalServerError().body(e.getMessage());
+        return ResponseEntity.internalServerError().cacheControl(CacheControl.noStore()).body(e.getMessage());
     }
 }
 

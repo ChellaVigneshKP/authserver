@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<bouncycastle.version>1.85</bouncycastle.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -91,12 +92,12 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk18on</artifactId>
-			<version>1.82</version>
+			<version>${bouncycastle.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpkix-jdk18on</artifactId>
-			<version>1.82</version>
+			<version>${bouncycastle.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -111,7 +112,6 @@
 		<dependency>
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-tracing-bridge-otel</artifactId>
-			<version>1.6.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.nimbusds</groupId>
@@ -127,7 +127,6 @@
 		<dependency>
 			<groupId>com.fasterxml.jackson.datatype</groupId>
 			<artifactId>jackson-datatype-jdk8</artifactId>
-			<version>2.20.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.mapstruct</groupId>
@@ -151,6 +150,7 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-sqlserver</artifactId>
+			<version>11.17.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
@@ -180,7 +180,7 @@
 		<dependency>
 			<groupId>com.chellavignesh</groupId>
 			<artifactId>lib-crypto</artifactId>
-			<version>2.0.2</version>
+			<version>2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>io.projectreactor.netty</groupId>
@@ -235,7 +235,7 @@
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
-			<version>5.20.0</version>
+			<version>5.21.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -256,7 +256,9 @@
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
 						</path>
-					</annotationProcessorPaths>
+					    <path><groupId>org.mapstruct</groupId><artifactId>mapstruct-processor</artifactId><version>1.6.3</version></path>
+                        <path><groupId>org.projectlombok</groupId><artifactId>lombok-mapstruct-binding</artifactId><version>0.2.0</version></path>
+                    </annotationProcessorPaths>
 				</configuration>
 			</plugin>
 
@@ -277,17 +279,17 @@
 				<artifactId>flyway-maven-plugin</artifactId>
 				<version>11.17.0</version>
 				<configuration>
-					<url>jdbc:sqlserver://localhost:1433;databaseName=AGSAuth;encrypt=true;trustServerCertificate=true</url>
-					<user>sa</user>
-					<password>15Ch$05E</password>
+                    <url>${env.AUTH_DB_URL}</url>
+                    <user>${env.AUTH_DB_USERNAME}</user>
+                    <password>${env.AUTH_DB_PASSWORD}</password>
 					<schemas>
 						<schema>dbo</schema>
 					</schemas>
 					<locations>
 						<location>filesystem:src/main/resources/db/migration</location>
 					</locations>
-					<baselineOnMigrate>true</baselineOnMigrate>
-					<cleanDisabled>false</cleanDisabled>
+					<baselineOnMigrate>false</baselineOnMigrate>
+					<cleanDisabled>true</cleanDisabled>
 					<validateOnMigrate>true</validateOnMigrate>
 				</configuration>
 			</plugin>

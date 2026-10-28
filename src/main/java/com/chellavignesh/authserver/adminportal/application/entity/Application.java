@@ -48,8 +48,8 @@ public class Application {
             if (result.wasNull()) app.setUsernameType(UsernameTypeEnum.USERNAME);
             else app.setUsernameType(UsernameTypeEnum.fromInt(retrievedUsernameType));
             return app;
-        } catch (SQLException _) {
-            return null;
+        } catch (SQLException e) {
+            throw e;
         }
     }
 }

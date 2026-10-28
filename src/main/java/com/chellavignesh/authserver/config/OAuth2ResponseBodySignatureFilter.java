@@ -34,6 +34,10 @@ public class OAuth2ResponseBodySignatureFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, responseWrapper);
 
+        if (responseWrapper.getStatus() >= 400) {
+            responseWrapper.copyBodyToResponse();
+            return;
+        }
         byte[] body = responseWrapper.getContentAsByteArray();
         String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 

@@ -1,0 +1,680 @@
+{
+  "database": "AuthserverLifecycle_74c78ab5fca64edfbf049a43aa931853",
+  "app_base": "http://localhost:50139/services",
+  "provider": "unconfigured; not exercised",
+  "started_at": "2026-10-23T12:47:45.129418+00:00",
+  "checks": [
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/login",
+      "method": "GET",
+      "path": "/login",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/login",
+      "method": "POST",
+      "path": "/login",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/oauth2/token",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/api/v1/organizations",
+      "method": "POST",
+      "path": "/api/v1/organizations",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "create disposable forms user",
+      "method": "POST",
+      "path": "/api/v1/users",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "disable MFA only for disposable forms user",
+      "method": "PUT",
+      "path": "/api/v1/users/1892473e-f36b-1410-8ed4-00fc9a23848b/security-settings",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/login",
+      "method": "GET",
+      "path": "/login",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/login",
+      "method": "POST",
+      "path": "/login",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/oauth2/token",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "SSO cookie returns active token and signing key",
+      "method": "GET",
+      "path": "/oauth2/sso",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "standard discovery advertises implemented logout",
+      "method": "GET",
+      "path": "/.well-known/openid-configuration",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "metadata issuer and endpoint contract /.well-known/oauth-authorization-server",
+      "method": "GET",
+      "path": "/.well-known/oauth-authorization-server",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "metadata issuer and endpoint contract /oauth2/.well-known/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/openid-configuration",
+      "method": "GET",
+      "path": "/oauth2/.well-known/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/openid-configuration",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "controlled page variant /login?error=invalid",
+      "method": "GET",
+      "path": "/login?error=invalid",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": false,
+      "semantic_view_verified": true
+    },
+    {
+      "id": "controlled page variant /login?errorMessage=invalid",
+      "method": "GET",
+      "path": "/login?errorMessage=invalid",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": false,
+      "semantic_view_verified": true
+    },
+    {
+      "id": "controlled page variant /user/change-profile?error=invalid",
+      "method": "GET",
+      "path": "/user/change-profile?error=invalid",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": false,
+      "semantic_view_verified": true
+    },
+    {
+      "id": "controlled page variant /user/404",
+      "method": "GET",
+      "path": "/user/404",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": false,
+      "semantic_view_verified": true
+    },
+    {
+      "id": "prepare fresh POST authorization login",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/login",
+      "method": "GET",
+      "path": "/login",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "authenticate fresh POST authorization session",
+      "method": "POST",
+      "path": "/login",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST authorization issues PKCE code",
+      "method": "POST",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "POST authorization code exchanges successfully",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "fully exchanged POST continuation is rejected without duplicate state",
+      "method": "POST",
+      "path": "/oauth2/authorize",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/login",
+      "method": "GET",
+      "path": "/login",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/login",
+      "method": "POST",
+      "path": "/login",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/oauth2/token",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "custom POST logout with real identity token",
+      "method": "POST",
+      "path": "/oauth2/connect/logout",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "custom POST logout deactivates access token",
+      "method": "GET",
+      "path": "/userinfo",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/login",
+      "method": "GET",
+      "path": "/login",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/login",
+      "method": "POST",
+      "path": "/login",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/oauth2/authorize",
+      "method": "GET",
+      "path": "/oauth2/authorize",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/oauth2/token",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/login",
+      "method": "GET",
+      "path": "/login",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "standard Spring POST logout accepts session CSRF",
+      "method": "POST",
+      "path": "/logout",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "confidential client obtains revocation fixture token",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "authenticated OAuth token revocation",
+      "method": "POST",
+      "path": "/oauth2/revoke",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true,
+      "positive": true
+    },
+    {
+      "id": "revoked bearer rejected by userinfo",
+      "method": "GET",
+      "path": "/userinfo",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "unconfigured device grant rejected",
+      "method": "POST",
+      "path": "/oauth2/token",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "passed": true,
+      "positive": false
+    },
+    {
+      "id": "POST /services/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications",
+      "method": "POST",
+      "path": "/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "GET /services/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications/6192473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "GET",
+      "path": "/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications/6192473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "POST /services/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications/6192473e-f36b-1410-8ed4-00fc9a23848b/credentials",
+      "method": "POST",
+      "path": "/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications/6192473e-f36b-1410-8ed4-00fc9a23848b/credentials",
+      "status": 201,
+      "expected": [
+        201
+      ],
+      "passed": true
+    },
+    {
+      "id": "DELETE /services/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications/6192473e-f36b-1410-8ed4-00fc9a23848b",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b/applications/6192473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    },
+    {
+      "id": "delete disposable forms user",
+      "method": "DELETE",
+      "path": "/api/v1/users/1892473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 204,
+      "expected": [
+        204
+      ],
+      "passed": true
+    },
+    {
+      "id": "revoke disposable forms organization",
+      "method": "PUT",
+      "path": "/api/v1/organizations/0c91473e-f36b-1410-8ed4-00fc9a23848b",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "passed": true
+    }
+  ],
+  "database_checks": [
+    {
+      "id": "forms user creation persisted",
+      "passed": true
+    },
+    {
+      "id": "rejected repeated continuation adds no PKCE or authorization-code rows",
+      "passed": true
+    },
+    {
+      "id": "custom logout session inactive in SQL",
+      "passed": true
+    },
+    {
+      "id": "revocation invalidates actual token session in SQL",
+      "passed": true
+    },
+    {
+      "id": "forms fixture organization revoked",
+      "passed": true
+    }
+  ],
+  "failures": [],
+  "suite": "real HTTP protocol variants",
+  "blocked": [
+    {
+      "endpoints": [
+        "POST /oauth2/device_authorization",
+        "GET /oauth2/device_verification",
+        "POST /oauth2/device_verification"
+      ],
+      "reason": "ApplicationService registers only authorization_code/refresh_token or client_credentials grants; no device-grant client is supported/configured. Rejection does not qualify device flow."
+    }
+  ],
+  "limitations": [
+    "Standard Spring POST /logout verifies browser session logout/redirect only. Bearer revocation is separately proved through custom OAuth logout and token revocation."
+  ],
+  "assertions": [
+    {
+      "id": "SSO response contains access token and signing key",
+      "passed": true
+    },
+    {
+      "id": "standard discovery advertises custom logout",
+      "passed": true
+    },
+    {
+      "id": "metadata uses configured issuer",
+      "passed": true
+    },
+    {
+      "id": "metadata uses real token endpoint",
+      "passed": true
+    },
+    {
+      "id": "metadata uses real authorization endpoint",
+      "passed": true
+    },
+    {
+      "id": "metadata uses configured issuer",
+      "passed": true
+    },
+    {
+      "id": "metadata uses real token endpoint",
+      "passed": true
+    },
+    {
+      "id": "metadata uses real authorization endpoint",
+      "passed": true
+    },
+    {
+      "id": "page variant renders expected form/message /login?error=invalid",
+      "passed": true
+    },
+    {
+      "id": "page variant renders expected form/message /login?errorMessage=invalid",
+      "passed": true
+    },
+    {
+      "id": "page variant renders expected form/message /user/change-profile?error=invalid",
+      "passed": true
+    },
+    {
+      "id": "page variant renders expected form/message /user/404",
+      "passed": true
+    },
+    {
+      "id": "POST authorization login contains CSRF",
+      "passed": true
+    },
+    {
+      "id": "POST authorization login succeeds",
+      "passed": true
+    },
+    {
+      "id": "POST authorization preserves state and issues code",
+      "passed": true
+    },
+    {
+      "id": "POST authorization exchange yields identity token",
+      "passed": true
+    },
+    {
+      "id": "rejected repeated continuation rolls back all custom state",
+      "passed": true
+    },
+    {
+      "id": "custom POST logout redirects to registered application",
+      "passed": true
+    },
+    {
+      "id": "standard logout has valid CSRF context",
+      "passed": true
+    },
+    {
+      "id": "standard logout redirects to logout result",
+      "passed": true
+    }
+  ],
+  "not_enabled": [
+    {
+      "endpoints": [
+        "GET /connect/logout",
+        "POST /connect/logout"
+      ],
+      "reason": "AuthorizationServerSettings explicitly routes OIDC logout to /oauth2/connect/logout, handled by custom MVC/logout chain."
+    }
+  ],
+  "diagnostics": [
+    {
+      "case": "POST authorize redirect",
+      "path": "/services/local/callback",
+      "error": null,
+      "error_description": null,
+      "has_code": true,
+      "state_preserved": true
+    }
+  ],
+  "finished_at": "2026-10-23T12:47:50.697448+00:00",
+  "source_commit": "93dc6048e13a0d76302be0d09b0a158d1ef56bd0",
+  "source_tree_sha256": "a00ac05ecef5bc9ad2806ff5f38170196e94ad59fd35d72d630c83b23ab140f1",
+  "working_tree_dirty": false,
+  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "artifact_sha256": "99384413a80545e8574457ef2ec73c92ee53ae7d2e48b335e76647e785b08623",
+  "provenance_source": "Verified owned launcher; matching database/app_base and immutable artifact",
+  "raw_report_sha256": "72d68a0d0ea87bb10b21e5d00145753ed19ab3ce9d5b25ba3532e0f0b14e132a"
+}

@@ -1,0 +1,12 @@
+node_modules
+.next
+test-results
+tests
+playwright.config.ts
+vitest.config.ts
+tsconfig.tsbuildinfo
+.env*
+!.env.example
+npm-debug.log*
+Dockerfile
+.dockerignore

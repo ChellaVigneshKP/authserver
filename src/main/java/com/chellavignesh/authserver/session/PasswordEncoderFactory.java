@@ -17,7 +17,12 @@ public class PasswordEncoderFactory {
     }
 
     public String encode(String password) {
-        return getCurrentEncoder().encode(password).substring(6);
+        String encoded = getCurrentEncoder().encode(password);
+        String prefix = "{" + currentVersion + "}";
+        if (!encoded.startsWith(prefix)) {
+            throw new IllegalStateException("Password encoder returned an unexpected version");
+        }
+        return encoded.substring(prefix.length());
     }
 
     public boolean matches(String inputPassword, String encodedPassword, Integer version) {
