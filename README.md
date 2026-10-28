@@ -89,6 +89,35 @@ MAVEN_USER_HOME="$PWD/.local/maven" ./mvnw -B -ntp \
 python3 scripts/check-bouncycastle-alerts.py
 ```
 
+## Identity portal (server-side BFF)
+
+`web/` is the operator portal: a Next.js 16 server-side BFF that signs in
+through the real auth server with a public PKCE client, keeps the session in
+Redis, and calls the Java management API with the user's bearer token. Browser
+code never receives an access, refresh or ID token. Features cover
+clients/credentials, local users, roles, certificates, organizations and the
+hosted account screens.
+
+Requirements: Node 24.22.x and an installed Chrome, Firefox and WebKit for the
+full browser campaign.
+
+```sh
+npm --prefix web ci
+npm --prefix web run typecheck
+npm --prefix web test
+npm --prefix web run build
+
+# Owned real-stack browser acceptance (UUID DB/Redis/JVM/Next, no response mocks).
+python3 scripts/e2e-portal.py --phase all
+```
+
+Configuration is runtime-only and documented in [docs/portal/RUNBOOK.md](docs/portal/RUNBOOK.md);
+the Java contract is [docs/portal/API-CONTRACT.md](docs/portal/API-CONTRACT.md),
+upgrade boundaries are [docs/portal/UPGRADE.md](docs/portal/UPGRADE.md), and
+recorded qualification evidence is [docs/portal/ACCEPTANCE.md](docs/portal/ACCEPTANCE.md).
+The portal container builds from `web/Dockerfile` as a non-root standalone
+runtime with credential-free `/healthz` and `/readyz` probes.
+
 This is a targeted advisory-range check; it does not clear all dependencies or establish exploit reachability. See [follow-up validation](docs/recovery/FOLLOW-UP-VALIDATION.md) for the executed results and remaining provider requirements.
 
 ## Local provider lab on macOS

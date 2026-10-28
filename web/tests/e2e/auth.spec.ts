@@ -393,12 +393,14 @@ test("Java outage fails closed while local sign-out succeeds with an SSO warning
   page,
   context,
 }) => {
+  test.setTimeout(240000);
   await login(page);
   const session = await privateSession(context);
   const pid = Number(process.env.PORTAL_OWNED_JAVA_PID);
   if (!Number.isInteger(pid) || pid <= 1)
     throw Error("Missing owned Java process identity");
-  process.kill(pid, "SIGTERM");
+  // Pause the owned issuer so a later phase can resume it; a terminated issuer cannot recover.
+  process.kill(pid, "SIGSTOP");
   await expect
     .poll(
       async () => {
@@ -410,7 +412,7 @@ test("Java outage fails closed while local sign-out succeeds with an SSO warning
           return 0;
         }
       },
-      { timeout: 15000 },
+      { timeout: 40000 },
     )
     .toBe(503);
   check("Java outage produces controlled BFF503", true);
@@ -434,4 +436,22 @@ test("Java outage fails closed while local sign-out succeeds with an SSO warning
     "failed identity-provider logout clearly warns about remaining SSO",
     (await page.getByText(/SSO session may still be active/).count()) === 1,
   );
+  process.kill(pid, "SIGCONT");
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (
+            await page.request.get(fixture.portal + "/auth/login", {
+              maxRedirects: 0,
+            })
+          ).status();
+        } catch {
+          return 0;
+        }
+      },
+      { timeout: 40000 },
+    )
+    .toBe(302);
+  check("paused issuer resumes and the portal starts a fresh login transaction", true);
 });

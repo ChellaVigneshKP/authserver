@@ -285,6 +285,10 @@ export class SessionStore {
     await this.putSession(session);
     return session;
   }
+  /** Readiness probe: one bounded round trip that never reads or writes a key. */
+  async ping(): Promise<boolean> {
+    return (await this.dependency(() => this.redis.ping())) === "PONG";
+  }
 }
 let singleton: Promise<SessionStore> | undefined;
 let activeClient: ReturnType<typeof createClient<{}, {}, {}, 3>> | undefined;

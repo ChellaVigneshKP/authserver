@@ -72,6 +72,40 @@ def stop(child):
         child.wait()
 
 
+class OwnedContainer:
+    """Process-like handle for an owned Docker container; never touches other containers."""
+
+    def __init__(self, name):
+        self.name = name
+
+    def poll(self):
+        result = subprocess.run(['docker', 'inspect', '-f', '{{.State.Running}} {{.State.ExitCode}}', self.name],
+                                capture_output=True, text=True)
+        if result.returncode != 0 or not result.stdout.strip():
+            return 1
+        parts = result.stdout.split()
+        if len(parts) != 2:
+            return 1
+        return None if parts[0] == 'true' else int(parts[1])
+
+    def terminate(self):
+        subprocess.run(['docker', 'stop', '--time', '20', self.name], capture_output=True, text=True)
+
+    def kill(self):
+        subprocess.run(['docker', 'kill', self.name], capture_output=True, text=True)
+
+    def wait(self, timeout=None):
+        limit = timeout if timeout is not None else 60
+        deadline = time.monotonic() + limit
+        while time.monotonic() < deadline:
+            code = self.poll()
+            if code is not None:
+                subprocess.run(['docker', 'rm', '-f', self.name], capture_output=True, text=True)
+                return code
+            time.sleep(.5)
+        raise subprocess.TimeoutExpired(self.name, limit)
+
+
 def start_fault_transport(issuer, directory):
     """Forward actual bytes to this owned Java only; optionally lose one committed response.
 
@@ -132,8 +166,30 @@ def start_fault_transport(issuer, directory):
     return server, thread, 'http://127.0.0.1:' + str(server.server_port), control, events
 
 
+def start_owned_container(image, portal, issuer, portal_env):
+    # The host-side Java fixture is loopback-only; map localhost to the host gateway inside
+    # the container so the public issuer origin stays reachable without an insecure
+    # non-loopback AUTH_TRANSPORT_ORIGIN (the portal config requires HTTPS there).
+    name = 'portal-f7-' + uuid.uuid4().hex
+    values = dict(portal_env)
+    values['PORTAL_REDIS_URL'] = 'redis://host.docker.internal:16379/0'
+    if 'AUTH_TRANSPORT_ORIGIN' in values:
+        values['AUTH_TRANSPORT_ORIGIN'] = values['AUTH_TRANSPORT_ORIGIN'].replace('http://127.0.0.1:', 'http://localhost:')
+    command = ['docker', 'run', '-d', '--rm', '--name', name,
+               '-p', '127.0.0.1:' + str(urllib.parse.urlsplit(portal).port) + ':3100',
+               '--add-host', 'host.docker.internal:host-gateway',
+               '--add-host', 'localhost:host-gateway']
+    for key in ('PORTAL_ORIGIN', 'AUTH_ISSUER', 'AUTH_CLIENT_ID', 'PORTAL_REDIS_URL',
+                'PORTAL_REDIS_NAMESPACE', 'PORTAL_ALLOW_INSECURE_LOOPBACK', 'AUTH_TRANSPORT_ORIGIN', 'TZ'):
+        if key in values:
+            command += ['-e', key + '=' + values[key]]
+    command.append(image)
+    subprocess.run(command, check=True, capture_output=True, text=True)
+    return OwnedContainer(name)
+
+
 @contextmanager
-def owned_portal(port=3100, transport_faults=False, account_sync=None):
+def owned_portal(port=3100, transport_faults=False, account_sync=None, container_image=None):
     original, _, source_database = load_target()
     if source_database != 'AGSAuth' or not NODE.is_file():
         raise ValueError('Use normal private local configuration and install isolated Node24 first')
@@ -223,9 +279,25 @@ def owned_portal(port=3100, transport_faults=False, account_sync=None):
         if transport_faults:
             fault_server, fault_thread, transport_origin, fault_control, fault_events = start_fault_transport(issuer, directory)
             portal_env['AUTH_TRANSPORT_ORIGIN'] = transport_origin
-        with (directory / 'next.log').open('w') as log:
-            os.chmod(log.name, 0o600)
-            next_process = subprocess.Popen([str(NODE), str(ROOT/'web/node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', str(port)], cwd=ROOT/'web', env=portal_env, stdout=log, stderr=subprocess.STDOUT)
+        container = None
+        container_log = None
+        if container_image:
+            container = start_owned_container(container_image, portal, issuer, portal_env)
+            next_process = container
+            with (directory / 'next.log').open('wb') as log:
+                os.chmod(log.name, 0o600)
+                container_log = subprocess.Popen(['docker', 'logs', '--follow', container.name],
+                                                 stdout=log, stderr=subprocess.STDOUT)
+            report['container'] = dict(
+                image=container_image,
+                image_id=subprocess.check_output(['docker', 'image', 'inspect', '-f', '{{.Id}}', container_image], text=True).strip(),
+                name=container.name,
+                non_root_user=str(subprocess.check_output(
+                    ['docker', 'image', 'inspect', '-f', '{{.Config.User}}', container_image], text=True).strip()))
+        else:
+            with (directory / 'next.log').open('w') as log:
+                os.chmod(log.name, 0o600)
+                next_process = subprocess.Popen([str(NODE), str(ROOT/'web/node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', str(port)], cwd=ROOT/'web', env=portal_env, stdout=log, stderr=subprocess.STDOUT)
         wait_ready(portal, next_process)
         private = dict(portal=portal, issuer=issuer, clientId=portal_client['ClientId'], redisPrefix=portal_prefix,
                        username=config['LOCAL_ADMIN_USERNAME'], password=config['LOCAL_ADMIN_PASSWORD'],
@@ -235,9 +307,12 @@ def owned_portal(port=3100, transport_faults=False, account_sync=None):
         private_path = directory / 'browser.json'
         LIFECYCLE['private_json'](private_path, private)
         yield dict(directory=directory, private_path=private_path, report=report, java=java,
-                   portal_env=portal_env, next_process=next_process, config=config, database=database)
+                   portal_env=portal_env, next_process=next_process, config=config, database=database,
+                   container=container_image)
     finally:
         stop(next_process)
+        if container_log is not None:
+            stop(container_log)
         stop(java)
         if fault_server is not None:
             fault_server.shutdown()

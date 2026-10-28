@@ -93,7 +93,7 @@ export function PortalShell({
   const navigation = (
     <Stack
       sx={{
-        height: "100%",
+        minHeight: "100%",
         p: 3,
         color: "#fff",
         backgroundColor: tokens.navigation,
@@ -214,6 +214,7 @@ export function PortalShell({
           display: { xs: "none", md: "block" },
           position: "fixed",
           inset: "0 auto 0 0",
+          overflowY: "auto",
         }}
       >
         {navigation}

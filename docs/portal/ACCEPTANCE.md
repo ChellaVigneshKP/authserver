@@ -153,3 +153,80 @@ The necessary fix gates have actual pre/post source-byte archives and complete p
 The real regressions establish existing-name409/no new SQL row, editable correction followed by exactly one successful creation; retry409 preserving an earlier possibly committed application and later explicit reconciliation; and unchanged actual committed-response loss, ambiguity and lost-secret rotation. Fourteen pre/post archives and their receipt output hashes were mechanically verified against manifests. All passing fix gates used unchanged source digest `3752735e5c1c67383ec630aaf5c3a031cd96ec7f4e8406938d92097510961da5` over836 nonignored files. This documentation was finalized afterward without changing executed code/tests.
 
 The owned runtime still uses immutable Java artifact `125d83ff89510d033a0afab12b7171e48c32c01b28353626009c95a1ebd9fdc5`. Java272 and the earlier broader118-check campaign remain their recorded evidence, not newly rerun results for this TypeScript-only fix. Current affected-fixture cleanup confirms owned processes/proxy stopped, CMSremoved, database dropped, and both Java Redis namespaces plus portal namespace remaining0. Six current runtime logs have0 secret-input/raw-material/protocol-value pattern matches. Historical secret-diagnostic incident and F4/F6/F7 qualification limits above remain unchanged. Browser color/toolchain and inherited Java/security-negative warnings are retained; M1 warning cleanup is deferred separately and passing output is not represented as pristine.
+
+## F7 current qualification — browser journeys, outages and container
+
+This section is the **current** F7 record. Rows above are historical: they were
+executed at their own commits and are not re-claimed for the F7 tree. What
+follows is the F7 worktree at source commit `34680dd` plus the uncommitted F7
+changes; the gate wrapper recorded tree digest `5322139a` over 923 nonignored
+files for the typecheck receipt. Documentation was finalized after the code
+gates, in line with the provenance rule above.
+
+Toolchain: Node 24.22.0; Playwright 1.64.1 with Chromium revision 1248 executed,
+Firefox 1555 and WebKit 2370 installed. Migrations are unchanged by F7: 18
+additive `V1`–`V18` files, no edits to published files and no schema reset.
+Runtime configuration category is server-only process environment, documented
+in [RUNBOOK.md](RUNBOOK.md); the portal defines no `NEXT_PUBLIC_` variable.
+
+| Static/unit gate | Result | Private evidence |
+|---|---|---|
+| `npm --prefix web ci` and resolved-tree audit | 154 packages installed; `npm audit --audit-level=high` reported **0 vulnerabilities in the resolved tree** | gate log under `.local/` |
+| `npm --prefix web run typecheck` | exit0, tree `5322139a`/923 files | `.local/portal-f4/` receipt |
+| `npm --prefix web test` | **23 files/143 tests** passed | `.local/portal-f4/` receipt |
+| `npm --prefix web run build` | exit0 production standalone build | `.local/portal-f4/` receipt |
+| `./scripts/local-dev.py test` | BUILD SUCCESS; **297 Java tests**,0 failures/errors/skips; 5 Node; 22 Python checks | local gate output |
+| Browser runner, Chromium only | All four phases below passed with **0 failed checks** | run directories listed below |
+
+The audit statement is scoped to the resolved tree at this lockfile. It is not
+a claim that the dependency graph is advisory-free, and it does not replace the
+separate Bouncy Castle advisory check. No ESLint configuration exists in `web/`,
+so typecheck is the enforced static gate; the CI step runs `npm run lint` only
+if such a script is added later.
+
+### Current browser scenarios (Chromium 1248)
+
+| Phase | Result | Run |
+|---|---|---|
+| Auth, session and token handling | **44 checks**,0 failed,0 blocked | `.local/portal-runs/e129a9cd57774c62b73da0773a701b05/report.json` |
+| Security: proof, referer, clock, fingerprint, CSRF, cookie | **19 checks**,0 failed,0 blocked | `.local/portal-runs/65b18c40ce0e4bce88ac28d4fbd09b0e/report.json` |
+| Outages: issuer pause/resume, Redis outage, owned restart, non-UTC clock | **15 checks**,0 failed;1 blocked (real recovery delivery) | `.local/portal-runs/ba38b023e2884f198757ed89c110836b/report.json` |
+| Journeys: platform delegation, tenant boundary, viewer redaction, hosted account and sign-out | **43 checks**,0 failed;1 blocked (real recovery delivery) | `.local/portal-runs/2d01a89e3fd54e16b826d3029c2710cd/report.json` |
+| Journeys, hosted account tail re-run | **15 checks**,0 failed;1 blocked (same) | `.local/portal-runs/c2a9133807f045d5b09146f1f4a239a5/report.json` |
+
+Every run recorded `security_checks_enabled:true` with fingerprint, referer and
+signature toggles on, provider `unconfigured`, and cleanup confirming owned
+processes stopped, CMS fixture removed, owned database dropped and Java Redis
+DB0/DB1 plus portal namespace at0 remaining. Journeys prove a persisted profile
+change, sign-out followed by browser back denial, password change revoking other
+human sessions, the new password working and the old one rejected, and
+recovery leaving the portal for the issuer route without claiming delivery.
+
+### Container
+
+`web/Dockerfile` builds `identity-portal:f7` (image
+`sha256:33d3855339580efcf4bff57cb130cf8935ce90d5009b0804f467054d0c54e093`)
+from base index digest `sha256:91acba91…`; `Config.User` is `portal` (uid/gid
+10001). An early manual probe answered `/healthz`200 but returned `/readyz`503
+because the transport origin was misconfigured for the container; that probe is
+recorded as a failed configuration check, **not** as readiness evidence. The
+first-slice container smoke through `--container` was attempted twice: the first
+attempt exposed a genuine gap (no container log capture, so the token-absence
+assertion had no input) which is now fixed in the runner, and 2 of 3 auth checks
+passed before it stopped. A clean re-run has not happened yet.
+
+### Pending and externally blocked
+
+- **Pending:** re-run the container first-slice smoke, the full
+  `chromium,firefox,webkit` campaign, automated axe checks and the manual
+  keyboard/focus/zoom review over the complete journeys.
+- **Blocked (environment):** Docker Desktop's containerd blob store returns
+  `input/output error` for exec, image listing and container creation, so no
+  further Docker-backed run can execute until the engine is restarted. No pass
+  is claimed for the runs above that did not complete.
+- **Blocked (external):** real recovery delivery needs a configured provider;
+  visual acceptance of the final screens is the user's, not the campaign's.
+- **Orphan to remove:** the interrupted container attempt may have left owned
+  database `AuthserverLifecycle_d170a2ea…` and container
+  `portal-f7-20d26aa4c1d3410198a2578fa87fcbb1`; both are owned resources and are
+  to be dropped once Docker answers again.
