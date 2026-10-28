@@ -158,8 +158,11 @@ OIDC redirect target. The proxy must:
 
 `python3 scripts/e2e-portal.py --phase <auth|navigation|clients|users|roles|certificates|journeys|outages|security|all>`
 starts an owned fixture: a UUID SQL Server database, UUID Redis prefixes, a
-private loopback JVM and a Next server on a free loopback port (default 3100
-selection). It registers the exact portal callback
+private loopback JVM and a Next server on the fixed loopback port 3100
+(`--port` overrides it). The issuer-side callback registration and the
+container publish depend on that exact origin, so a port still held by another
+listener fails loudly with its owner after the claim wait instead of silently
+moving to a different port. The fixture registers the exact portal callback
 `<portal>/auth/callback` and post-logout `<portal>/auth/logged-out`, and stops
 only its own processes. Existing sample frontends on 3000/3001 and existing
 clients are untouched. Evidence is written under `.local/portal-runs/<uuid>/`.
