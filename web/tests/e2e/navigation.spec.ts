@@ -10,7 +10,6 @@ import AxeBuilder from "@axe-core/playwright";
 import {
   readFileSync,
   writeFileSync,
-  existsSync,
   mkdtempSync,
   mkdirSync,
   rmSync,
@@ -18,6 +17,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "redis";
+import { writeReport } from "./report";
 import { createHmac, createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -44,28 +44,7 @@ const redis = createClient({
 test.beforeAll(() => redis.connect());
 test.afterAll(async () => {
   await redis.quit();
-  writeFileSync(
-    process.env.PORTAL_E2E_REPORT!,
-    JSON.stringify({
-      checks: [
-        ...(existsSync(process.env.PORTAL_E2E_REPORT!)
-          ? JSON.parse(readFileSync(process.env.PORTAL_E2E_REPORT!, "utf8"))
-              .checks
-          : []),
-        ...checks,
-      ],
-      blocked: [
-        ...(existsSync(process.env.PORTAL_E2E_REPORT!)
-          ? (JSON.parse(readFileSync(process.env.PORTAL_E2E_REPORT!, "utf8"))
-              .blocked ?? [])
-          : []),
-        ...blocked,
-      ],
-    }),
-    {
-      mode: 0o600,
-    },
-  );
+  writeReport(process.env.PORTAL_E2E_REPORT!, checks, blocked);
 });
 async function login(
   page: Page,
@@ -119,7 +98,9 @@ async function mutation(
     "owned real Java mutation " +
       method +
       " " +
-      path.replace(/[0-9a-f-]{36}/g, "{id}"),
+      path.replace(/[0-9a-f-]{36}/g, "{id}") +
+      " returned " +
+      response.status(),
     [200, 201, 204].includes(response.status()),
   );
   return response;
@@ -836,12 +817,13 @@ test("account-only and viewer denials, tenant scope and live permission revocati
       },
     )
   ).json();
+  const accountOnlyUsername = fixture.secondUsername + "_nav";
   const user = await (
     await mutation(page, s, "/api/v1/users", {
       firstName: "Portal",
       lastName: "Viewer",
-      username: fixture.secondUsername,
-      email: fixture.secondUsername + "@example.test",
+      username: accountOnlyUsername,
+      email: accountOnlyUsername + "@example.test",
       password: Buffer.from(fixture.secondPassword).toString("base64"),
       phoneNumber: "+19999999998",
       orgGuid: dto.subject.organizationId,
@@ -863,7 +845,7 @@ test("account-only and viewer denials, tenant scope and live permission revocati
     timezoneId: "Asia/Kolkata",
   });
   const account = await tenant.newPage();
-  await login(account, fixture.secondUsername, fixture.secondPassword);
+  await login(account, accountOnlyUsername, fixture.secondPassword);
   check(
     "account user sees no admin navigation",
     (await account

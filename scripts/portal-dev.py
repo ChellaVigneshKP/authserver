@@ -2,6 +2,7 @@
 """Own a disposable UUID SQL/Redis/Java/Next portal fixture; never restart shared services."""
 import argparse
 from contextlib import contextmanager
+import errno
 import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +13,7 @@ from pathlib import Path
 import runpy
 import secrets
 import shutil
+import signal
 import socket
 import subprocess
 import time
@@ -28,6 +30,69 @@ def free_port():
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', 0))
         return probe.getsockname()[1]
+
+
+def port_owner(port):
+    # Diagnostics only: the fixed portal port must never fall back to another origin, so an
+    # unreleased port has to fail loudly with the process that still holds it.
+    try:
+        result = subprocess.run(['lsof', '-nP', '-iTCP:' + str(port), '-sTCP:LISTEN'],
+                                capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return 'owner unknown'
+    lines = result.stdout.splitlines()
+    if len(lines) < 2:
+        return 'no listening owner'
+    pid = lines[1].split()[0]
+    try:
+        detail = subprocess.run(['ps', '-o', 'pid,ppid,pgid,command', '-p', pid],
+                               capture_output=True, text=True, timeout=5).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        detail = []
+    return ' | '.join(lines[1:4] + detail[1:2]) or 'no listening owner'
+
+
+def port_bindable(port):
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(('127.0.0.1', port))
+            return True
+        except OSError as error:
+            if error.errno == errno.EADDRINUSE:
+                return False
+            raise
+
+
+def claim_port(port, wait=60):
+    # A previous owned fixture can leave accepted connections in TIME_WAIT on the shared
+    # portal port; SO_REUSEADDR lets the next Next bind without ever sharing a live listener.
+    # A genuinely occupied port is retried and then fails loudly instead of silently
+    # moving to another origin the registered callbacks and container publish would not use.
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            with socket.socket() as probe:
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                probe.bind(('127.0.0.1', port))
+                return probe.getsockname()[1]
+        except OSError as error:
+            if error.errno != errno.EADDRINUSE:
+                raise
+            if time.monotonic() >= deadline:
+                raise OSError(error.errno, error.strerror + ' after ' + str(wait) + 's on 127.0.0.1:' + str(port) + '; ' + port_owner(port)) from error
+        time.sleep(.5)
+
+
+def release_port(port, wait=30):
+    # A finished fixture must hand the fixed portal port back before the next browser's fixture
+    # starts; otherwise the following fixture fails on a port its predecessor still owns.
+    deadline = time.monotonic() + wait
+    while not port_bindable(port):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(.25)
+    return True
 
 
 def wait_ready(url, child):
@@ -60,16 +125,35 @@ def wait_portal_client(config, database, child):
     raise RuntimeError('Owned bootstrap readiness timeout')
 
 
-def stop(child):
+def stop(child, group=False):
+    # `next start` can leave a descendant holding the fixed portal port after its CLI parent
+    # exits. Owned servers are started in their own session, so signalling the process group
+    # reaps the whole tree without ever touching a process this fixture did not create.
     if child is None:
         return
-    if child.poll() is None:
+    if group:
+        try:
+            os.killpg(child.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+    elif child.poll() is None:
         child.terminate()
     try:
         child.wait(timeout=20)
     except subprocess.TimeoutExpired:
-        child.kill()
+        if group:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+        else:
+            child.kill()
         child.wait()
+    if group:
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
 
 
 class OwnedContainer:
@@ -193,9 +277,7 @@ def owned_portal(port=3100, transport_faults=False, account_sync=None, container
     original, _, source_database = load_target()
     if source_database != 'AGSAuth' or not NODE.is_file():
         raise ValueError('Use normal private local configuration and install isolated Node24 first')
-    with socket.socket() as probe:
-        probe.bind(('127.0.0.1', port))
-        port = probe.getsockname()[1]
+    port = claim_port(port)
     run_id = uuid.uuid4().hex
     database = 'AuthserverLifecycle_' + run_id
     namespace = 'authserver:lifecycle:' + run_id + ':'
@@ -297,7 +379,7 @@ def owned_portal(port=3100, transport_faults=False, account_sync=None, container
         else:
             with (directory / 'next.log').open('w') as log:
                 os.chmod(log.name, 0o600)
-                next_process = subprocess.Popen([str(NODE), str(ROOT/'web/node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', str(port)], cwd=ROOT/'web', env=portal_env, stdout=log, stderr=subprocess.STDOUT)
+                next_process = subprocess.Popen([str(NODE), str(ROOT/'web/node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', str(port)], cwd=ROOT/'web', env=portal_env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         wait_ready(portal, next_process)
         private = dict(portal=portal, issuer=issuer, clientId=portal_client['ClientId'], redisPrefix=portal_prefix,
                        username=config['LOCAL_ADMIN_USERNAME'], password=config['LOCAL_ADMIN_PASSWORD'],
@@ -310,9 +392,16 @@ def owned_portal(port=3100, transport_faults=False, account_sync=None, container
                    portal_env=portal_env, next_process=next_process, config=config, database=database,
                    container=container_image)
     finally:
-        stop(next_process)
+        stop(next_process, group=container_image is None)
         if container_log is not None:
             stop(container_log)
+        if container_image is None:
+            report['cleanup']['next_pid'] = next_process.pid if next_process is not None else None
+            # Record, never raise: the remaining fixture cleanup (Java, Redis, database) must
+            # still run, and the next fixture's claim_port fails loudly with the owner instead.
+            report['cleanup']['portal_port_released'] = release_port(port)
+            if not report['cleanup']['portal_port_released']:
+                report['cleanup']['portal_port_owner'] = port_owner(port)
         stop(java)
         if fault_server is not None:
             fault_server.shutdown()

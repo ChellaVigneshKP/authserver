@@ -1,20 +1,15 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHmac, randomUUID } from "node:crypto";
 import { createClient } from "redis";
+import { writeReport } from "./report";
 // A locator/assertion failure must never trigger an automatic page/ARIA capture.
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 test.use({ trace: "off", screenshot: "off", video: "off" });
 const fixture = JSON.parse(readFileSync(process.env.PORTAL_E2E_CONFIG!, "utf8"));
 const checks: { id: string; passed: boolean }[] = [];
 const blocked: { id: string; reason: string }[] = [];
-function prior(path: string): { checks: { id: string; passed: boolean }[]; blocked: { id: string; reason: string }[] } {
-  if (!existsSync(path)) return { checks: [], blocked: [] };
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
-  if (Array.isArray(parsed)) return { checks: parsed, blocked: [] };
-  return { checks: parsed.checks ?? [], blocked: parsed.blocked ?? [] };
-}
 function check(id: string, passed: boolean) {
   checks.push({ id, passed });
   writeFileSync(process.env.PORTAL_SCREENSHOT_DIR + "/security-progress.json", JSON.stringify({ checks, blocked }), { mode: 0o600 });
@@ -24,12 +19,7 @@ const redis = createClient({ url: "redis://127.0.0.1:16379/0", socket: { reconne
 test.beforeAll(() => redis.connect());
 test.afterAll(async () => {
   await redis.quit();
-  const path = process.env.PORTAL_E2E_REPORT!;
-  const merged = prior(path);
-  writeFileSync(path, JSON.stringify({
-    checks: [...merged.checks.filter(v => !checks.some(c => c.id === v.id)), ...checks],
-    blocked: [...merged.blocked.filter(v => !blocked.some(b => b.id === v.id)), ...blocked],
-  }), { mode: 0o600 });
+  writeReport(process.env.PORTAL_E2E_REPORT!, checks, blocked);
 });
 async function login(page: Page, username = fixture.username, password = fixture.password) {
   await page.goto(fixture.portal);

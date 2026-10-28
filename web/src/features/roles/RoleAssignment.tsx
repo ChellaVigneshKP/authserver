@@ -121,7 +121,7 @@ export function RoleAssignment({
               </MenuItem>
             )}
           </FormField>
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: "wrap" }}>
             <Button type="submit" variant="contained" disabled={pending || uncertain || !dirty}>
               Save assignment
             </Button>

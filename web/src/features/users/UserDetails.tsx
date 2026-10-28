@@ -25,7 +25,7 @@ export function UserDetails({initial,initialMetadata,context}:{initial:UserDto;i
  return <Stack spacing={2}>
   <Link href={"/admin/organizations/"+user.organizationId+"/users"}>Users</Link>
   <Typography component="h1" variant="h1">{user.firstName} {user.lastName}</Typography>
-  <Stack direction="row" spacing={1}><Chip label={user.status}/><Chip label={user.syncMode==="local"?"Local account":user.syncMode+" synchronization"}/><Chip label={user.groupName??"No role assigned"}/></Stack>
+  <Stack direction="row" spacing={1} useFlexGap sx={{flexWrap:"wrap"}}><Chip label={user.status}/><Chip label={user.syncMode==="local"?"Local account":user.syncMode+" synchronization"}/><Chip label={user.groupName??"No role assigned"}/></Stack>
   <Typography color="text.secondary">Selected login: {user.userName} ({user.branding})</Typography>
   <Typography>Profile, email, MFA policy, metadata and lifecycle changes apply to all logins sharing this profile. Username and password changes apply to the selected login.</Typography>
   {error&&<Alert severity="error">{error}</Alert>}
@@ -41,7 +41,7 @@ export function UserDetails({initial,initialMetadata,context}:{initial:UserDto;i
   <Typography component="h2" variant="h2">Account lifecycle</Typography>
   <Typography>Deactivation preserves account records. It is not permanent erasure.</Typography>
   {uncertain&&<Alert severity="warning">Read current account state before another lifecycle action.</Alert>}
-  <Stack direction="row" spacing={2}>
+  <Stack direction="row" spacing={2} useFlexGap sx={{flexWrap:"wrap"}}>
    {!pending&&!uncertain&&deletable&&<ConfirmAction label={user.status==="Active"?"Deactivate account":"Activate account"} title="Change account status?" description="Records are retained. Current access and final administrator protections are checked again." confirmLabel="Confirm change" onConfirm={()=>void lifecycle(false)}/>}
    {!pending&&!uncertain&&deletable&&user.status==="Active"&&<ConfirmAction label="Delete account access" title="Delete account access?" description="This deactivates account access and retains records. It is not permanent erasure." confirmLabel="Delete access" onConfirm={()=>void lifecycle(true)}/>}
   </Stack>

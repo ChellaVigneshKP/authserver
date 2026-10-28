@@ -5,6 +5,7 @@ import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createClient } from "redis";
+import { writeReport } from "./report";
 import { SignJWT } from "jose";
 process.env.PLAYWRIGHT_NO_COPY_PROMPT="1";
 test.use({trace:"off",screenshot:"off",video:"off"});
@@ -13,7 +14,7 @@ const checks:{id:string;passed:boolean}[]=[];
 const redis=createClient({url:"redis://127.0.0.1:16379/0",socket:{reconnectStrategy:false}});
 function check(id:string,passed:boolean){checks.push({id,passed});writeFileSync(process.env.PORTAL_SCREENSHOT_DIR+"/users-progress.json",JSON.stringify(checks),{mode:0o600});expect(passed,id).toBe(true);}
 test.beforeAll(()=>redis.connect());
-test.afterAll(async()=>{await redis.quit();writeFileSync(process.env.PORTAL_E2E_REPORT!,JSON.stringify({checks,blocked:[]}),{mode:0o600});});
+test.afterAll(async()=>{await redis.quit();writeReport(process.env.PORTAL_E2E_REPORT!,checks);});
 async function login(page:Page,username=fixture.username,password=fixture.password){
  await page.goto(fixture.portal);await page.getByRole("link",{name:"Sign in",exact:true}).click();
  await page.locator("#username").fill(username);await page.locator("#password").fill(password);

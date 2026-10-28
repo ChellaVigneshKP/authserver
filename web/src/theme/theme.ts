@@ -30,7 +30,7 @@ export const theme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         ":focus-visible": { outline: "3px solid #245cbe", outlineOffset: 3 },
-        body: { margin: 0 },
+        body: { margin: 0, overflowWrap: "anywhere" },
         p: { maxWidth: "76ch" },
         "@media (prefers-reduced-motion: reduce)": {
           "*, *::before, *::after": {

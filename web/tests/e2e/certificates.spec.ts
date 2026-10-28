@@ -1,24 +1,19 @@
 import { test, expect, type Page, type BrowserContext, type Locator, type Request } from "@playwright/test";
 import { existsSync, mkdtempSync, chmodSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID, X509Certificate } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "redis";
+import { mergeById, readChecks, writeReport } from "./report";
 process.env.PLAYWRIGHT_NO_COPY_PROMPT="1";
 test.use({trace:"off",screenshot:"off",video:"off"});
 const fixture=JSON.parse(readFileSync(process.env.PORTAL_E2E_CONFIG!,"utf8"));
 const checks:{id:string;passed:boolean}[]=[];
 const redis=createClient({url:"redis://127.0.0.1:16379/0",socket:{reconnectStrategy:false}});
-function prior(path:string):{id:string;passed:boolean}[]{
- const raw=existsSync(path)?readFileSync(path,"utf8"):"";
- if(!raw.trim())return [];
- const parsed=JSON.parse(raw);
- return Array.isArray(parsed)?parsed:parsed.checks??[];
-}
-function check(id:string,passed:boolean){checks.push({id,passed});writeFileSync(process.env.PORTAL_SCREENSHOT_DIR+"/certificates-progress.json",JSON.stringify([...prior(process.env.PORTAL_SCREENSHOT_DIR+"/certificates-progress.json").filter(v=>v.id!==id),...checks]),{mode:0o600});expect(passed,id).toBe(true);}
+function check(id:string,passed:boolean){checks.push({id,passed});writeFileSync(process.env.PORTAL_SCREENSHOT_DIR+"/certificates-progress.json",JSON.stringify(mergeById(readChecks(process.env.PORTAL_SCREENSHOT_DIR+"/certificates-progress.json"),checks,v=>v.id)),{mode:0o600});expect(passed,id).toBe(true);}
 test.beforeAll(()=>redis.connect());
-test.afterAll(async()=>{await redis.quit();const merged=[...prior(process.env.PORTAL_E2E_REPORT!).filter(v=>!checks.some(c=>c.id===v.id)),...checks];writeFileSync(process.env.PORTAL_E2E_REPORT!,JSON.stringify({checks:merged,blocked:[]}),{mode:0o600});try{if(fixtures)rmSync(fixtures.dir,{recursive:true,force:true});}catch{}});
+test.afterAll(async()=>{await redis.quit();writeReport(process.env.PORTAL_E2E_REPORT!,checks);try{if(fixtures)rmSync(fixtures.dir,{recursive:true,force:true});}catch{}});
 async function login(page:Page,username=fixture.username,password=fixture.password){
  await page.goto(fixture.portal);await page.getByRole("link",{name:"Sign in",exact:true}).click();
  await page.locator("#username").fill(username);await page.locator("#password").fill(password);
@@ -61,11 +56,29 @@ type Upload={name:string;mimeType:string;buffer:Buffer};
 type Fixtures={dir:string;orgPem:Buffer;publicPem:Buffer;encOrgPem:Buffer;encPassword:string;invalidPath:string;oversizedPath:string;noKeyPath:string;expiredPath:string;expiredPem:Buffer;expiryEnd:string;expirySameUtcDay:boolean;expiryDayTooShort:boolean;todayPem:Buffer;fingerprints:{org:string;enc:string;expired:string;today:string}};
 let fixtures:Fixtures|undefined;
 function utcStamp(date:Date){return date.toISOString().replace(/[-:T]/g,"").slice(0,14)+"Z";}
-function fingerprintOf(path:string){const out=execFileSync("openssl",["x509","-in",path,"-noout","-fingerprint","-sha256"],{encoding:"utf8"}).trim();return out.slice(out.indexOf("=")+1).replaceAll(":","").toLowerCase();}
-function notAfter(path:string){const out=execFileSync("openssl",["x509","-in",path,"-noout","-dateopt","iso_8601","-enddate"],{encoding:"utf8"}).trim();return out.slice(out.indexOf("=")+1);}
+function fingerprintOf(path:string){return new X509Certificate(readFileSync(path)).fingerprint256.replaceAll(":","").toLowerCase();}
+function notAfter(path:string){return new X509Certificate(readFileSync(path)).validTo;}
+let opensslPath:string|undefined;
+// macOS ships LibreSSL on PATH ahead of Homebrew OpenSSL, and LibreSSL cannot set an explicit
+// validity window; probe once for a binary that can, instead of trusting PATH order.
+function explicitValidity(bin:string){
+ const dir=mkdtempSync(join(tmpdir(),"portal-ossl-"));chmodSync(dir,0o700);
+ try{execFileSync(bin,["req","-x509","-newkey","rsa:2048","-nodes","-keyout",join(dir,"k.pem"),"-out",join(dir,"c.pem"),"-subj","/CN=portal-probe","-not_before","20260101000000Z","-not_after","20260102000000Z"],{stdio:"ignore",timeout:30000});return true;}
+ catch{return false;}
+ finally{try{rmSync(dir,{recursive:true,force:true});}catch{}}
+}
+function openssl(){
+ if(opensslPath)return opensslPath;
+ const dirs=(process.env.PATH??"").split(":").filter(Boolean);
+ const candidates=[process.env.PORTAL_OPENSSL, ...dirs.map(d=>join(d,"openssl")), "/opt/homebrew/opt/openssl@3/bin/openssl","/usr/local/opt/openssl@3/bin/openssl","/usr/bin/openssl"].filter((v):v is string=>Boolean(v));
+ for(const bin of [...new Set(candidates)]){
+  if(existsSync(bin)&&explicitValidity(bin))return opensslPath=bin;
+ }
+ throw new Error("no OpenSSL that supports -not_before/-not_after was found; set PORTAL_OPENSSL to an OpenSSL 3.5+ binary");
+}
 function buildFixtures():Fixtures{
  const dir=mkdtempSync(join(tmpdir(),"portal-f6-"));chmodSync(dir,0o700);
- const run=(args:string[])=>execFileSync("openssl",args,{cwd:dir,stdio:"ignore"});
+ const run=(args:string[])=>execFileSync(openssl(),args,{cwd:dir,stdio:"ignore"});
  const encPassword=randomBytes(18).toString("hex");
  run(["req","-x509","-newkey","rsa:2048","-nodes","-keyout","key.pem","-out","cert.pem","-days","2","-subj","/CN=portal-f6-org"]);
  run(["req","-x509","-newkey","rsa:2048","-keyout","enc-key.pem","-out","enc-cert.pem","-days","2","-subj","/CN=portal-f6-encrypted","-passout","pass:"+encPassword]);

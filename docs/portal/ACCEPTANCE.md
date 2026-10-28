@@ -158,25 +158,26 @@ The owned runtime still uses immutable Java artifact `125d83ff89510d033a0afab12b
 
 This section is the **current** F7 record. Rows above are historical: they were
 executed at their own commits and are not re-claimed for the F7 tree. What
-follows is the F7 worktree at source commit `34680dd` plus the uncommitted F7
-changes; the gate wrapper recorded tree digest `5322139a` over 923 nonignored
-files for the typecheck receipt. Documentation was finalized after the code
-gates, in line with the provenance rule above.
+follows is branch `feat/identity-portal` at head `6457566` plus the uncommitted
+F7 changes; the gate wrapper recorded tree digest `20fd6904` over 925
+nonignored files for every gate below. Documentation was finalized after the
+code gates, in line with the provenance rule above.
 
-Toolchain: Node 24.22.0; Playwright 1.64.1 with Chromium revision 1248 executed,
-Firefox 1555 and WebKit 2370 installed. Migrations are unchanged by F7: 18
-additive `V1`–`V18` files, no edits to published files and no schema reset.
-Runtime configuration category is server-only process environment, documented
-in [RUNBOOK.md](RUNBOOK.md); the portal defines no `NEXT_PUBLIC_` variable.
+Toolchain: Node 24.22.0; Playwright 1.64.1 with Chromium revision 1248,
+Firefox 157.0 (revision 1555) and WebKit 2370, each executed for this record.
+Migrations are unchanged by F7: 18 additive `V1`–`V18` files, no edits to
+published files and no schema reset. Runtime configuration category is
+server-only process environment, documented in [RUNBOOK.md](RUNBOOK.md); the
+portal defines no `NEXT_PUBLIC_` variable.
 
 | Static/unit gate | Result | Private evidence |
 |---|---|---|
-| `npm --prefix web ci` and resolved-tree audit | 154 packages installed; `npm audit --audit-level=high` reported **0 vulnerabilities in the resolved tree** | gate log under `.local/` |
-| `npm --prefix web run typecheck` | exit0, tree `5322139a`/923 files | `.local/portal-f4/` receipt |
-| `npm --prefix web test` | **23 files/143 tests** passed | `.local/portal-f4/` receipt |
-| `npm --prefix web run build` | exit0 production standalone build | `.local/portal-f4/` receipt |
-| `./scripts/local-dev.py test` | BUILD SUCCESS; **297 Java tests**,0 failures/errors/skips; 5 Node; 22 Python checks | local gate output |
-| Browser runner, Chromium only | All four phases below passed with **0 failed checks** | run directories listed below |
+| `npm --prefix web ci` and resolved-tree audit | `npm audit --audit-level=high` reported **0 vulnerabilities** in the resolved tree, exit 0 | `.local/portal-f4/f7-audit-6/receipt.json` |
+| `npm --prefix web run typecheck` | exit 0, tree `20fd6904`/925 files | `.local/portal-f4/f7-tsc-5/receipt.json` |
+| `npm --prefix web test` | **23 files/143 tests** passed | `.local/portal-f4/f7-vitest-5/receipt.json` |
+| `npm --prefix web run build` | exit 0 production standalone build, BUILD_ID `skOSCRRX9Nm-sarXxLHz1` | `.local/portal-f4/f7-next-build-5/receipt.json` |
+| `./scripts/local-dev.py test` | BUILD SUCCESS; **297 Java tests**, 0 failures/errors/skips; 5 Node checks; 22 Python checks | `.local/portal-f4/f7-local-dev-test-1/receipt.json` |
+| Browser campaign `--phase all --browsers chromium,firefox,webkit` | **2082 checks across three isolated fixtures; 0 failed**; only the external-provider block remains | `.local/portal-campaigns/7312620f4ce04cf6b0bd15e43b711bd2/campaign.json` |
 
 The audit statement is scoped to the resolved tree at this lockfile. It is not
 a claim that the dependency graph is advisory-free, and it does not replace the
@@ -184,49 +185,120 @@ separate Bouncy Castle advisory check. No ESLint configuration exists in `web/`,
 so typecheck is the enforced static gate; the CI step runs `npm run lint` only
 if such a script is added later.
 
-### Current browser scenarios (Chromium 1248)
+### Current browser scenarios (three engines, one campaign)
 
-| Phase | Result | Run |
+| Engine | Result | Run |
 |---|---|---|
-| Auth, session and token handling | **44 checks**,0 failed,0 blocked | `.local/portal-runs/e129a9cd57774c62b73da0773a701b05/report.json` |
-| Security: proof, referer, clock, fingerprint, CSRF, cookie | **19 checks**,0 failed,0 blocked | `.local/portal-runs/65b18c40ce0e4bce88ac28d4fbd09b0e/report.json` |
-| Outages: issuer pause/resume, Redis outage, owned restart, non-UTC clock | **15 checks**,0 failed;1 blocked (real recovery delivery) | `.local/portal-runs/ba38b023e2884f198757ed89c110836b/report.json` |
-| Journeys: platform delegation, tenant boundary, viewer redaction, hosted account and sign-out | **43 checks**,0 failed;1 blocked (real recovery delivery) | `.local/portal-runs/2d01a89e3fd54e16b826d3029c2710cd/report.json` |
-| Journeys, hosted account tail re-run | **15 checks**,0 failed;1 blocked (same) | `.local/portal-runs/c2a9133807f045d5b09146f1f4a239a5/report.json` |
+| Chromium 1248 | **694 checks**, 0 failed; 1 expected block | `.local/portal-runs/2891a276c71546479120fb2c1ad90e67/report.json` |
+| Firefox 157.0 | **694 checks**, 0 failed; 1 expected block | `.local/portal-runs/15c0464b464a4984836ffe53234a5214/report.json` |
+| WebKit 2370 | **694 checks**, 0 failed; 1 expected block | `.local/portal-runs/f21888672f8d49988db3145a50b3ff2d/report.json` |
 
-Every run recorded `security_checks_enabled:true` with fingerprint, referer and
-signature toggles on, provider `unconfigured`, and cleanup confirming owned
-processes stopped, CMS fixture removed, owned database dropped and Java Redis
-DB0/DB1 plus portal namespace at0 remaining. Journeys prove a persisted profile
-change, sign-out followed by browser back denial, password change revoking other
-human sessions, the new password working and the old one rejected, and
-recovery leaving the portal for the issuer route without claiming delivery.
+Each engine ran all nine specs against its own owned fixture: clients 131,
+users 151, navigation 125, certificates 73, roles 68, journeys 51, security 19,
+outages 15 checks, and the auth/session spec contributes the remaining 61. The
+one expected block per engine is `real account recovery delivery` (issuer
+provider unconfigured, see below), so the campaign reports `BLOCKED` and exits
+1 while every executed check passed — a blocked external item is not recorded
+as a pass.
+
+Every engine recorded `security_checks_enabled:true` with fingerprint, referer
+and signature toggles on, provider `unconfigured; no provider success claimed`,
+and cleanup with `owned_processes_stopped`, `database_dropped`,
+`cms_fixture_removed`, `restart_replacement_stopped` and
+`portal_port_released` all true. Journeys prove a persisted profile change,
+sign-out followed by browser back denial, password change revoking other human
+sessions, the new password working and the old one rejected, and recovery
+leaving the portal for the issuer route without claiming delivery.
+
+### Accessibility, reflow and keyboard
+
+The navigation and journeys phases run axe and geometry checks on every
+management and account screen: **14 automated accessibility checks**, **6 reflow
+assertions** (narrow viewport without horizontal scroll, 200 % equivalent and
+native 200 % zoom, and 320 CSS pixels on the client, tenant-user and account
+detail screens) and **7 keyboard/focus assertions** (skip link to main on the
+default and native-zoom layouts, confirmation-dialog focus trap and trigger
+restore, labelled-field tab order on the hosted profile and password forms, and
+the configuration link focusing the actual URL section). All passed in Chromium,
+Firefox and WebKit; assertion ids and PNG evidence are in the run directories
+above. Manual visual acceptance of the final screens remains the user's gate.
+
+### Fixes proven by this qualification
+
+1. **Report merge.** Nine specs each overwrote `browser-report.json`, so a
+   multi-spec run published only the last spec's checks. `web/tests/e2e/report.ts`
+   now merges by check id; the campaign total (2082) reconciles exactly with
+   three engines of 694.
+2. **Portal port leak.** The outage restart watcher started its replacement Next
+   process outside the fixture's process group, so a finished run could leave
+   port 3100 occupied. Restart replacements and both outage servers now start in
+   their own session, every stop targets the group, and `run_browser` stops a
+   leftover replacement after joining the watcher. Proven by
+   `restart_replacement_stopped`/`portal_port_released` in all three legs and a
+   free port after the campaign.
+3. **WebKit credential-form race.** `CredentialPanel`'s submit control is a
+   native `type="submit"`, so a click before React hydration submitted the form
+   natively and navigated away instead of posting; the fault control stayed
+   armed and no `/credentials` request was ever sent. The two affected
+   scenarios now wait for the `#client-credentials` subtree to hydrate, matching
+   the existing precedent in the client-settings and certificate tests. The
+   isolated WebKit reproducer was re-run twice after the change and the full
+   campaign passed in all three engines; no product change was required.
+4. **Firefox on macOS 27.** Firefox 157 launched by direct `exec` cannot read
+   `~/Library/Application Support/Firefox` (Mozilla 2069536/2078511, fixed in
+   Firefox 158), so `web/playwright.config.ts` points `MOZ_APP_DATA` and
+   `MOZ_LOCAL_APP_DATA` at private temporary directories. The host has no
+   system Firefox profile root at all, so a bare manual or headed start of that
+   build fails with "Your Firefox profile cannot be loaded"; that is an
+   environment property, not a portal defect. `scripts/portal-firefox.sh`
+   applies the same override for manual launches, prints `Mozilla Firefox 157.0`
+   and exits 0, and leaves no profile directory or system profile behind.
+5. **Certificate tooling.** The certificate scenarios mint certificates with
+   explicit validity windows, which macOS LibreSSL cannot express. The spec
+   probes `PATH` and Homebrew's `openssl@3` locations and honours
+   `PORTAL_OPENSSL`; fingerprints and expiry instants are parsed with Node's
+   `X509Certificate`.
 
 ### Container
 
-`web/Dockerfile` builds `identity-portal:f7` (image
-`sha256:33d3855339580efcf4bff57cb130cf8935ce90d5009b0804f467054d0c54e093`)
-from base index digest `sha256:91acba91…`; `Config.User` is `portal` (uid/gid
-10001). An early manual probe answered `/healthz`200 but returned `/readyz`503
-because the transport origin was misconfigured for the container; that probe is
-recorded as a failed configuration check, **not** as readiness evidence. The
-first-slice container smoke through `--container` was attempted twice: the first
-attempt exposed a genuine gap (no container log capture, so the token-absence
-assertion had no input) which is now fixed in the runner, and 2 of 3 auth checks
-passed before it stopped. A clean re-run has not happened yet.
+Container qualification passed for this tree with `web/Dockerfile` unchanged.
+`docker build -t identity-portal:f7c web` resolved both pinned references from
+the local store and produced image id `sha256:f144f623…` with production build
+`AerWvr-ofs5QQsZnHx-9J` (`.local/portal-f4/f7-container-build-2/receipt.json`,
+exit 0, tree `4cf2f77b`/925 files).
+
+| Container check | Result | Private evidence |
+|---|---|---|
+| Runtime identity | `Config.User` `portal`; `id -u`/`id -un` inside the running container report `10001`/`portal` | `.local/portal-f4/f7-container-health-1/output.log` |
+| Image metadata | healthcheck set; env limited to `PATH`, `NODE_VERSION`, `YARN_VERSION`, `NODE_ENV`, `NEXT_TELEMETRY_DISABLED`, `PORT`, `HOSTNAME`; zero `NEXT_PUBLIC_` variables; `3100/tcp` exposed | same receipt |
+| Liveness | `/healthz` **200** with a single `status` field and no credentials; Docker health status `healthy` on its first probe (exit 0) | same receipt |
+| Readiness | `/readyz` **503** with a single `status` field when no Java/Redis configuration is supplied — the documented unconfigured state, not a credential leak | same receipt |
+| First-slice smoke | `scripts/e2e-portal.py --phase auth --browsers chromium --container identity-portal:f7c` → **PASS: 44 browser/API checks, SQL verified**, run `.local/portal-runs/5529922e3f7344e996d357f1e70c3157/report.json` (`security_checks_enabled=true`, `container_smoke.non_root_user=portal`, `image_id sha256:f144f623…`, provider unconfigured) | `.local/portal-f4/f7-container-smoke-1/receipt.json` |
+| Cleanup | owned container removed by name; JVM/Next stopped; fixture database dropped; Java Redis DB0 23 and DB1 1 removed with 0 remaining; portal Redis remaining 0 | run report `cleanup` |
+
+The build and smoke ran at tree `4cf2f77b`/925 files, which differs from the
+static-gate tree `20fd6904` only in this document. Earlier in the same session
+every Docker Hub request from the daemon failed with `EOF`. The cause was IPv6:
+the daemon dialled `registry-1.docker.io` over IPv6 on a host whose IPv6 path
+is dead (`write tcp [2406:…]->[2600:…]:443: socket is not connected`), while
+the same URLs answer 401/200 over IPv4 from both the host and containers in the
+same engine. The two referenced images were therefore fetched inside a container
+(IPv4-only) and imported locally, so BuildKit satisfied the pinned digests
+without network access; no Dockerfile, tag or digest was changed. The procedure
+is recorded in [RUNBOOK.md](RUNBOOK.md) under "Container build and run". This is
+a property of the local engine's registry path, not a portal defect. The
+historical container run `.local/portal-runs/eb31a42b…` (image `sha256:33d385…`)
+remains historical.
 
 ### Pending and externally blocked
 
-- **Pending:** re-run the container first-slice smoke, the full
-  `chromium,firefox,webkit` campaign, automated axe checks and the manual
-  keyboard/focus/zoom review over the complete journeys.
-- **Blocked (environment):** Docker Desktop's containerd blob store returns
-  `input/output error` for exec, image listing and container creation, so no
-  further Docker-backed run can execute until the engine is restarted. No pass
-  is claimed for the runs above that did not complete.
 - **Blocked (external):** real recovery delivery needs a configured provider;
   visual acceptance of the final screens is the user's, not the campaign's.
-- **Orphan to remove:** the interrupted container attempt may have left owned
-  database `AuthserverLifecycle_d170a2ea…` and container
-  `portal-f7-20d26aa4c1d3410198a2578fa87fcbb1`; both are owned resources and are
-  to be dropped once Docker answers again.
+- **Not claimed:** production load sizing, deployment acceptance and external
+  provider certification remain independent gates.
+- **Resolved:** container build, health and first-slice smoke for this tree;
+  the interrupted attempt's orphan owned database `AuthserverLifecycle_d170a2ea…`
+  and container `portal-f7-20d26aa4…`; and an orphan Next process plus one owned
+  fixture database from an aborted run. Two fixture databases (`c6337930…` from
+  27 October, `fffe794c…` from the morning of 28 October) predate this session
+  and were left untouched.

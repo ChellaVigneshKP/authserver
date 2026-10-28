@@ -1,6 +1,7 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { createClient } from "redis";
+import { mergeById, readReport, writeReport } from "./report";
 import { createHash, createHmac } from "node:crypto";
 import { execFileSync } from "node:child_process";
 const fixture = JSON.parse(
@@ -22,11 +23,11 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   await redis?.quit();
-  writeFileSync(
-    process.env.PORTAL_E2E_REPORT!,
-    JSON.stringify({ checks, events }),
-    { mode: 0o600 },
-  );
+  const path = process.env.PORTAL_E2E_REPORT!;
+  const previous = (readReport(path).events ?? []) as typeof events;
+  writeReport(path, checks, [], {
+    events: mergeById(previous, events, (value) => value.path + ":" + value.status),
+  });
 });
 async function login(
   page: Page,

@@ -1,8 +1,15 @@
-import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+import {
+  test,
+  expect,
+  type Page,
+  type BrowserContext,
+  type Locator,
+} from "@playwright/test";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHmac, createHash, randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "redis";
+import { writeReport } from "./report";
 import { SignJWT } from "jose";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -73,20 +80,7 @@ test.afterEach(async ({ page }) => {
 });
 test.afterAll(async () => {
   await redis.quit();
-  writeFileSync(
-    process.env.PORTAL_E2E_REPORT!,
-    JSON.stringify({
-      checks: [
-        ...(existsSync(process.env.PORTAL_E2E_REPORT!)
-          ? JSON.parse(readFileSync(process.env.PORTAL_E2E_REPORT!, "utf8"))
-              .checks
-          : []),
-        ...checks,
-      ],
-      blocked: [],
-    }),
-    { mode: 0o600 },
-  );
+  writeReport(process.env.PORTAL_E2E_REPORT!, checks);
 });
 async function login(page: Page) {
   await page.goto(fixture.portal);
@@ -95,6 +89,33 @@ async function login(page: Page) {
   await page.locator("#password").fill(fixture.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL(fixture.portal + "/account");
+}
+// React attaches its fiber to a host node while hydrating it. Interacting
+// before that point submits the native form instead of the RHF handler.
+async function hydrated(area: Locator) {
+  await expect
+    .poll(
+      () =>
+        area.evaluate((el) =>
+          Object.keys(el).some((k) => k.startsWith("__reactFiber$")),
+        ),
+      { message: "form hydrated", timeout: 15000 },
+    )
+    .toBe(true);
+}
+function wizard(page: Page) {
+  return page
+    .locator("form")
+    .filter({
+      has: page.getByRole("button", { name: "Create identity", exact: true }),
+    });
+}
+function catalogForm(page: Page) {
+  return page
+    .locator("form")
+    .filter({
+      has: page.getByRole("button", { name: /^(Create|Save) resource$/ }),
+    });
 }
 async function session(context: BrowserContext) {
   const c = (await context.cookies(fixture.portal)).find(
@@ -257,6 +278,7 @@ test("client onboarding, readback, credentials, exact URLs and revocation throug
   ]);
   await page.getByRole("link", { name: "Create client", exact: true }).click();
   await expect(page.getByLabel("Client name")).toBeVisible();
+  await hydrated(wizard(page));
   await page.getByLabel("Client name").fill("Browser server");
   await page.getByLabel("Client type").selectOption("SERVER");
   await page
@@ -304,6 +326,7 @@ test("client onboarding, readback, credentials, exact URLs and revocation throug
     "no arbitrary grants or scopes",
     (await page.getByRole("checkbox", { name: /scope|grant/i }).count()) === 0,
   );
+  await hydrated(page.locator("#client-urls"));
   await page.getByLabel("Application URL").fill("http://localhost:3199");
   await page
     .getByLabel("Redirect URLs")
@@ -320,6 +343,7 @@ test("client onboarding, readback, credentials, exact URLs and revocation throug
   await expect(
     page.getByText("URLs saved and verified.", { exact: true }),
   ).toBeVisible();
+  await hydrated(page.locator("#client-settings"));
   await page.getByLabel("Access token lifetime (seconds)").fill("599");
   await page.getByLabel("Reuse refresh tokens").check();
   await page
@@ -338,6 +362,7 @@ test("client onboarding, readback, credentials, exact URLs and revocation throug
   );
   await page.reload();
   await expect(page.getByLabel("Reuse refresh tokens")).toBeChecked();
+  await hydrated(page.locator("#client-credentials"));
   await page.getByLabel("Credential name").fill("first");
   await page
     .getByRole("button", { name: "Create credential", exact: true })
@@ -486,6 +511,7 @@ test("client onboarding, readback, credentials, exact URLs and revocation throug
   check("confidential actual token issuance", (await issue()).status() === 200);
   // Actual platform catalog and client-assignment controls, with SQL effects.
   await page.goto(fixture.portal + "/admin/resources");
+  await hydrated(catalogForm(page));
   await page.getByLabel("Resource name").fill("Browser API");
   await page.getByLabel("Resource description").fill("Browser-owned API");
   await page
@@ -541,14 +567,22 @@ test("client onboarding, readback, credentials, exact URLs and revocation throug
   await page.goto(
     fixture.portal + "/admin/organizations/" + org + "/clients/" + appId,
   );
-  await page
+  const resources = page.locator("#client-resources");
+  await hydrated(resources);
+  await resources
     .getByLabel("Catalog resource")
     .selectOption(resource.id.toLowerCase());
-  await page
+  const assignPost = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.toLowerCase().endsWith("/resources") &&
+      response.request().method() === "POST",
+  );
+  await resources
     .getByRole("button", { name: "Assign resource", exact: true })
     .click();
+  check("browser assignment sent one POST", (await assignPost).ok());
   await expect(
-    page.getByRole("button", { name: "Remove Browser API", exact: true }),
+    resources.getByRole("button", { name: "Remove Browser API", exact: true }),
   ).toBeVisible();
   check(
     "browser assignment SQL",
@@ -627,6 +661,7 @@ test("timeout after committed identity and lost credential response reconcile wi
   await page.goto(
     fixture.portal + "/admin/organizations/" + org + "/clients/new",
   );
+  await hydrated(wizard(page));
   await page.getByLabel("Client name").fill("Uncertain server");
   await page.getByLabel("Client type").selectOption("SERVER");
   const creationBefore = existsSync(fixture.faultEvents)
@@ -733,6 +768,7 @@ test("timeout after committed identity and lost credential response reconcile wi
     }),
     { mode: 0o600 },
   );
+  await hydrated(page.locator("#client-credentials"));
   await page.getByLabel("Credential name").fill("lost response");
   await page
     .getByRole("button", { name: "Create credential", exact: true })
@@ -1417,6 +1453,7 @@ test("guided configuration uses readback status, keyboard section links and acce
     exact: true,
   });
   await expect(nav).toBeVisible();
+  await hydrated(nav);
   check(
     "configuration navigation is an ordered six-step list",
     (await nav.locator("ol > li").count()) === 6,
@@ -1530,6 +1567,9 @@ test("RHF forms preserve dirty unrelated edits, validate fields and reset only a
   await page.goto(
     fixture.portal + "/admin/organizations/" + org + "/clients/" + app.id,
   );
+  await hydrated(page.locator("#client-identity"));
+  await hydrated(page.locator("#client-urls"));
+  await hydrated(page.locator("#client-settings"));
   await page.getByLabel("Client name").fill("Unsaved local identity");
   await page.getByLabel("Application URL").fill("https://draft.example.test");
   await page.getByLabel("Access token lifetime (seconds)").fill("599");
@@ -1579,6 +1619,7 @@ test("RHF forms preserve dirty unrelated edits, validate fields and reset only a
   await page.goto(
     fixture.portal + "/admin/organizations/" + org + "/clients/new",
   );
+  await hydrated(wizard(page));
   await page.getByLabel("Client name").fill("   ");
   await page
     .getByRole("button", { name: "Create identity", exact: true })
@@ -1633,6 +1674,7 @@ test("definite initial duplicate rejection restores editable identity and permit
   await page.goto(
     fixture.portal + "/admin/organizations/" + org + "/clients/new",
   );
+  await hydrated(wizard(page));
   await page.getByLabel("Client name").fill("Definite duplicate");
   const rejected = page.waitForResponse(
     (r) =>
@@ -1732,6 +1774,7 @@ test("definite retry rejection preserves and reconciles the earlier genuinely un
   await page.goto(
     fixture.portal + "/admin/organizations/" + org + "/clients/new",
   );
+  await hydrated(wizard(page));
   await page.getByLabel("Client name").fill("Prior uncertain identity");
   writeFileSync(
     fixture.faultControl,

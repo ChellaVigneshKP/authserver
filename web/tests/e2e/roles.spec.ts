@@ -1,22 +1,17 @@
 import { test, expect, type Page, type BrowserContext, type Locator } from "@playwright/test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "redis";
+import { mergeById, readChecks, writeReport } from "./report";
 process.env.PLAYWRIGHT_NO_COPY_PROMPT="1";
 test.use({trace:"off",screenshot:"off",video:"off"});
 const fixture=JSON.parse(readFileSync(process.env.PORTAL_E2E_CONFIG!,"utf8"));
 const checks:{id:string;passed:boolean}[]=[];
 const redis=createClient({url:"redis://127.0.0.1:16379/0",socket:{reconnectStrategy:false}});
-function prior(path:string):{id:string;passed:boolean}[]{
- const raw=existsSync(path)?readFileSync(path,"utf8"):"";
- if(!raw.trim())return [];
- const parsed=JSON.parse(raw);
- return Array.isArray(parsed)?parsed:parsed.checks??[];
-}
-function check(id:string,passed:boolean){checks.push({id,passed});writeFileSync(process.env.PORTAL_SCREENSHOT_DIR+"/roles-progress.json",JSON.stringify([...prior(process.env.PORTAL_SCREENSHOT_DIR+"/roles-progress.json"),{id,passed}]),{mode:0o600});expect(passed,id).toBe(true);}
+function check(id:string,passed:boolean){checks.push({id,passed});writeFileSync(process.env.PORTAL_SCREENSHOT_DIR+"/roles-progress.json",JSON.stringify(mergeById(readChecks(process.env.PORTAL_SCREENSHOT_DIR+"/roles-progress.json"),[{id,passed}],v=>v.id)),{mode:0o600});expect(passed,id).toBe(true);}
 test.beforeAll(()=>redis.connect());
-test.afterAll(async()=>{await redis.quit();const merged=[...prior(process.env.PORTAL_E2E_REPORT!).filter(v=>!checks.some(c=>c.id===v.id)),...checks];writeFileSync(process.env.PORTAL_E2E_REPORT!,JSON.stringify({checks:merged,blocked:[]}),{mode:0o600});});
+test.afterAll(async()=>{await redis.quit();writeReport(process.env.PORTAL_E2E_REPORT!,checks);});
 async function login(page:Page,username=fixture.username,password=fixture.password){
  await page.goto(fixture.portal);await page.getByRole("link",{name:"Sign in",exact:true}).click();
  await page.locator("#username").fill(username);await page.locator("#password").fill(password);

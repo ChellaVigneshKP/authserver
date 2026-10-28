@@ -1,19 +1,14 @@
 import { test, expect, type Page, type Browser, type BrowserContext, type Locator } from "@playwright/test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "redis";
+import { writeReport } from "./report";
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 test.use({ trace: "off", screenshot: "off", video: "off" });
 const fixture = JSON.parse(readFileSync(process.env.PORTAL_E2E_CONFIG!, "utf8"));
 const checks: { id: string; passed: boolean }[] = [];
 const blocked: { id: string; reason: string }[] = [];
-function prior(path: string): { checks: { id: string; passed: boolean }[]; blocked: { id: string; reason: string }[] } {
-  if (!existsSync(path)) return { checks: [], blocked: [] };
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
-  if (Array.isArray(parsed)) return { checks: parsed, blocked: [] };
-  return { checks: parsed.checks ?? [], blocked: parsed.blocked ?? [] };
-}
 function check(id: string, passed: boolean) {
   checks.push({ id, passed });
   writeFileSync(process.env.PORTAL_SCREENSHOT_DIR + "/journeys-progress.json", JSON.stringify({ checks, blocked }), { mode: 0o600 });
@@ -37,19 +32,40 @@ async function accessibility(page: Page, label: string) {
 async function reflow(page: Page, label: string) {
   const original = page.viewportSize()!;
   await page.setViewportSize({ width: 320, height: 640 });
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-  check(label + " reflows at 320 CSS pixels without horizontal scrolling", !overflow);
+  const geometry = await page.evaluate(() => {
+    const limit = window.innerWidth + 1;
+    const metrics = {
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+      innerWidth: window.innerWidth,
+      bodyScrollWidth: document.body.scrollWidth,
+    };
+    const widest = [...document.querySelectorAll<HTMLElement>("body *")]
+      .map((element) => {
+        const box = element.getBoundingClientRect();
+        const classes = (element.getAttribute("class") ?? "").split(" ").filter((name) => name.startsWith("Mui")).slice(0, 2);
+        return {
+          tag: element.tagName.toLowerCase(),
+          name: element.getAttribute("data-qa") ?? element.getAttribute("role") ?? element.getAttribute("aria-label") ?? "",
+          classes: classes.join("."),
+          left: Math.round(box.left),
+          right: Math.round(box.right),
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        };
+      })
+      .filter((row) => row.right > limit || row.left < 0 || row.scrollWidth > row.clientWidth + 1)
+      .sort((a, b) => Math.max(b.right, b.left + b.scrollWidth) - Math.max(a.right, a.left + a.scrollWidth))
+      .slice(0, 4);
+    return { overflow: metrics.scrollWidth > limit, metrics, widest };
+  });
+  check(label + " reflows at 320 CSS pixels without horizontal scrolling" + (geometry.overflow ? " — " + JSON.stringify(geometry) : ""), !geometry.overflow);
   await page.setViewportSize(original);
 }
 test.beforeAll(() => redis.connect());
 test.afterAll(async () => {
   await redis.quit();
-  const path = process.env.PORTAL_E2E_REPORT!;
-  const merged = prior(path);
-  writeFileSync(path, JSON.stringify({
-    checks: [...merged.checks.filter(v => !checks.some(c => c.id === v.id)), ...checks],
-    blocked: [...merged.blocked.filter(v => !blocked.some(b => b.id === v.id)), ...blocked],
-  }), { mode: 0o600 });
+  writeReport(process.env.PORTAL_E2E_REPORT!, checks, blocked);
 });
 async function login(page: Page, username = fixture.username, password = fixture.password) {
   await page.goto(fixture.portal);
@@ -126,6 +142,7 @@ test("platform configures a client and delegates read-only tenant visibility wit
   await page.getByRole("link", { name: "Continue configuration", exact: true }).click();
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   const appId = new URL(page.url()).pathname.split("/").at(-1)!;
+  await hydrated(page.locator("#client-credentials"));
   await page.getByLabel("Credential name").fill("journey");
   await page.getByRole("button", { name: "Create credential", exact: true }).click();
   // Read the secret through evaluate: a locator assertion could capture a DOM containing it.

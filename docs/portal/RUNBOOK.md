@@ -54,6 +54,36 @@ tests and browser artifacts from the image. If a secret is accidentally printed
 or embedded, rotate it in Java/Redis before redeploying; rebuilding alone does
 not revoke a leaked credential.
 
+### Registry pulls that fail with `EOF`
+
+If `docker build` fails while resolving `docker/dockerfile:1.7` or the pinned
+`node:24.22.0-bookworm-slim` digest with `EOF`, check the engine's address
+family before assuming a registry outage. A daemon that dials
+`registry-1.docker.io` over IPv6 on a host with a dead IPv6 route reports `EOF`
+even though the same URL answers 401/200 over IPv4 from the host and from
+containers in the same engine. The images can then be fetched inside a container
+(IPv4-only) and imported locally, which lets BuildKit satisfy the pinned
+digests offline; nothing in `web/Dockerfile` needs to change.
+
+```sh
+# crane's linux binary mounted into a local container; the host itself may lack
+# the IPv4-only path that containers have.
+docker run --rm -v "$PWD/crane:/usr/local/bin/crane:ro" -v /tmp:/out alpine:3 \
+  sh -c 'crane pull --format oci --platform all node:24.22.0-bookworm-slim /out/node-oci
+         crane pull --format oci --platform all docker/dockerfile:1.7 /out/df-oci
+         tar -cf /out/node-all.tar -C /out/node-oci .
+         tar -cf /out/df-all.tar -C /out/df-oci .'
+docker load -i /tmp/node-all.tar    # keeps the multi-arch index digest
+docker load -i /tmp/df-all.tar      # OCI import prints an ID but no tag
+docker tag sha256:<printed-id> docker/dockerfile:1.7
+docker build -t identity-portal:local web
+```
+
+Verify the result rather than the build log: `docker inspect` reports
+`Config.User=portal` and a `/healthz` healthcheck, `/healthz` answers 200 with a
+single `status` field, and `/readyz` answers 503 until Java/Redis configuration
+is supplied.
+
 ### Container networking
 
 `AUTH_TRANSPORT_ORIGIN` accepts either an `https:` origin or a loopback
@@ -126,13 +156,46 @@ OIDC redirect target. The proxy must:
 
 ## Local development runner
 
-`python3 scripts/e2e-portal.py --phase <auth|navigation|clients|users|roles|certificates>`
+`python3 scripts/e2e-portal.py --phase <auth|navigation|clients|users|roles|certificates|journeys|outages|security|all>`
 starts an owned fixture: a UUID SQL Server database, UUID Redis prefixes, a
 private loopback JVM and a Next server on a free loopback port (default 3100
 selection). It registers the exact portal callback
 `<portal>/auth/callback` and post-logout `<portal>/auth/logged-out`, and stops
 only its own processes. Existing sample frontends on 3000/3001 and existing
 clients are untouched. Evidence is written under `.local/portal-runs/<uuid>/`.
+
+`--browsers chromium,firefox,webkit` runs every requested engine in sequence,
+each against its own owned fixture, so a fixed fixture name created by one
+project can never be observed by another. Each engine gets its own run
+directory and its own `PORTAL_BROWSER_TIMEOUT` (default 1800 seconds); a
+multi-engine invocation also writes `.local/portal-campaigns/<uuid>/campaign.json`
+summarising per-engine status, checks and run ids. `npm --prefix web run
+typecheck` compiles the specs, and the browser matrix installed here is
+Playwright 1.64.1 with Chromium 1248, Firefox 157 (revision 1555) and WebKit
+2370.
+
+The certificate scenarios mint certificates with explicit validity windows,
+which LibreSSL cannot express. The spec probes `PATH` (and
+`/opt/homebrew/opt/openssl@3/bin/openssl`,
+`/usr/local/opt/openssl@3/bin/openssl`) for a binary that accepts
+`-not_before`/`-not_after`; set `PORTAL_OPENSSL` to choose one explicitly when
+the host has none in those locations. Certificate fingerprints and expiry
+instants are parsed with Node's `X509Certificate`, not the OpenSSL CLI.
+
+On macOS 27 arm64, Firefox 157 cannot read `~/Library/Application Support/Firefox`
+when Playwright launches it by direct `exec` (Mozilla bugs 2069536/2078511,
+fixed in Firefox 158), so `web/playwright.config.ts` points
+`MOZ_APP_DATA`/`MOZ_LOCAL_APP_DATA` at private temporary directories. Without
+that, the engine exits with "Could not find profile folder" before any test
+runs.
+
+That workaround only covers Playwright launches. The host has no system
+Firefox profile root at all, so a manual or headed start of Playwright's
+Firefox build fails with "Your Firefox profile cannot be loaded". Use
+`scripts/portal-firefox.sh [url]` for that: it resolves the same Playwright
+binary, points both app-data roots at an owned temporary directory and removes
+the directory on exit. Set `PORTAL_FIREFOX` to force a specific binary and
+`PORTAL_NODE` to force a Node interpreter.
 
 Pass `--container <image>` to serve the portal from an already built image
 instead of `next start`. That mode publishes only the owned loopback port,
