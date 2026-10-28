@@ -6,6 +6,7 @@ import {
   CertificateName,
   CertificatePassword,
   MAX_CERTIFICATE_FILE_BYTES,
+  MAX_CERTIFICATE_REQUEST_BYTES,
   certificateDownloadFilename,
   certificateExpiry,
   certificateStatusLabel,
@@ -222,6 +223,39 @@ describe("bounded request reading", () => {
       status: 413,
       code: "UPLOAD_TOO_LARGE",
     });
+  });
+  it("rejects a streamed body one byte over the real request budget", async () => {
+    const request = new Request("http://localhost/upload", {
+      method: "POST",
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(MAX_CERTIFICATE_REQUEST_BYTES));
+          controller.enqueue(new Uint8Array(1));
+          controller.close();
+        },
+      }),
+      duplex: "half",
+    } as RequestInit);
+    await expect(
+      readBoundedRequest(request, MAX_CERTIFICATE_REQUEST_BYTES),
+    ).rejects.toMatchObject({ status: 413, code: "UPLOAD_TOO_LARGE" });
+  });
+  it("accepts a streamed body at exactly the real request budget", async () => {
+    const request = new Request("http://localhost/upload", {
+      method: "POST",
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(MAX_CERTIFICATE_REQUEST_BYTES));
+          controller.close();
+        },
+      }),
+      duplex: "half",
+    } as RequestInit);
+    const bytes = await readBoundedRequest(
+      request,
+      MAX_CERTIFICATE_REQUEST_BYTES,
+    );
+    expect(bytes.length).toBe(MAX_CERTIFICATE_REQUEST_BYTES);
   });
 });
 
