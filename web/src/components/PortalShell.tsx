@@ -122,6 +122,17 @@ export function PortalShell({
               : []),
             ...(admin && !failure && (canShow(current,"idp-admin-user:read",scope)||canShow(current,"idp-admin-admin:read",scope)) ? [{label:"Users",path:"/admin/organizations/"+scope+"/users"}] : []),
             ...(admin && !failure && canShow(current,"idp-admin-group:read",scope) ? [{label:"Roles",path:"/admin/organizations/"+scope+"/roles"}] : []),
+            ...(admin &&
+            !failure &&
+            (canShow(current, "idp-admin-org-cert:read", scope) ||
+              canShow(current, "idp-admin-cred-cert:read", scope))
+              ? [
+                  {
+                    label: "Certificates",
+                    path: "/admin/organizations/" + scope + "/certificates",
+                  },
+                ]
+              : []),
             ...(admin && !failure && canShow(current,"idp-admin-org:read",scope) ? [{label:"Organization",path:"/admin/organizations/"+scope}] : []),
             ...(admin && !failure && canShow(current,"idp-admin-org:list",scope) ? [{label:"Organizations",path:"/admin/organizations"}] : []),
             ...(admin &&

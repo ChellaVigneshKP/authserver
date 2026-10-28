@@ -16,7 +16,7 @@ DEV=runpy.run_path(str(ROOT/'scripts/portal-dev.py'))
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase',choices=['auth','navigation','clients','users','roles'],default='auth')
+    parser.add_argument('--phase',choices=['auth','navigation','clients','users','roles','certificates'],default='auth')
     parser.add_argument('--grep',help='Run only matching browser scenarios; filter and blocked tests are reported with the evidence')
     args=parser.parse_args()
     passed=False

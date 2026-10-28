@@ -9,6 +9,10 @@ import { PortalFailure, signin } from "./errors";
 import { UserPageQuery } from "../contracts/users";
 import { conflictGuidance, roleConflict } from "../contracts/roles";
 import type { PortalSession } from "./types";
+import {
+  MAX_CERTIFICATE_DOWNLOAD_BYTES,
+  certificateDownloadFilename,
+} from "../contracts/certificates";
 // Only a verified noncommitting response from the create call carries this authority.
 // Transport/signature errors, early unverified401 and later reads must never use it.
 export class VerifiedClientCreateRejection extends PortalFailure {}
@@ -48,7 +52,13 @@ export type JavaOperation =
       roleId: string;
     }
   | { kind: "roleAssign"; organizationId: string; userId: string }
-  | { kind: "roleCatalog" };
+  | { kind: "roleCatalog" }
+  | { kind: "certificateList" | "certificateCreate"; organizationId: string }
+  | {
+      kind: "certificateGet" | "certificateDelete" | "certificateDownload";
+      organizationId: string;
+      certificateId: string;
+    };
 function operationRoute(operation: JavaOperation): {
   path: string;
   method: string;
@@ -68,6 +78,14 @@ function operationRoute(operation: JavaOperation): {
       ? "/api/v1/organizations/" + org + "/groups"
       : "";
   const role = "roleId" in operation ? z.uuid().parse(operation.roleId) : "";
+  const certificateBase =
+    "organizationId" in operation
+      ? "/api/v1/organizations/" + org + "/certificates"
+      : "";
+  const certificate =
+    "certificateId" in operation
+      ? "/" + z.uuid().parse(operation.certificateId)
+      : "";
   switch (operation.kind) {
     case "organizationList": return {path:"/api/v1/organizations",method:"GET",body:false};
     case "organizationCreate": return {path:"/api/v1/organizations",method:"POST",body:true};
@@ -183,6 +201,24 @@ function operationRoute(operation: JavaOperation): {
         method: "GET",
         body: false,
       };
+    case "certificateList":
+      return { path: certificateBase, method: "GET", body: false };
+    case "certificateCreate":
+      return { path: certificateBase, method: "POST", body: true };
+    case "certificateGet":
+      return { path: certificateBase + certificate, method: "GET", body: false };
+    case "certificateDelete":
+      return {
+        path: certificateBase + certificate,
+        method: "DELETE",
+        body: false,
+      };
+    case "certificateDownload":
+      return {
+        path: certificateBase + certificate + "/download",
+        method: "GET",
+        body: false,
+      };
     case "roleAssign":
       return {
         path:
@@ -202,29 +238,33 @@ function operationRoute(operation: JavaOperation): {
       );
   }
 }
-export async function javaRequestWith<T>(
+type EncodedBody = { raw: Buffer; contentType: string };
+
+/**
+ * One signed transport exchange: expiry, route/body agreement, HMAC request
+ * signature, upstream fetch, session invalidation on 401, bounded response and
+ * response-signature verification. Callers decide how to interpret the bytes.
+ */
+async function javaExchange(
   config: Config,
   store: SessionStore,
   session: PortalSession,
   operation: JavaOperation,
-  input: unknown,
-  schema: ZodType<T>,
-): Promise<T> {
+  body: EncodedBody | undefined,
+  maximumResponse: number,
+) {
   if (session.expiresAt <= Date.now()) {
     await store.deleteSession(session.id);
     throw signin();
   }
   const route = operationRoute(operation);
-  if (
-    (!route.body && input !== undefined) ||
-    (route.body && input === undefined)
-  )
+  if (route.body !== (body !== undefined))
     throw new PortalFailure(
       400,
       "INVALID_INPUT",
       "This operation received invalid input.",
     );
-  const raw = route.body ? Buffer.from(JSON.stringify(input)) : Buffer.alloc(0);
+  const raw = body?.raw ?? Buffer.alloc(0);
   const signature = createHmac("sha256", session.signingKey)
     .update(raw)
     .digest("base64");
@@ -232,9 +272,9 @@ export async function javaRequestWith<T>(
     transportUrl(config, config.issuer + route.path),
     {
       method: route.method,
-      body: route.body ? raw : undefined,
+      body: body ? new Uint8Array(raw) : undefined,
       headers: {
-        ...(route.body ? { "Content-Type": "application/json" } : {}),
+        ...(body ? { "Content-Type": body.contentType } : {}),
         Authorization: "Bearer " + session.accessToken,
         "User-Agent": session.browserContext.userAgent,
         "Accept-Language": session.browserContext.acceptLanguage,
@@ -249,7 +289,7 @@ export async function javaRequestWith<T>(
     await store.deleteSession(session.id);
     throw signin();
   }
-  const bytes = await boundedBody(response, 1024 * 1024);
+  const bytes = await boundedBody(response, maximumResponse);
   const expected = createHmac("sha256", session.signingKey)
     .update(bytes)
     .digest("base64");
@@ -263,38 +303,78 @@ export async function javaRequestWith<T>(
       "INVALID_RESPONSE_SIGNATURE",
       "The identity service response could not be verified.",
     );
-  if (!response.ok) {
-    const messages: Record<number, [string, string]> = {
-      400: ["INVALID_INPUT", "Check the supplied values."],
-      403: ["ACCESS_DENIED", "You do not have access to this action."],
-      404: ["NOT_FOUND", "The requested item was not found."],
-      409: ["CONFLICT", "This item changed. Refresh and review it."],
-      503: [
-        "DEPENDENCY_UNAVAILABLE",
-        "The identity service is temporarily unavailable.",
-      ],
-    };
-    const [code, message] = messages[response.status] ?? [
-      "UPSTREAM_FAILURE",
-      "The identity service could not complete the request.",
-    ];
-    const detailed =
-      response.status === 409 && operation.kind.startsWith("role")
-        ? roleConflictFailure(bytes)
-        : undefined;
-    if (detailed) throw detailed;
-    if (
-      operation.kind === "clientCreate" &&
-      [400, 403, 404, 409].includes(response.status)
-    )
-      throw new VerifiedClientCreateRejection(response.status, code, message);
+  return { response, bytes };
+}
+
+function upstreamFailure(
+  operation: JavaOperation,
+  status: number,
+  bytes: Uint8Array,
+): PortalFailure {
+  const messages: Record<number, [string, string]> = {
+    400: ["INVALID_INPUT", "Check the supplied values."],
+    403: ["ACCESS_DENIED", "You do not have access to this action."],
+    404: ["NOT_FOUND", "The requested item was not found."],
+    409: ["CONFLICT", "This item changed. Refresh and review it."],
+    413: ["UPLOAD_TOO_LARGE", "Certificate files are limited to 1 MiB."],
+    415: ["UNSUPPORTED_MEDIA_TYPE", "Choose a certificate file in the form."],
+    503: [
+      "DEPENDENCY_UNAVAILABLE",
+      "The identity service is temporarily unavailable.",
+    ],
+  };
+  const [code, message] = messages[status] ?? [
+    "UPSTREAM_FAILURE",
+    "The identity service could not complete the request.",
+  ];
+  const detailed =
+    status === 409 && operation.kind.startsWith("role")
+      ? roleConflictFailure(bytes)
+      : undefined;
+  if (detailed) return detailed;
+  if (operation.kind === "clientCreate" && [400, 403, 404, 409].includes(status))
+    return new VerifiedClientCreateRejection(status, code, message);
+  return new PortalFailure(
+    status in messages ? status : 502,
+    code,
+    message,
+    status === 503,
+  );
+}
+
+export async function javaRequestWith<T>(
+  config: Config,
+  store: SessionStore,
+  session: PortalSession,
+  operation: JavaOperation,
+  input: unknown,
+  schema: ZodType<T>,
+): Promise<T> {
+  const route = operationRoute(operation);
+  if (
+    (!route.body && input !== undefined) ||
+    (route.body && input === undefined)
+  )
     throw new PortalFailure(
-      response.status in messages ? response.status : 502,
-      code,
-      message,
-      response.status === 503,
+      400,
+      "INVALID_INPUT",
+      "This operation received invalid input.",
     );
-  }
+  const body = route.body
+    ? {
+        raw: Buffer.from(JSON.stringify(input)),
+        contentType: "application/json",
+      }
+    : undefined;
+  const { response, bytes } = await javaExchange(
+    config,
+    store,
+    session,
+    operation,
+    body,
+    1024 * 1024,
+  );
+  if (!response.ok) throw upstreamFailure(operation, response.status, bytes);
   try {
     return schema.parse(
       bytes.length ? JSON.parse(Buffer.from(bytes).toString()) : undefined,
@@ -307,6 +387,83 @@ export async function javaRequestWith<T>(
     );
   }
 }
+
+/** Certificate import is the only multipart operation; the canonical rebuilt body is signed. */
+export async function javaMultipartWith<T>(
+  config: Config,
+  store: SessionStore,
+  session: PortalSession,
+  operation: JavaOperation,
+  upload: { boundary: string; body: Buffer },
+  schema: ZodType<T>,
+): Promise<T> {
+  if (!/^[0-9a-f]{16,70}$/.test(upload.boundary))
+    throw new PortalFailure(
+      400,
+      "INVALID_INPUT",
+      "This operation received invalid input.",
+    );
+  const { response, bytes } = await javaExchange(
+    config,
+    store,
+    session,
+    operation,
+    {
+      raw: upload.body,
+      contentType: "multipart/form-data; boundary=" + upload.boundary,
+    },
+    1024 * 1024,
+  );
+  if (!response.ok) throw upstreamFailure(operation, response.status, bytes);
+  try {
+    return schema.parse(
+      bytes.length ? JSON.parse(Buffer.from(bytes).toString()) : undefined,
+    );
+  } catch {
+    throw new PortalFailure(
+      502,
+      "UPSTREAM_INVALID",
+      "The identity service returned an invalid response.",
+    );
+  }
+}
+
+export type CertificateDownload = { bytes: Uint8Array; filename: string };
+
+/**
+ * Public-certificate download is binary, so it bypasses JSON parsing while
+ * keeping the same signature, size and session checks as every other call.
+ */
+export async function javaDownloadWith(
+  config: Config,
+  store: SessionStore,
+  session: PortalSession,
+  operation: JavaOperation,
+): Promise<CertificateDownload> {
+  const { response, bytes } = await javaExchange(
+    config,
+    store,
+    session,
+    operation,
+    undefined,
+    MAX_CERTIFICATE_DOWNLOAD_BYTES,
+  );
+  if (!response.ok) throw upstreamFailure(operation, response.status, bytes);
+  if (!/^text\/plain\b/i.test(response.headers.get("content-type") ?? ""))
+    throw new PortalFailure(
+      502,
+      "UPSTREAM_INVALID",
+      "The identity service returned an invalid certificate.",
+    );
+  return {
+    bytes,
+    filename: certificateDownloadFilename(
+      response.headers.get("content-disposition"),
+    ),
+  };
+}
+
+
 /**
  * Only signature-verified role conflicts may name a specific cause. Unrecognized codes and
  * non-role operations stay on the generic conflict so upstream strings are never reflected.
@@ -337,4 +494,27 @@ export async function javaRequest<T>(
     input,
     schema,
   );
+}
+
+export async function javaMultipart<T>(
+  session: PortalSession,
+  operation: JavaOperation,
+  upload: { boundary: string; body: Buffer },
+  schema: ZodType<T>,
+): Promise<T> {
+  return javaMultipartWith(
+    getConfig(),
+    await getStore(),
+    session,
+    operation,
+    upload,
+    schema,
+  );
+}
+
+export async function javaDownload(
+  session: PortalSession,
+  operation: JavaOperation,
+): Promise<CertificateDownload> {
+  return javaDownloadWith(getConfig(), await getStore(), session, operation);
 }

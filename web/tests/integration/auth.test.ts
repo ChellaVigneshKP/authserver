@@ -19,7 +19,7 @@ import {
   safeReturnTo,
   decodeSigningKey,
 } from "../../src/server/auth";
-import { requireMutation } from "../../src/server/csrf";
+import { requireMutation, requireMultipartMutation } from "../../src/server/csrf";
 import { javaRequestWith } from "../../src/server/java-api";
 import { publicSession, errorResponse } from "../../src/server/errors";
 
@@ -457,6 +457,49 @@ describe("auth session and protocol boundaries", () => {
         s,
       ),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("multipart mutations keep the origin and CSRF boundary without widening JSON routes", async () => {
+    const s = session();
+    const form = {
+      origin: browser.externalOrigin,
+      "x-csrf-token": s.csrfSecret,
+      "content-type": "multipart/form-data; boundary=portal-test-boundary",
+    };
+    await expect(
+      requireMultipartMutation(
+        new Request(browser.externalOrigin, { method: "POST", headers: form }),
+        s,
+      ),
+    ).resolves.toBeUndefined();
+    for (const changed of [
+      { origin: "https://evil.test" },
+      { "x-csrf-token": "" },
+      { "content-type": "application/json" },
+      { "content-type": "text/plain" },
+    ])
+      await expect(
+        requireMultipartMutation(
+          new Request(browser.externalOrigin, {
+            method: "POST",
+            headers: { ...form, ...changed },
+          }),
+          s,
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      requireMutation(
+        new Request(browser.externalOrigin, { method: "POST", headers: form }),
+        s,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    for (const method of ["PUT", "PATCH", "DELETE"])
+      await expect(
+        requireMultipartMutation(
+          new Request(browser.externalOrigin, { method, headers: form }),
+          s,
+        ),
+      ).rejects.toMatchObject({ status: 403 });
   });
 
   it("rejects a different authorized party even with a matching audience", async () => {

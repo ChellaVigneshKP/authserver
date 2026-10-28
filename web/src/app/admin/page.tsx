@@ -40,6 +40,12 @@ export default async function Administration({
     { name: "Users", permission: "idp-admin-user:read", href:"/admin/organizations/"+selected+"/users" },
     { name: "Administrators", permission: "idp-admin-admin:read", href:"/admin/organizations/"+selected+"/users?type=Administrator" },
     { name: "Roles", permission: "idp-admin-group:read", href: "/admin/organizations/" + selected + "/roles" },
+    {
+      name: "Certificates",
+      permission: "idp-admin-org-cert:read",
+      alternativePermission: "idp-admin-cred-cert:read",
+      href: "/admin/organizations/" + selected + "/certificates",
+    },
     { name: "Organization", permission: "idp-admin-org:read", href:"/admin/organizations/"+selected },
     { name:"Organizations",permission:"idp-admin-org:list",href:"/admin/organizations" },
     {
@@ -47,7 +53,13 @@ export default async function Administration({
       permission: "idp-admin-resource:read",
       href: "/admin/resources",
     },
-  ].filter((item) => canShow(context, item.permission, selected));
+  ].filter(
+    (item) =>
+      canShow(context, item.permission, selected) ||
+      ("alternativePermission" in item &&
+        typeof item.alternativePermission === "string" &&
+        canShow(context, item.alternativePermission, selected)),
+  );
   return (
     <PortalShell context={context}>
       <Typography component="h1" variant="h1" gutterBottom>
