@@ -254,6 +254,70 @@ class PortalAcceptanceIntegrationTest extends ManagementHttpTestSupport {
         localLogin("local-http-renamed","Wn7!pT9@jD3%",brand,true);
         localLogin("local-http-renamed","Zq8!vR6@kN4$",brand,false);
     }
+
+    @Test void profileUpdateKeepsIdentityBindingsAndSuffix() throws Exception {
+        String brand=localBrand(),name="local-identity-"+UUID.randomUUID().toString().substring(0,8);
+        var created=call(platform,"POST","/api/v1/users",createBody(orgA.getRowGuid(),null,name,brand));
+        assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+        String id=mapper.readTree(created.body()).path("id").asText(),path="/api/v1/users/"+id;
+        String login="SELECT CONVERT(VARCHAR(36),c.RowGuid) FROM Person.Credential c JOIN Person.Profile p ON p.ProfileId=c.ProfileId WHERE p.RowGuid=?";
+        String loginBefore=sql.queryForObject(login,String.class,id);
+        var suffixed=call(platform,"PUT",path+"/profile",mapper.writeValueAsString(Map.ofEntries(
+                Map.entry("branding",brand),Map.entry("intent","idp"),Map.entry("metadata",Map.of()),
+                Map.entry("firstName","Suffix"),Map.entry("lastName","Kept"),
+                Map.entry("phoneNumber","+18888888888"),Map.entry("suffix","Mrs"))));
+        assertThat(suffixed.statusCode()).as(suffixed.body()).isEqualTo(200);
+        Integer suffix=sql.queryForObject("SELECT Suffix FROM Person.Profile WHERE RowGuid=?",Integer.class,id);
+        assertThat(suffix).isNotNull();
+        // Supplied identity bindings must be ignored; Person.UpdateUserProfile rewrites RowGuids from
+        // them, which would orphan this login and any session bound to it.
+        String foreign=UUID.randomUUID().toString();
+        var rebound=call(platform,"PUT",path+"/profile",mapper.writeValueAsString(Map.ofEntries(
+                Map.entry("branding",brand),Map.entry("intent","idp"),Map.entry("metadata",Map.of()),
+                Map.entry("firstName","Rebound"),Map.entry("lastName","Attempt"),Map.entry("phoneNumber","+18888888888"),
+                Map.entry("memberId",foreign),Map.entry("loginId",foreign))));
+        assertThat(rebound.statusCode()).as(rebound.body()).isEqualTo(200);
+        assertThat(sql.queryForObject("SELECT CONVERT(VARCHAR(36),RowGuid) FROM Person.Profile WHERE RowGuid=?",String.class,id)).isEqualToIgnoringCase(id);
+        assertThat(sql.queryForObject(login,String.class,id)).isEqualTo(loginBefore);
+        assertThat(sql.queryForObject("SELECT Suffix FROM Person.Profile WHERE RowGuid=?",Integer.class,id)).isEqualTo(suffix);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Profile WHERE RowGuid=?",Integer.class,foreign)).isZero();
+        assertThat(sql.queryForObject("SELECT FirstName FROM Person.Profile WHERE RowGuid=?",String.class,id)).isEqualTo("Rebound");
+    }
+
+    @Test void metadataColumnLimitsAndSystemManagedRowsAreEnforced() throws Exception {
+        String brand=localBrand(),name="local-metadata-"+UUID.randomUUID().toString().substring(0,8);
+        var created=call(platform,"POST","/api/v1/users",createBody(orgA.getRowGuid(),null,name,brand));
+        assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+        String id=mapper.readTree(created.body()).path("id").asText(),path="/api/v1/users/"+id+"/metadata";
+        String longKey=mapper.writeValueAsString(Map.of("metaData",Map.of("k".repeat(31),"value")));
+        String longValue=mapper.writeValueAsString(Map.of("metaData",Map.of("k","v".repeat(129))));
+        assertThat(call(platform,"PUT",path,longKey).statusCode()).isEqualTo(400);
+        assertThat(call(platform,"PUT",path,longValue).statusCode()).isEqualTo(400);
+        assertThat(call(platform,"PUT",path,mapper.writeValueAsString(Map.of("metaData",Map.of("","value")))).statusCode()).isEqualTo(400);
+        sql.update("INSERT Person.Metadata(ProfileId,[Key],[Value],SystemManaged) SELECT ProfileId,'sys.key','system',1 FROM Person.Profile WHERE RowGuid=?",id);
+        sql.update("INSERT Person.Metadata(ProfileId,[Key],[Value],SystemManaged) SELECT ProfileId,'old.key','old',0 FROM Person.Profile WHERE RowGuid=?",id);
+        var accepted=call(platform,"PUT",path,mapper.writeValueAsString(Map.of("metaData",Map.of("user.key","kept","sys.key","tampered"))));
+        assertThat(accepted.statusCode()).as(accepted.body()).isEqualTo(200);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Metadata m JOIN Person.Profile p ON p.ProfileId=m.ProfileId WHERE p.RowGuid=? AND m.[Key]='sys.key' AND m.[Value]='system' AND m.SystemManaged=1",Integer.class,id)).isEqualTo(1);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Metadata m JOIN Person.Profile p ON p.ProfileId=m.ProfileId WHERE p.RowGuid=? AND m.[Key]='user.key' AND m.[Value]='kept' AND m.SystemManaged=0",Integer.class,id)).isEqualTo(1);
+        assertThat(sql.queryForObject("SELECT COUNT(*) FROM Person.Metadata m JOIN Person.Profile p ON p.ProfileId=m.ProfileId WHERE p.RowGuid=? AND m.[Key]='old.key'",Integer.class,id)).isZero();
+    }
+
+    @Test void userStatusChangeRequiresDeleteAuthority() throws Exception {
+        String brand=localBrand(),name="local-status-"+UUID.randomUUID().toString().substring(0,8);
+        var created=call(platform,"POST","/api/v1/users",createBody(orgA.getRowGuid(),null,name,brand));
+        assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+        String id=mapper.readTree(created.body()).path("id").asText();
+        var updateOnly=token(user(orgA,group(orgA,"status-update-"+UUID.randomUUID(),List.of("idp-admin-user:read","idp-admin-user:update")),"status-update-"+UUID.randomUUID()));
+        var state=com.chellavignesh.authserver.support.ManagementObservations.snapshot(sql);
+        var denied=call(updateOnly,"PUT","/api/v1/users/"+id+"/status",mapper.writeValueAsString(Map.of("status","Inactive")));
+        assertThat(denied.statusCode()).as(denied.body()).isEqualTo(403);
+        assertThat(com.chellavignesh.authserver.support.ManagementObservations.snapshot(sql)).isEqualTo(state);
+        var deletable=token(user(orgA,group(orgA,"status-delete-"+UUID.randomUUID(),List.of("idp-admin-user:read","idp-admin-user:delete")),"status-delete-"+UUID.randomUUID()));
+        var changed=call(deletable,"PUT","/api/v1/users/"+id+"/status",mapper.writeValueAsString(Map.of("status","Inactive")));
+        assertThat(changed.statusCode()).as(changed.body()).isEqualTo(204);
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE RowGuid=?",Integer.class,id)).isZero();
+    }
     void localLogin(String username,String password,String brand,boolean succeeds) throws Exception {
         var browser=java.net.http.HttpClient.newBuilder().cookieHandler(new java.net.CookieManager(null,java.net.CookiePolicy.ACCEPT_ALL)).followRedirects(java.net.http.HttpClient.Redirect.NEVER).build();
         String challenge=Base64.getUrlEncoder().withoutPadding().encodeToString(java.security.MessageDigest.getInstance("SHA-256").digest("owned-local-pkce-verifier-012345678901234567890123456789".getBytes(java.nio.charset.StandardCharsets.UTF_8)));

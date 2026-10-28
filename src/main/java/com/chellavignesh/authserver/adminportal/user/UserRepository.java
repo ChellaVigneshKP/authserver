@@ -2,6 +2,7 @@ package com.chellavignesh.authserver.adminportal.user;
 
 import com.chellavignesh.authserver.adminportal.organization.entity.OrganizationGroupPermission;
 import com.chellavignesh.authserver.adminportal.organization.entity.OrganizationGroupPermissionRowMapper;
+import com.chellavignesh.authserver.adminportal.hosted.HostedAccountRevocationRepository;
 import com.chellavignesh.authserver.adminportal.user.dto.*;
 import com.chellavignesh.authserver.adminportal.user.entity.*;
 import com.chellavignesh.authserver.adminportal.user.exception.*;
@@ -20,6 +21,7 @@ import java.sql.Types;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -34,10 +36,15 @@ public class UserRepository {
     @NotNull
     private final SecurityUtil securityUtil;
 
+    @NotNull
+    private final HostedAccountRevocationRepository hostedAccountRevocations;
+
     @Autowired
-    public UserRepository(@NotNull NamedParameterJdbcTemplate namedParameterJdbcTemplate, @NotNull SecurityUtil securityUtil) {
+    public UserRepository(@NotNull NamedParameterJdbcTemplate namedParameterJdbcTemplate, @NotNull SecurityUtil securityUtil,
+                          @NotNull HostedAccountRevocationRepository hostedAccountRevocations) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.securityUtil = securityUtil;
+        this.hostedAccountRevocations = hostedAccountRevocations;
     }
 
     public Optional<Profile> getProfile(UUID profileGuid) {
@@ -104,7 +111,10 @@ public class UserRepository {
             throw new UserNotFoundException("User does not exist.");
         }
 
-        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName()).addValue("title", dto.getTitle()).addValue("middleInitial", dto.getMiddleInitial()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("suffix", dto.getSuffix() != null ? dto.getSuffix().getValue() : 0).addValue("memberId", dto.getMemberId() == null ? null : dto.getMemberId().toString()).addValue("loginId", dto.getLoginId() == null ? null : dto.getLoginId().toString()).addValue("modifiedOn", new Date()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber());
+        // Person.UpdateUserProfile rewrites Profile/RowGuid and every Credential.RowGuid from
+        // these values. Profile editing must never move identities, so bindings stay fixed.
+        Integer suffix = dto.getSuffix() != null ? dto.getSuffix().getValue() : currentSuffix(userGuid);
+        var parameters = new MapSqlParameterSource().addValue("userGuid", userGuid == null ? null : userGuid.toString()).addValue("firstName", dto.getFirstName()).addValue("lastName", dto.getLastName()).addValue("title", dto.getTitle()).addValue("middleInitial", dto.getMiddleInitial()).addValue("phoneNumber", dto.getPhoneNumber()).addValue("suffix", suffix).addValue("memberId", (Object) null).addValue("loginId", (Object) null).addValue("modifiedOn", new Date()).addValue("modifiedBy", securityUtil.getTokenUserGuid()).addValue("secondaryPhoneNumber", dto.getSecondaryPhoneNumber());
 
         Optional<Integer> appId = namedParameterJdbcTemplate.query("{call Person.UpdateUserProfile(" + ":userGuid," + ":firstName," + ":lastName," + ":title," + ":middleInitial," + ":phoneNumber," + ":suffix," + ":memberId," + ":loginId," + ":modifiedOn," + ":modifiedBy," + ":secondaryPhoneNumber" + ")}",
                 parameters,
@@ -115,6 +125,12 @@ public class UserRepository {
         } else {
             throw new UserUpdateFailedException("User does not exist.");
         }
+    }
+
+    private Integer currentSuffix(UUID userGuid) {
+        return namedParameterJdbcTemplate.queryForObject(
+                "SELECT Suffix FROM Person.Profile WHERE RowGuid=:userGuid",
+                new MapSqlParameterSource("userGuid", userGuid.toString()), Integer.class);
     }
 
     public User updateForChangeProfilePage(ChangeProfileDto dto, UUID userGuid) throws UserUpdateFailedException, UserNotFoundException {
@@ -196,15 +212,20 @@ public class UserRepository {
             var parameters = new MapSqlParameterSource()
                     .addValue("profileId", userDetails.get().id());
 
+            Set<String> systemManagedKeys = new HashSet<>(namedParameterJdbcTemplate.queryForList(
+                    "SELECT [Key] FROM Person.Metadata WHERE ProfileId=:profileId AND SystemManaged=1",
+                    parameters, String.class));
             namedParameterJdbcTemplate.update(
-                    "{call Person.DeleteMetadata(:profileId)}",
+                    "DELETE FROM Person.Metadata WHERE ProfileId=:profileId AND SystemManaged=0",
                     parameters
             );
-            for (String key : dto.getMetaData().keySet()) {
+            Map<String, Object> metadata = dto.getMetaData() == null ? Map.of() : dto.getMetaData();
+            for (String key : metadata.keySet()) {
+                if (systemManagedKeys.contains(key)) continue;
                 parameters = new MapSqlParameterSource()
                         .addValue("profileId", userDetails.get().id())
                         .addValue("key", key)
-                        .addValue("value", dto.getMetaData().get(key))
+                        .addValue("value", metadata.get(key))
                         .addValue("modifiedOn", new Date())
                         .addValue("modifiedBy", securityUtil.getTokenUserGuid());
 
@@ -254,6 +275,11 @@ public class UserRepository {
         ).stream().findFirst();
 
         if (appId.isPresent()) {
+            // A deactivated or deleted member must lose every existing session, token and grant
+            // immediately; reactivation deliberately starts without restoring prior access.
+            if (status != 1) {
+                hostedAccountRevocations.revokeAllForProfile(userGuid);
+            }
             return getById(appId.get()).get();
         } else {
             throw new UserDeleteFailedException("User does not exist.");

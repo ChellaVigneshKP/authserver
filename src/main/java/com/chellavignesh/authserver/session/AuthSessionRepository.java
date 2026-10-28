@@ -100,7 +100,7 @@ public class AuthSessionRepository {
             JOIN Person.Profile p ON p.ProfileId=c.ProfileId
             JOIN dbo.ExternalSource e ON e.SourceId=c.ExternalId
             WHERE c.RowGuid=:login AND c.UserName=:subject AND e.SourceCode=:branding
-              AND c.Status=1 AND p.Status=1
+              AND c.Status=1 AND p.Status=1 AND c.CredentialLocked=0
             """, new MapSqlParameterSource("login",session.getLoginId().toString())
                     .addValue("subject",session.getSubjectId()).addValue("branding",session.getBranding()), Integer.class));
     }

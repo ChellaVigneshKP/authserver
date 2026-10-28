@@ -230,6 +230,11 @@ public class UserController {
 
         log.info("PutMapping: userGuid/profile: {}", userGuid);
 
+        // Identity bindings are never client-selectable; a supplied login/member GUID would
+        // rebind credentials through Person.UpdateUserProfile and can collide or orphan sessions.
+        updateUserDto.setMemberId(null);
+        updateUserDto.setLoginId(null);
+
         User user = userService.update(updateUserDto, userGuid, optionalMetadata.orElse(null), headers);
 
         updateUserDto.setMemberId(user.getRowGuid());
@@ -383,8 +388,20 @@ public class UserController {
             throw new UserCreationBadRequestException(message);
         }
 
+        requireMetadataWithinColumnLimits(updateUserMetadataDto);
         userService.updateMetadata(updateUserMetadataDto, userGuid);
         return ResponseEntity.ok(updateUserMetadataDto);
+    }
+
+    private static void requireMetadataWithinColumnLimits(UpdateUserMetadataDto dto) throws UserCreationBadRequestException {
+        if (dto.getMetaData() == null) return;
+        for (var entry : dto.getMetaData().entrySet()) {
+            String key = entry.getKey();
+            if (key == null || key.isBlank()) throw new UserCreationBadRequestException("Error in field metaData: key must not be blank");
+            if (key.length() > 30) throw new UserCreationBadRequestException("Error in field metaData: key must be at most 30 characters");
+            if (entry.getValue() == null) throw new UserCreationBadRequestException("Error in field metaData: value must not be null");
+            if (String.valueOf(entry.getValue()).length() > 128) throw new UserCreationBadRequestException("Error in field metaData: value must be at most 128 characters");
+        }
     }
 
     @GetMapping("/{userGuid}/metadata")

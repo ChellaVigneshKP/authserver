@@ -42,7 +42,7 @@ export async function userAction(request:Request,orgId:string,userId:string,acti
   const {session,context}=await access(request,orgId,mutation?["idp-admin-user:update","idp-admin-admin:update","idp-admin-user:delete","idp-admin-admin:delete"]:["idp-admin-user:read","idp-admin-admin:read"],mutation);
   const loginId=new URL(request.url).searchParams.get("loginId")??undefined;
   const current=await userDetail(session,orgId,userId,loginId);
-  const authority="idp-admin-"+(current.groupId?"admin":"user")+":"+(mutation?(action==="delete"?"delete":"update"):"read");
+  const authority="idp-admin-"+(current.groupId?"admin":"user")+":"+(mutation?(action==="delete"||action==="status"?"delete":"update"):"read");
   if(!canShow(context,authority,orgId))throw new PortalFailure(403,"ACCESS_DENIED","Your current permissions do not allow this account action.");
   if(!mutation)return action==="metadata"?javaRequest(session,{kind:"userMetadataGet",userId},undefined,C.Metadata):current;
   if(action==="delete"){await javaRequest(session,{kind:"userDelete",userId},undefined,z.unknown());return {updated:true};}

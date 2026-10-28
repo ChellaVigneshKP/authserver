@@ -75,4 +75,21 @@ public class HostedAccountRevocationRepository {
                     + " LoginId=:login",
                 parameters);
     }
+
+    /**
+     * Revoke every login belonging to a profile. Lifecycle changes (deactivate, delete) apply to
+     * all credentials sharing the member, so each one is revoked with the same guarantees as a
+     * password or username change.
+     */
+    public void revokeAllForProfile(UUID profileId) {
+        var logins =
+                sql.query(
+                        """
+                        SELECT c.RowGuid FROM Person.Credential c WITH (UPDLOCK,HOLDLOCK)
+                        JOIN Person.Profile p ON p.ProfileId=c.ProfileId WHERE p.RowGuid=:profile
+                        """,
+                        Map.of("profile", profileId.toString()),
+                        (rs, n) -> UUID.fromString(rs.getString(1)));
+        for (UUID login : logins) revokeAllForLogin(login);
+    }
 }

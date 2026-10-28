@@ -1,4 +1,4 @@
-import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+import { test, expect, type Page, type BrowserContext, type Locator } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
@@ -26,14 +26,18 @@ async function bff(page:Page,path:string,method:string,data:unknown={}){const st
 function sql(query:string){return JSON.parse(execFileSync("python3",["-c",`import sys,json,re;sys.path.insert(0,'scripts');from e2e_target import load_target,sql_text;c,b,d=load_target();assert re.fullmatch(r'AuthserverLifecycle_[0-9a-f]{32}',d);q=json.load(sys.stdin);print(sql_text(c,d,q))`],{cwd:process.env.PORTAL_REPO_ROOT!,input:JSON.stringify(query),encoding:"utf8",timeout:20000}));}
 function literal(value:string){return "N'"+value.replaceAll("'","''")+"'";}
 function persisted(user:string,clause:string){return sql("SELECT COUNT(*) AS n FROM Person.Profile p JOIN Person.Credential c ON c.ProfileId=p.ProfileId WHERE p.RowGuid="+literal(user)+" AND "+clause+" FOR JSON PATH")[0].n===1;}
-async function save(page:Page,title:string,fields:Record<string,string>){const area=page.getByRole("region",{name:title,exact:true});for(const [name,value] of Object.entries(fields))await area.getByLabel(name,{exact:true}).fill(value);await area.getByRole("button",{name:"Save "+title.toLowerCase(),exact:true}).click();await expect.poll(()=>area.getByRole("status").count(),{message:title+" save confirmed"}).toBe(1);check(title+" own successful form is clean",await area.getByRole("button",{name:"Save "+title.toLowerCase(),exact:true}).isDisabled());}
+async function fillStable(area:Locator,fields:Record<string,string>){
+ await expect.poll(()=>area.evaluate(el=>Object.keys(el).some(k=>k.startsWith("__reactFiber$"))),{message:"form hydrated",timeout:15000}).toBe(true);
+ for(const [name,value] of Object.entries(fields)){const input=area.getByLabel(name,{exact:true});await expect(async()=>{if(await input.inputValue()!==value)await input.fill(value);await expect(input).toHaveValue(value,{timeout:1000});}).toPass({timeout:15000});}
+}
+async function save(page:Page,title:string,fields:Record<string,string>){const area=page.getByRole("region",{name:title,exact:true});await fillStable(area,fields);const button=area.getByRole("button",{name:"Save "+title.toLowerCase(),exact:true});await expect(button).toBeEnabled();await button.click();await expect.poll(()=>area.getByRole("status").count(),{message:title+" save confirmed"}).toBe(1);check(title+" own successful form is clean",await area.getByRole("button",{name:"Save "+title.toLowerCase(),exact:true}).isDisabled());}
 async function create(page:Page,s:any,org:string,name:string,password:string){const r=await java(page,s,"/api/v1/users","POST",{firstName:"Owned",lastName:"Fixture",username:name,email:name+"@example.test",password:Buffer.from(password).toString("base64"),phoneNumber:"+19999999998",orgGuid:org,branding:"idp",syncFlag:false});check("owned local fixture created",r.status()===201);return (await r.json()).id as string;}
 
 test("platform organizations and every local user form persist through Java and SQL",async({page,context,browser})=>{
  test.setTimeout(600000);await login(page);const s=await session(context);const home=await(await java(page,s,"/api/v1/portal/context")).json();
  await page.goto(fixture.portal+"/admin/organizations");
  const organizationName="F4 organization "+randomUUID();
- const newOrg=page.getByRole("region",{name:"New organization",exact:true});await newOrg.getByLabel("Organization name",{exact:true}).fill(organizationName);await newOrg.getByLabel("Description",{exact:true}).fill("Owned acceptance");const createdResponse=page.waitForResponse(r=>r.url()===fixture.portal+"/api/admin/organizations"&&r.request().method()==="POST",{timeout:20000});await newOrg.getByRole("button",{name:"Save new organization",exact:true}).click();check("organization BFF create201",(await createdResponse).status()===201);
+ const newOrg=page.getByRole("region",{name:"New organization",exact:true});await fillStable(newOrg,{"Organization name":organizationName,Description:"Owned acceptance"});const createdResponse=page.waitForResponse(r=>r.url()===fixture.portal+"/api/admin/organizations"&&r.request().method()==="POST",{timeout:20000});await newOrg.getByRole("button",{name:"Save new organization",exact:true}).click();check("organization BFF create201",(await createdResponse).status()===201);
  await page.waitForURL(/\/admin\/organizations\/[0-9a-f-]+$/);
  const org=page.url().split("/").at(-1)!;
  check("organization create SQL",sql("SELECT COUNT(*) AS n FROM Partner.Organization WHERE RowGuid="+literal(org)+" AND Name="+literal(organizationName)+" FOR JSON PATH")[0].n===1);
@@ -43,7 +47,7 @@ test("platform organizations and every local user form persist through Java and 
  await page.goto(fixture.portal+"/admin/organizations/"+org+"/users");
  const username="f4_"+randomUUID().replaceAll("-","");const password="P9!"+randomBytes(18).toString("hex")+"qZ";
  const createForm=page.getByRole("region",{name:"Create local user",exact:true});
- for(const [name,value] of Object.entries({"First name":"Owned","Last name":"User",Username:username,"Email address":username+"@example.test","Phone number":"+19999999998","Initial password":password}))await createForm.getByLabel(name,{exact:true}).fill(value);
+ await fillStable(createForm,{"First name":"Owned","Last name":"User",Username:username,"Email address":username+"@example.test","Phone number":"+19999999998","Initial password":password});
  await createForm.getByRole("button",{name:"Create local user",exact:true}).click();await page.waitForURL(/\/users\/[0-9a-f-]+$/);
  const user=page.url().split("/").at(-1)!;check("local user SQL created once with MFA required",persisted(user,"c.UserName="+literal(username)+" AND p.TwoFactorEnabled=1"));
  const profile=page.getByRole("region",{name:"Profile",exact:true});await profile.getByLabel("First name",{exact:true}).fill("Draft preserved");

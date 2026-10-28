@@ -57,7 +57,8 @@ class DatabaseContractTest {
         new EnumRepository(named).loadEnumValues();
         applications = new ApplicationRepository(named, new SecurityUtil());
         ReflectionTestUtils.setField(applications, "serverBasePath", "http://localhost:8080/services");
-        users = new UserRepository(named, new SecurityUtil());
+        users = new UserRepository(named, new SecurityUtil(),
+                new com.chellavignesh.authserver.adminportal.hosted.HostedAccountRevocationRepository(named));
         for (var status : com.chellavignesh.authserver.adminportal.credential.CredentialStatus.values()) {
             assertNotNull(status.getValue(), "Every credential enum must be loaded");
         }

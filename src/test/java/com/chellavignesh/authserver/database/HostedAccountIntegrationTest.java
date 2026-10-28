@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.chellavignesh.authserver.adminportal.application.ApplicationService;
+import com.chellavignesh.authserver.adminportal.user.UserStatus;
 import com.chellavignesh.authserver.config.*;
 import com.chellavignesh.authserver.config.JdbcOAuth2AuthorizationService;
+import com.chellavignesh.authserver.enums.entity.AuthSessionStatusEnum;
 import com.chellavignesh.authserver.session.*;
 import com.chellavignesh.authserver.session.dto.CustomUserDetails;
 import com.chellavignesh.authserver.support.ManagementHttpTestSupport;
@@ -1887,5 +1889,90 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
                                 String.class,
                                 f.user().getId()))
                 .isEqualTo("Policy");
+    }
+
+    @Test
+    void f4StatusChangeRevokesEveryProfileLoginAndReactivationStartsFresh() throws Exception {
+        var f = hosted("f4-status-" + UUID.randomUUID().toString().substring(0, 8));
+        String siblingUsername = "f4-status-sibling-" + UUID.randomUUID();
+        UUID sibling =
+                siblingCredential(
+                        f,
+                        siblingUsername,
+                        UUID.fromString("11111111-1111-1111-1111-111111111111"));
+        var siblingAccess = token(app, siblingUsername, "openid metadata idp-admin");
+        String primarySession = sessionIdOf(f.access().value());
+        String siblingSession = sessionIdOf(siblingAccess.value());
+        assertThat(sessionStatus(primarySession))
+                .isEqualTo(AuthSessionStatusEnum.ACTIVE.getValue());
+        assertThat(sessionStatus(siblingSession))
+                .isEqualTo(AuthSessionStatusEnum.ACTIVE.getValue());
+        assertThat(activeFor(f.access())).isEqualTo(true);
+        assertThat(activeFor(siblingAccess)).isEqualTo(true);
+
+        reset(revocations);
+        userService.updateUserStatusByGuid(UserStatus.Inactive, f.user().getRowGuid()).orElseThrow();
+
+        verify(revocations, times(1)).revokeAllForProfile(f.user().getRowGuid());
+        assertThat(sessionStatus(primarySession))
+                .isEqualTo(AuthSessionStatusEnum.INACTIVE.getValue());
+        assertThat(sessionStatus(siblingSession))
+                .isEqualTo(AuthSessionStatusEnum.INACTIVE.getValue());
+        assertThat(activeFor(f.access())).isEqualTo(false);
+        assertThat(activeFor(siblingAccess)).isEqualTo(false);
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?", Integer.class, f.user().getId()))
+                .isZero();
+
+        reset(revocations);
+        userService.updateUserStatusByGuid(UserStatus.Active, f.user().getRowGuid()).orElseThrow();
+
+        verify(revocations, never()).revokeAllForProfile(any());
+        assertThat(sessionStatus(primarySession))
+                .isEqualTo(AuthSessionStatusEnum.INACTIVE.getValue());
+        assertThat(sessionStatus(siblingSession))
+                .isEqualTo(AuthSessionStatusEnum.INACTIVE.getValue());
+        assertThat(activeFor(f.access())).isEqualTo(false);
+        assertThat(activeFor(siblingAccess)).isEqualTo(false);
+        assertThat(sql.queryForObject("SELECT Status FROM Person.Profile WHERE ProfileId=?", Integer.class, f.user().getId()))
+                .isEqualTo(1);
+        assertThat(sibling).isNotNull();
+    }
+
+    @Test
+    void f4LockedCredentialDeactivatesExistingHumanSession() throws Exception {
+        var f = hosted("f4-lock-" + UUID.randomUUID().toString().substring(0, 8));
+        assertThat(activeFor(f.access())).isEqualTo(true);
+
+        sql.update("UPDATE Person.Credential SET CredentialLocked=1 WHERE RowGuid=?", f.user().getLoginId());
+        assertThat(activeFor(f.access())).isEqualTo(false);
+
+        // The lock is the only difference: clearing it restores the same, already-issued session.
+        sql.update("UPDATE Person.Credential SET CredentialLocked=0 WHERE RowGuid=?", f.user().getLoginId());
+        assertThat(activeFor(f.access())).isEqualTo(true);
+    }
+
+    String sessionIdOf(String tokenValue) {
+        return sql.queryForObject(
+                "SELECT CONVERT(VARCHAR(36),SessionId) FROM Token.Token WHERE Data=?",
+                String.class,
+                tokenValue);
+    }
+
+    int sessionStatus(String sessionId) {
+        return sql.queryForObject(
+                "SELECT AuthSessionStatusId FROM Token.AuthSession WHERE SessionId=?",
+                Integer.class,
+                sessionId);
+    }
+
+    Object activeFor(Fixture access) {
+        var token =
+                tokenService
+                        .getByValue(
+                                access.value(),
+                                com.chellavignesh.authserver.enums.entity.TokenTypeEnum
+                                        .ACCESS_TOKEN)
+                        .orElseThrow();
+        return tokenService.getClaimsForToken(token).get("active");
     }
 }

@@ -40,7 +40,7 @@ export function UserDetails({initial,initialMetadata,context}:{initial:UserDto;i
   <Typography>Deactivation preserves account records. It is not permanent erasure.</Typography>
   {uncertain&&<Alert severity="warning">Read current account state before another lifecycle action.</Alert>}
   <Stack direction="row" spacing={2}>
-   {!pending&&!uncertain&&editable&&<ConfirmAction label={user.status==="Active"?"Deactivate account":"Activate account"} title="Change account status?" description="Records are retained. Current access and final administrator protections are checked again." confirmLabel="Confirm change" onConfirm={()=>void lifecycle(false)}/>}
+   {!pending&&!uncertain&&deletable&&<ConfirmAction label={user.status==="Active"?"Deactivate account":"Activate account"} title="Change account status?" description="Records are retained. Current access and final administrator protections are checked again." confirmLabel="Confirm change" onConfirm={()=>void lifecycle(false)}/>}
    {!pending&&!uncertain&&deletable&&user.status==="Active"&&<ConfirmAction label="Delete account access" title="Delete account access?" description="This deactivates account access and retains records. It is not permanent erasure." confirmLabel="Delete access" onConfirm={()=>void lifecycle(true)}/>}
   </Stack>
  </Stack>;
