@@ -5,6 +5,7 @@ import {
   CertificateList,
   CertificateName,
   CertificatePassword,
+  MAX_CERTIFICATE_DOWNLOAD_BYTES,
   MAX_CERTIFICATE_FILE_BYTES,
   MAX_CERTIFICATE_REQUEST_BYTES,
   certificateDownloadFilename,
@@ -38,6 +39,11 @@ function file(size: number) {
 }
 
 describe("certificate wire contract", () => {
+  it("publishes literal byte ceilings that the tests above rely on", () => {
+    expect(MAX_CERTIFICATE_FILE_BYTES).toBe(1024 * 1024);
+    expect(MAX_CERTIFICATE_REQUEST_BYTES).toBe(2 * 1024 * 1024);
+    expect(MAX_CERTIFICATE_DOWNLOAD_BYTES).toBe(1024 * 1024 + 16384);
+  });
   const row = {
     id: "ca15463e-f36b-1410-8ed8-00fc9a23848b",
     name: "Signing certificate",
