@@ -67,7 +67,7 @@ public class CredentialMutationService {
         UUID login=resolveForManagement(profile,branding,exactLogin);
         locks.acquire(login);
         if(!login.equals(resolveForManagement(profile,branding,exactLogin))) throw new RoleFailure(409);
-        var current=users.getManagementCredentialByLoginId(login).orElseThrow();
+        var current=users.getManagementCredentialByLoginId(login).orElseThrow(RoleFailure::credential);
         if (unlock) sql.update("UPDATE Person.Credential SET CredentialLocked=0,AccessFailedCount=0 WHERE RowGuid=:login",
                 Map.of("login",login.toString()));
         var actor=new HostedAccountActor(null,login,profile,current.branding(),null,null,current.toUserDetails());
@@ -83,7 +83,7 @@ public class CredentialMutationService {
     @Transactional(rollbackFor=Exception.class)
     public User rename(UUID profile, String branding, UUID selected, String username, UUID actualActor) {
         UUID login=lock(profile,branding,selected);
-        var current=users.getManagementCredentialByLoginId(login).orElseThrow();
+        var current=users.getManagementCredentialByLoginId(login).orElseThrow(RoleFailure::credential);
         revocations.revokeAllForLogin(login);
         int changed=sql.update("""
             UPDATE Person.Credential SET UserName=:username,ModifiedOn=SYSUTCDATETIME(),ModifiedBy=:actor
