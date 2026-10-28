@@ -522,19 +522,23 @@ public class UserRepository {
      * Exact credential identity for an already-authorized management write.
      * Unlike the active-only detail lookups, inactive profile status is returned as data so
      * password/username rotation on a deactivated user keeps working; callers must still verify
-     * the actor's authority before using it.
+     * the actor's authority before using it. The profile's active organization is joined the same
+     * way the detail read joins it, because the downstream sync payload dereferences it.
      */
     public Optional<CredentialIdentity> getManagementCredentialByLoginId(UUID loginId) {
         var rows = namedParameterJdbcTemplate.query("""
-                SELECT c.Id,p.RowGuid AS ProfileId,c.RowGuid AS LoginId,c.UserName,es.SourceCode AS Branding,
+                SELECT c.Id,p.RowGuid AS ProfileId,o.RowGuid AS OrganizationGuid,c.RowGuid AS LoginId,c.UserName,es.SourceCode AS Branding,
                        p.FirstName,p.LastName,p.Email,p.Status,c.SyncFlag
                 FROM Person.Credential c
                 JOIN Person.Profile p ON p.ProfileId=c.ProfileId
                 JOIN dbo.ExternalSource es ON es.SourceId=c.ExternalId
+                JOIN Person.ProfileOrganization po ON po.ProfileId=p.ProfileId AND po.Status=1
+                JOIN Partner.Organization o ON o.OrganizationId=po.OrganizationId AND o.Status=1
                 WHERE c.RowGuid=:login
                 """, new MapSqlParameterSource("login", loginId.toString()), (row, index) -> new CredentialIdentity(
                         row.getInt("Id"),
                         UUID.fromString(row.getString("ProfileId")),
+                        UUID.fromString(row.getString("OrganizationGuid")),
                         UUID.fromString(row.getString("LoginId")),
                         row.getString("UserName"),
                         row.getString("Branding"),

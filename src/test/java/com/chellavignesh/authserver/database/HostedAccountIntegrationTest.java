@@ -690,6 +690,18 @@ class HostedAccountIntegrationTest extends ManagementHttpTestSupport {
     }
 
     @Test
+    void f4ManagementIdentityCarriesOrganizationForDownstreamSyncPayload() throws Exception {
+        var target=hosted("f4-sync-org-"+UUID.randomUUID().toString().substring(0,8));
+        var active=userService.getManagementCredentialByLoginId(target.user().getLoginId()).orElseThrow().toUserDetails();
+        assertThat(active.profileOrgId()).isEqualTo(orgA.getRowGuid());
+        assertThat(active.orgId()).isEqualTo(orgA.getRowGuid());
+        sql.update("UPDATE Person.Profile SET Status=0 WHERE ProfileId=?",target.user().getId());
+        var inactive=userService.getManagementCredentialByLoginId(target.user().getLoginId()).orElseThrow().toUserDetails();
+        assertThat(inactive.profileOrgId()).isEqualTo(orgA.getRowGuid());
+        assertThat(inactive.orgId()).isEqualTo(orgA.getRowGuid());
+    }
+
+    @Test
     void f4InactiveTargetUsernameRenameSucceeds() throws Exception {
         var target=hosted("f4-inactive-rename-"+UUID.randomUUID().toString().substring(0,8));
         var details=userService.getByLoginId(target.user().getLoginId()).orElseThrow();
